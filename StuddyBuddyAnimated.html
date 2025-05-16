@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyBuddy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff; /* Tailwind sky-50 */
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem; /* Tailwind rounded-xl */
+            padding: 1.5rem; /* Tailwind p-6 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* Tailwind shadow-md */
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem; /* Tailwind rounded-lg */
+            font-weight: 600; /* Tailwind font-semibold */
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .btn-primary {
+            background-color: #0d9488; /* Tailwind teal-600 */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0f766e; /* Tailwind teal-700 */
+            box-shadow: 0 2px 10px -1px rgba(13, 148, 136, 0.5);
+        }
+        .btn-secondary {
+            background-color: #475569; /* Tailwind slate-600 */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #334155; /* Tailwind slate-700 */
+        }
+        .btn-outline {
+            border-color: #0d9488; /* Tailwind teal-600 */
+            color: #0d9488; /* Tailwind teal-600 */
+        }
+        .btn-outline:hover {
+            background-color: #ccfbf1; /* Tailwind teal-50 */
+            color: #0f766e; /* Tailwind teal-700 */
+        }
+        .btn-warning {
+            background-color: #f59e0b; /* Tailwind amber-500 */
+            color: white;
+        }
+        .btn-warning:hover {
+            background-color: #d97706; /* Tailwind amber-600 */
+        }
+        .btn-danger {
+            background-color: #dc2626; /* Tailwind red-600 */
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #b91c1c; /* Tailwind red-700 */
+        }
+        .game-card { 
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #99f6e4; /* Tailwind teal-200 */
+            overflow-wrap: break-word; 
+            word-break: break-word; 
+        }
+        .selected-match {
+            border: 2px solid #0d9488; 
+            background-color: #f0fdfa; 
+        }
+        .matched {
+            opacity: 0.4;
+            pointer-events: none;
+            background-color: #a7f3d0; 
+            border-color: #34d399; 
+        }
+        .incorrect-match-animation { 
+            animation: shake 0.4s;
+            border: 2px solid #ef4444 !important; 
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+        .mcq-option-btn, .part-selection-btn { 
+            display: block;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 0.5rem; 
+            background-color: #f8fafc; 
+            border: 1px solid #cbd5e1; 
+            color: #334155; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0.75rem 1rem; 
+        }
+        .mcq-option-btn:hover, .part-selection-btn:hover {
+            background-color: #f1f5f9; 
+            border-color: #94a3b8; 
+        }
+        .correct-answer { 
+            background-color: #d1fae5 !important; 
+            border-color: #6ee7b7 !important; 
+            color: #065f46 !important; 
+        }
+        .incorrect-answer { 
+            background-color: #fee2e2 !important; 
+            border-color: #fca5a5 !important; 
+            color: #991b1b !important; 
+        }
+        .stack-selection-btn { 
+            background-color: #eef2ff; 
+            color: #4338ca; 
+            border: 1px solid #c7d2fe; 
+        }
+        .stack-selection-btn:hover {
+            background-color: #e0e7ff; 
+        }
+        #musicToggleBtn {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000; 
+            background-color: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            border: 1px solid #99f6e4; 
+            color: #0d9488; 
+        }
+        .notebook-icon {
+            width: 1.75rem; 
+            height: 1.75rem; 
+            color: #14b8a6; 
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .notebook-icon.mistake {
+            opacity: 0.2;
+            transform: scale(0.8) rotate(-5deg);
+            color: #9ca3af; 
+        }
+        #gameInfoBar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem; 
+            padding: 0.25rem 0;
+        }
+        #mistakeTracker { display: flex; gap: 0.5rem; }
+        #scoreDisplayContainer { display: flex; flex-direction: column; align-items: flex-end;}
+        #currentScoreDisplay { font-size: 1.125rem; font-weight: 600; color: #0d9488; }
+        #maxScoreDisplay { font-size: 0.875rem; color: #0f766e;}
+
+        .truncate-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block; 
+            max-width: 100%; 
+        }
+        #roundCompleteMessage, #bonusRoundCountdownMessage {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #0d9488;
+            padding: 2rem;
+            border: 2px dashed #99f6e4;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        #talkToMePhraseToRead {
+            min-height: 80px; 
+            padding-bottom: 2.5rem; 
+            position: relative;
+        }
+        #talkToMeRecognizedText, #talkToMeSpanishReference {
+            min-height: 40px; 
+        }
+        #speakPhraseBtn {
+            position: absolute;
+            bottom: 0.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.3rem;
+            background-color: rgba(255,255,255,0.5);
+        }
+        #speakPhraseBtn svg {
+            width: 1.25rem; 
+            height: 1.25rem;
+            color: #0d9488;
+        }
+        #listenBtn.listening { 
+            background-color: #ef4444; 
+            color: white;
+        }
+        #listenBtn.listening:hover {
+            background-color: #dc2626; 
+        }
+        /* Animated Koala */
+        #animatedKoalaContainer {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            width: 100px; /* Adjust size as needed */
+            height: auto;
+            z-index: 1001; /* Above music button */
+            opacity: 0; /* Initially hidden */
+            transition: opacity 0.5s ease-in-out;
+        }
+        #animatedKoalaContainer.visible {
+            opacity: 1;
+        }
+        #animatedKoalaImg {
+            width: 100%;
+            height: auto;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; /* Added opacity transition */
+        }
+        #animatedKoalaImg.happy-bounce {
+            animation: happyBounce 0.5s ease-in-out;
+        }
+        @keyframes happyBounce {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.1) rotate(-5deg); }
+            50% { transform: scale(0.95) rotate(5deg); }
+            75% { transform: scale(1.05) rotate(-2deg); }
+        }
+        #animatedKoalaImg.koala-sad { /* New sad animation */
+            animation: koalaSadAnimation 0.6s ease-in-out;
+        }
+        @keyframes koalaSadAnimation {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            30% { transform: translateY(8px) rotate(-8deg) scale(0.95); opacity: 0.7; }
+            60% { transform: translateY(5px) rotate(5deg) scale(0.98); opacity: 0.8; }
+            100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+        }
+
+        .header-logo-image { /* Changed class name for clarity */
+            max-width: 120px; /* Made it a bit smaller */
+            height: auto;
+            margin: 0 auto; 
+        }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 sm:p-6">
+
+    <button id="musicToggleBtn" class="btn p-2 text-sm">
+        <svg id="musicIconOn" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15z" />
+        </svg>
+        <svg id="musicIconOff" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+        </svg>
+        <span id="musicStatusText">Music: ON</span>
+    </button>
+
+    <div id="animatedKoalaContainer">
+        <img id="animatedKoalaImg" src="studybuddy.jpg" alt="StudyBuddy Koala" 
+             onerror="this.onerror=null; this.src='https://placehold.co/100x100/CCCCCC/000000?text=Koala+Missing';">
+    </div>
+
+
+    <div class="w-full max-w-3xl mx-auto">
+        <header class="text-center mb-10">
+            <img src="studybuddy.jpg" alt="StudyBuddy Logo" class="header-logo-image">
+            <p class="text-3xl font-bold text-teal-700 mt-2">StudyBuddy</p>
+            <p class="text-xl text-teal-600 mt-1">Your fun way to master vocabulary!</p>
+        </header>
+
+        <section id="uploadSection" class="card non-interactive-card mb-8">
+            <h2 class="text-2xl font-semibold text-teal-700 mb-4">1. Upload Vocabulary</h2>
+            <div class="mb-4 p-4 bg-teal-50 border border-teal-200 rounded-lg text-teal-800">
+                <h3 class="font-semibold">CSV File Format:</h3>
+                <ul class="list-disc list-inside ml-4 text-sm">
+                    <li>Must be a CSV (Comma Separated Values) file.</li>
+                    <li>The first row is assumed to be headers and will be ignored.</li>
+                    <li>Second row onwards: English word/phrase, Spanish translation.</li>
+                    <li>Example: <code>"hello","hola"</code></li>
+                </ul>
+            </div>
+            <input type="file" id="csvFile" accept=".csv" class="block w-full text-sm text-gray-900 border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none focus:border-teal-500 p-2.5">
+            <button id="uploadBtn" class="btn btn-primary mt-4 w-full sm:w-auto">Load Vocabulary</button>
+            <p id="uploadStatus" class="text-sm text-slate-500 mt-2 h-5"></p>
+        </section>
+
+        <section id="gameSelectionSection" class="card non-interactive-card mb-8 hidden">
+            <h2 class="text-2xl font-semibold text-teal-700 mb-4">2. Select a Game</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button id="flashcardsBtn" class="btn btn-outline p-6 text-lg">Flashcards</button>
+                <button id="matchingBtn" class="btn btn-outline p-6 text-lg">Matching Game</button>
+                <button id="multipleChoiceBtn" class="btn btn-outline p-6 text-lg">Multiple Choice</button>
+                <button id="typeTranslationBtn" class="btn btn-outline p-6 text-lg">Type Translation</button>
+                <button id="talkToMeBtn" class="btn btn-outline p-6 text-lg">Talk to Me (Speak)</button>
+            </div>
+        </section>
+
+        <section id="gameArea" class="card non-interactive-card hidden">
+            <div id="gameHeader" class="flex justify-between items-start mb-2">
+                 <h2 id="gameTitle" class="text-3xl font-semibold text-teal-700">Game</h2>
+                 <button id="backToSelectionBtn" class="btn btn-secondary text-sm py-2 px-3">Back to Games</button>
+            </div>
+            <div id="gameInfoBar">
+                <div id="mistakeTracker" class="flex space-x-1"></div>
+                <div id="scoreDisplayContainer">
+                    <div id="currentScoreDisplay" class="text-xl font-semibold text-teal-600">Score: 0</div>
+                    <div id="maxScoreDisplay" class="text-sm text-teal-500">Max Score: 0</div>
+                </div>
+            </div>
+            <hr class="my-4 border-teal-200">
+            
+            <div id="partSelectionContainer" class="hidden mb-6">
+                <h3 class="text-xl font-semibold text-teal-700 mb-3">Choose a Part to Study:</h3>
+                <div id="partButtonsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            </div>
+
+            <div id="flashcardStackSelection" class="hidden mb-6">
+                <h3 class="text-xl font-semibold text-teal-700 mb-3">Choose a Flashcard Stack:</h3>
+                <div id="stackButtonsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            </div>
+
+            <div id="flashcardGame" class="hidden">
+                <div id="flashcard" class="game-card card bg-sky-100 border-sky-300 min-h-[200px] text-2xl font-medium text-sky-800 mb-4 relative p-4">
+                    <div id="flashcardFront" class="">Tap to flip</div>
+                    <div id="flashcardBack" class="hidden absolute inset-0 flex items-center justify-center bg-emerald-100 border-emerald-300 text-emerald-800 p-4"></div>
+                </div>
+                <div class="flex justify-center space-x-4">
+                    <button id="prevCardBtn" class="btn btn-primary">Previous</button>
+                    <button id="nextCardBtn" class="btn btn-primary">Next</button>
+                </div>
+                <p id="flashcardCounter" class="text-center text-sm text-slate-500 mt-4"></p>
+            </div>
+
+            <div id="matchingGame" class="hidden">
+                <p id="matchingInstructions" class="text-slate-600 mb-4">Max 8 pairs. Match English to Spanish.</p>
+                <div id="matchingGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4"></div>
+                <p id="matchingFeedback" class="text-center font-medium mt-4 h-6"></p>
+                <div class="text-center mt-4">
+                     <button id="resetCurrentPartBtn" class="btn btn-primary">Restart This Part</button>
+                </div>
+            </div>
+
+            <div id="multipleChoiceGame" class="hidden">
+                <p id="mcqInstructions" class="text-slate-600 mb-4">Max 8 questions. Choose the correct translation.</p>
+                <div id="mcqQuestion" class="card non-interactive-card bg-sky-50 p-4 mb-4 text-xl font-medium text-sky-700 text-center min-h-[80px] flex items-center justify-center"></div>
+                <div id="mcqOptions" class="space-y-3"></div>
+                <p id="mcqFeedback" class="text-center font-medium mt-4 h-6"></p>
+                <div class="text-center mt-6">
+                    <button id="nextMcqBtn" class="btn btn-primary hidden">Next Question</button>
+                </div>
+            </div>
+
+            <div id="typeTranslationGame" class="hidden">
+                <p id="typeTranslationInstructions" class="text-slate-600 mb-4">Type the Spanish translation.</p>
+                <div id="typeTranslationPhrase" class="card non-interactive-card bg-sky-50 p-4 mb-4 text-xl font-medium text-sky-700 text-center min-h-[80px] flex items-center justify-center"></div>
+                <input type="text" id="typeTranslationInput" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 mb-2" placeholder="Type Spanish translation here...">
+                <div class="flex justify-between items-center mb-4">
+                    <button id="hintTypeTranslationBtn" class="btn btn-warning text-sm py-2 px-3">Hint</button>
+                    <p id="typeTranslationHintDisplay" class="text-sm text-amber-700 h-5 flex-grow text-right pr-2"></p>
+                </div>
+                <button id="checkTypeTranslationBtn" class="btn btn-primary w-full sm:w-auto">Check Answer</button>
+                <p id="typeTranslationFeedback" class="text-center font-medium mt-4 h-6"></p>
+                <div class="text-center mt-6">
+                    <button id="nextTypeTranslationBtn" class="btn btn-primary hidden">Next Phrase</button>
+                </div>
+                 <p id="typeTranslationCounter" class="text-center text-sm text-slate-500 mt-4"></p>
+            </div>
+
+            <div id="talkToMeGame" class="hidden">
+                <p id="talkToMeInstructions" class="text-slate-600 mb-2">Read the English phrase aloud.</p>
+                <div id="talkToMePhraseToRead" class="card non-interactive-card bg-sky-100 border-sky-300 p-6 mb-4 text-2xl font-semibold text-sky-800 text-center relative">
+                    <span id="talkToMePhraseText"></span>
+                    <button id="speakPhraseBtn" class="btn btn-outline p-1 absolute bottom-2 left-1/2 transform -translate-x-1/2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
+                    <button id="listenBtn" class="btn btn-primary w-full sm:w-auto">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H7a1 1 0 100 2h6a1 1 0 100-2h-2v-2.07z" clip-rule="evenodd" /></svg>
+                        <span id="listenBtnText">Start Listening</span>
+                    </button>
+                    <button id="nextTalkToMeBtn" class="btn btn-secondary w-full sm:w-auto hidden">Next Phrase</button>
+                </div>
+                <div class="my-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <p class="text-sm text-slate-500 mb-1">What I heard:</p>
+                    <p id="talkToMeRecognizedText" class="text-slate-700 font-medium italic">...</p>
+                </div>
+                <p id="talkToMeFeedback" class="text-center font-medium mt-3 h-6"></p>
+                <div id="talkToMeSpanishReferenceContainer" class="mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200 hidden">
+                     <p class="text-sm text-emerald-600 mb-1">Spanish Translation:</p>
+                     <p id="talkToMeSpanishReference" class="text-emerald-700 font-medium"></p>
+                </div>
+                <p id="talkToMeCounter" class="text-center text-sm text-slate-500 mt-4"></p>
+                <p id="speechApiStatus" class="text-center text-xs text-red-500 mt-2"></p>
+            </div>
+
+
+            <div id="roundCompleteMessage" class="hidden"></div>
+            <div id="bonusRoundCountdownMessage" class="hidden"></div>
+            <p id="gameOverMessage" class="text-center text-2xl font-bold text-red-600 my-6 hidden"></p>
+            <p id="noVocabularyMessage" class="text-center text-red-500 hidden">Please upload a vocabulary list first.</p>
+        </section>
+    </div>
+
+    <script>
+        // --- Global Constants (Declare before use) ---
+        const MAX_MISTAKES = 3;
+        const FAST_ANSWER_THRESHOLD = 5000; // 5 seconds
+        const POINTS_CORRECT_TALK_TO_ME = 5; // Specific for talk to me
+        const POINTS_FAST_CORRECT = 10;
+        const POINTS_SLOW_CORRECT = 5;
+        const POINTS_INCORRECT = -10;
+        const ITEMS_PER_PART = 32; 
+        const MAX_GAME_ITEMS_MCQ = 8;
+        const MAX_GAME_ITEMS_MATCHING = 8; 
+        const TEXT_TRUNCATE_LENGTH = 60;
+
+        // --- Global State ---
+        let vocabulary = []; 
+        let currentFlashcardStack = []; 
+        let currentFlashcardIndex = 0;
+        let currentFlashcardSide = 'front';
+        
+        let currentMcqIndex = 0;
+        let currentTypeTranslationIndex = 0;
+        let currentTalkToMeIndex = 0; 
+        let mistakesRemaining = MAX_MISTAKES; 
+        let currentScore = 0; 
+        let sessionMaxScore = 0; 
+        let mistakeItems = []; 
+        let correctlyAnsweredItemsInPart = new Set(); 
+        let currentVocabularyPart = []; 
+        let currentPartName = ""; 
+        let currentPartIndexGlobal = -1; 
+        let currentPartIndexGlobalForBonusReturn = -1; 
+        
+        let questionStartTime = 0;
+        
+        let hintUsedForCurrentTypeTranslation = false; 
+        let isBonusRound = false; 
+        let attemptCountForCurrentTalkToMeItem = 0; 
+
+        // Audio State & Elements
+        let backgroundMusicSynth, correctMatchSynth, incorrectBuzzSynth, notebookLostSynth;
+        let musicPlaying = false; 
+        let audioInitialized = false; 
+
+        // Speech Recognition
+        let recognition;
+        let isListening = false;
+
+
+        // DOM Elements
+        const csvFileInput = document.getElementById('csvFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const uploadSection = document.getElementById('uploadSection');
+        const gameSelectionSection = document.getElementById('gameSelectionSection');
+        const gameArea = document.getElementById('gameArea');
+        const noVocabularyMessage = document.getElementById('noVocabularyMessage');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const roundCompleteMessageDiv = document.getElementById('roundCompleteMessage');
+        const bonusRoundCountdownMessageDiv = document.getElementById('bonusRoundCountdownMessage');
+
+        const flashcardsBtn = document.getElementById('flashcardsBtn');
+        const matchingBtn = document.getElementById('matchingBtn');
+        const multipleChoiceBtn = document.getElementById('multipleChoiceBtn'); 
+        const typeTranslationBtn = document.getElementById('typeTranslationBtn'); 
+        const talkToMeBtn = document.getElementById('talkToMeBtn'); 
+        const backToSelectionBtn = document.getElementById('backToSelectionBtn');
+        const gameTitle = document.getElementById('gameTitle');
+        const musicToggleBtn = document.getElementById('musicToggleBtn');
+        const musicIconOn = document.getElementById('musicIconOn');
+        const musicIconOff = document.getElementById('musicIconOff');
+        const musicStatusText = document.getElementById('musicStatusText');
+        
+        const mistakeTrackerDiv = document.getElementById('mistakeTracker');
+        const currentScoreDisplay = document.getElementById('currentScoreDisplay');
+        const maxScoreDisplay = document.getElementById('maxScoreDisplay');
+        
+        const partSelectionContainer = document.getElementById('partSelectionContainer');
+        const partButtonsContainer = document.getElementById('partButtonsContainer');
+
+        const flashcardStackSelectionContainer = document.getElementById('flashcardStackSelection');
+        const stackButtonsContainer = document.getElementById('stackButtonsContainer');
+        const flashcardGameContainer = document.getElementById('flashcardGame');
+        const flashcardDiv = document.getElementById('flashcard');
+        const flashcardFront = document.getElementById('flashcardFront');
+        const flashcardBack = document.getElementById('flashcardBack');
+        const prevCardBtn = document.getElementById('prevCardBtn');
+        const nextCardBtn = document.getElementById('nextCardBtn');
+        const flashcardCounter = document.getElementById('flashcardCounter');
+        
+        const matchingGameContainer = document.getElementById('matchingGame');
+        const matchingGrid = document.getElementById('matchingGrid');
+        const matchingInstructions = document.getElementById('matchingInstructions');
+        const matchingFeedback = document.getElementById('matchingFeedback');
+        const resetCurrentPartBtn = document.getElementById('resetCurrentPartBtn'); 
+        
+        const multipleChoiceGameContainer = document.getElementById('multipleChoiceGame');
+        const mcqInstructions = document.getElementById('mcqInstructions');
+        const mcqQuestion = document.getElementById('mcqQuestion');
+        const mcqOptions = document.getElementById('mcqOptions');
+        const mcqFeedback = document.getElementById('mcqFeedback');
+        const nextMcqBtn = document.getElementById('nextMcqBtn');
+        let mcqAnswered = false; 
+        
+        const typeTranslationGameContainer = document.getElementById('typeTranslationGame');
+        const typeTranslationInstructions = document.getElementById('typeTranslationInstructions');
+        const typeTranslationPhrase = document.getElementById('typeTranslationPhrase');
+        const typeTranslationInput = document.getElementById('typeTranslationInput');
+        const hintTypeTranslationBtn = document.getElementById('hintTypeTranslationBtn'); 
+        const typeTranslationHintDisplay = document.getElementById('typeTranslationHintDisplay'); 
+        const checkTypeTranslationBtn = document.getElementById('checkTypeTranslationBtn');
+        const typeTranslationFeedback = document.getElementById('typeTranslationFeedback');
+        const nextTypeTranslationBtn = document.getElementById('nextTypeTranslationBtn');
+        const typeTranslationCounter = document.getElementById('typeTranslationCounter');
+        let typeTranslationAnswered = false;
+
+        // Talk to Me Game DOM Elements
+        const talkToMeGameContainer = document.getElementById('talkToMeGame');
+        const talkToMeInstructions = document.getElementById('talkToMeInstructions');
+        const talkToMePhraseToRead = document.getElementById('talkToMePhraseToRead');
+        const talkToMePhraseText = document.getElementById('talkToMePhraseText'); 
+        const speakPhraseBtn = document.getElementById('speakPhraseBtn'); 
+        const listenBtn = document.getElementById('listenBtn');
+        const listenBtnText = document.getElementById('listenBtnText'); 
+        const nextTalkToMeBtn = document.getElementById('nextTalkToMeBtn');
+        const talkToMeRecognizedText = document.getElementById('talkToMeRecognizedText');
+        const talkToMeFeedback = document.getElementById('talkToMeFeedback');
+        const talkToMeSpanishReferenceContainer = document.getElementById('talkToMeSpanishReferenceContainer');
+        const talkToMeSpanishReference = document.getElementById('talkToMeSpanishReference');
+        const talkToMeCounter = document.getElementById('talkToMeCounter');
+        const speechApiStatus = document.getElementById('speechApiStatus');
+        const animatedKoalaContainer = document.getElementById('animatedKoalaContainer');
+        const animatedKoalaImg = document.getElementById('animatedKoalaImg');
+
+
+        // --- Text Truncation Utility ---
+        function truncateText(text, maxLength = TEXT_TRUNCATE_LENGTH) {
+            if (typeof text !== 'string') text = String(text);
+            if (text.length > maxLength) {
+                return text.substring(0, maxLength) + "...";
+            }
+            return text;
+        }
+
+        // --- Audio Initialization ---
+        function initializeAudio() {
+            if (audioInitialized) return;
+            Tone.start().then(() => {
+                console.log("Audio context started for StudyBuddy.");
+                audioInitialized = true;
+                backgroundMusicSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }, volume: -28 }).toDestination();
+                const vivaldiSpringMotif = [ 
+                    { time: "0:0", note: "E4", duration: "4n" }, { time: "0:1", note: "E4", duration: "4n" }, { time: "0:2", note: "E4", duration: "4n" }, { time: "0:3", note: "C#5", duration: "4n" },
+                    { time: "1:0", note: "D#5", duration: "4n" }, { time: "1:1", note: "D#5", duration: "4n" }, { time: "1:2", note: "D#5", duration: "4n" }, { time: "1:3", note: "B4", duration: "4n" },
+                    { time: "2:0", note: "E4", duration: "4n" }, { time: "2:1", note: "E4", duration: "4n" }, { time: "2:2", note: "E4", duration: "4n" }, { time: "2:3", note: "C#5", duration: "4n" },
+                    { time: "3:0", note: "D#5", duration: "4n" }, { time: "3:1", note: "D#5", duration: "4n" }, { time: "3:2", note: "B4", duration: "4n" }, { time: "3:3", note: "E4", duration: "4n" }
+                ];
+                const musicPart = new Tone.Part((time, value) => backgroundMusicSynth.triggerAttackRelease(value.note, value.duration, time), vivaldiSpringMotif).start(0);
+                musicPart.loop = true; musicPart.loopEnd = "4m"; 
+                correctMatchSynth = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.2 }, volume: -12 }).toDestination();
+                incorrectBuzzSynth = new Tone.NoiseSynth ({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }, volume: -18 }).toDestination();
+                notebookLostSynth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, filter: { Q: 2, type: "lowpass", rolloff: -24 }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.2, baseFrequency: 200, octaves: 2 }, volume: -15 }).toDestination();
+                updateMusicButton(); 
+                if(musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start();
+                else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause();
+            }).catch(e => console.error("Failed to start audio context:", e));
+        }
+        
+        function toggleMusic() {
+            if (!audioInitialized) { initializeAudio(); musicPlaying = !musicPlaying; return; }
+            musicPlaying = !musicPlaying;
+            if (musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start();
+            else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause();
+            updateMusicButton();
+        }
+
+        function updateMusicButton() { if (musicPlaying) { musicIconOn.classList.remove('hidden'); musicIconOff.classList.add('hidden'); musicStatusText.textContent = "Music: ON"; } else { musicIconOn.classList.add('hidden'); musicIconOff.classList.remove('hidden'); musicStatusText.textContent = "Music: OFF"; } }
+        function playCorrectMatchSound() { if (audioInitialized && correctMatchSynth) { correctMatchSynth.triggerAttackRelease("C5", "8n", Tone.now()); correctMatchSynth.triggerAttackRelease("G5", "4n", Tone.now() + 0.12); } }
+        function playIncorrectSound() {  if (audioInitialized && incorrectBuzzSynth) { incorrectBuzzSynth.triggerAttackRelease("0.2n"); } }
+        function playNotebookLostSound() { if (audioInitialized && notebookLostSynth) { notebookLostSynth.triggerAttackRelease("C3", "0.3n"); } }
+
+        // --- Animated Koala ---
+        function showAnimatedKoala() {
+            if (animatedKoalaContainer) animatedKoalaContainer.classList.add('visible');
+        }
+        function hideAnimatedKoala() {
+            if (animatedKoalaContainer) animatedKoalaContainer.classList.remove('visible');
+        }
+        function triggerKoalaHappyAnimation() {
+            if (animatedKoalaImg) {
+                animatedKoalaImg.classList.remove('koala-sad'); // Remove sad if it was there
+                animatedKoalaImg.classList.add('happy-bounce');
+                setTimeout(() => {
+                    animatedKoalaImg.classList.remove('happy-bounce');
+                }, 500); 
+            }
+        }
+        function triggerKoalaSadAnimation() {
+            if (animatedKoalaImg) {
+                animatedKoalaImg.classList.remove('happy-bounce'); // Remove happy if it was there
+                animatedKoalaImg.classList.add('koala-sad');
+                setTimeout(() => {
+                    animatedKoalaImg.classList.remove('koala-sad');
+                }, 600); // Duration of sad animation
+            }
+        }
+
+
+        // --- Mistake Tracker & Score ---
+        function setupMistakeTracker() { mistakeTrackerDiv.innerHTML = ''; for (let i = 0; i < MAX_MISTAKES; i++) { const notebook = document.createElementNS("http://www.w3.org/2000/svg", "svg"); notebook.setAttribute("viewBox", "0 0 24 24"); notebook.setAttribute("fill", "currentColor"); notebook.classList.add("notebook-icon"); notebook.innerHTML = `<path d="M19 2H5C3.89543 2 3 2.89543 3 4V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V4C21 2.89543 20.1046 2 19 2ZM5 4H7V20H5V4ZM19 20H9V4H19V20Z"></path><path d="M11 6H17V8H11V6ZM11 10H17V12H11V10ZM11 14H17V16H11V14Z" fill-opacity="0.5"></path>`; mistakeTrackerDiv.appendChild(notebook); } }
+        function updateMistakeDisplay() { const icons = mistakeTrackerDiv.querySelectorAll('.notebook-icon'); icons.forEach((icon, index) => { if (index < MAX_MISTAKES - mistakesRemaining) icon.classList.add('mistake'); else icon.classList.remove('mistake'); });}
+        function updateScoreDisplay() { currentScoreDisplay.textContent = `Score: ${currentScore}`; maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; }
+
+        function recordMistake(item = null) { 
+            if (item && !isBonusRound) { 
+                if (!mistakeItems.find(mi => mi.originalIndex === item.originalIndex)) {
+                    mistakeItems.push(item);
+                }
+            }
+            if (mistakesRemaining > 0) {
+                mistakesRemaining--;
+                playNotebookLostSound(); 
+                triggerKoalaSadAnimation(); // Trigger sad koala
+                updateMistakeDisplay(); 
+                if (mistakesRemaining === 0 && !isBonusRound) { 
+                    let restartFn;
+                    if(!matchingGameContainer.classList.contains('hidden')) restartFn = () => initMatchingGame(false);
+                    else if(!multipleChoiceGameContainer.classList.contains('hidden')) restartFn = () => initMultipleChoiceGame(false);
+                    else if(!typeTranslationGameContainer.classList.contains('hidden')) restartFn = () => initTypeTranslationGame(false);
+                    else if(!talkToMeGameContainer.classList.contains('hidden')) restartFn = () => initTalkToMeGame(false);
+                    else restartFn = showGameSelection; 
+
+                    handleGameOver(restartFn); 
+                    return true; 
+                }
+            }
+            return false; 
+        }
+        
+        function handleCorrectAnswer(isFast, item = null, points = null) { 
+            currentScore += points !== null ? points : (isFast ? POINTS_FAST_CORRECT : POINTS_SLOW_CORRECT);
+            if (currentScore > sessionMaxScore) sessionMaxScore = currentScore;
+            updateScoreDisplay();
+            playCorrectMatchSound();
+            triggerKoalaHappyAnimation(); 
+            if (item && !isBonusRound) correctlyAnsweredItemsInPart.add(item.originalIndex);
+        }
+
+        function handleIncorrectAnswer(item = null, pointsDeducted = POINTS_INCORRECT) { 
+            currentScore += pointsDeducted;
+            if (currentScore < 0) currentScore = 0; 
+            updateScoreDisplay();
+            playIncorrectSound(); 
+            return recordMistake(item); 
+        }
+
+        function handleGameOver(gameSpecificRestartFn) {
+            gameOverMessage.textContent = "Game Over! Too many mistakes. Restarting this part...";
+            gameOverMessage.classList.remove('hidden');
+            disableAllGameInteractions();
+            setTimeout(() => {
+                gameOverMessage.classList.add('hidden');
+                gameSpecificRestartFn(); 
+            }, 2500);
+        }
+        
+        function disableAllGameInteractions() {
+            nextMcqBtn.classList.add('hidden');
+            if (mcqOptions) mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => btn.disabled = true);
+            if (typeTranslationInput) typeTranslationInput.disabled = true;
+            if (checkTypeTranslationBtn) checkTypeTranslationBtn.disabled = true;
+            if (nextTypeTranslationBtn) nextTypeTranslationBtn.classList.add('hidden');
+            if (listenBtn) listenBtn.disabled = true; 
+            if (nextTalkToMeBtn) nextTalkToMeBtn.classList.add('hidden'); 
+        }
+
+        function resetSessionStats() { 
+            currentScore = 0;
+            mistakeItems = [];
+            correctlyAnsweredItemsInPart.clear();
+            isBonusRound = false;
+            resetGameStats(); 
+        }
+        
+        function resetGameStats() { 
+            mistakesRemaining = MAX_MISTAKES;
+            updateScoreDisplay(); 
+            setupMistakeTracker(); 
+            gameOverMessage.classList.add('hidden'); 
+        }
+
+        function startQuestionTimer() { questionStartTime = Date.now(); }
+        function getAnswerDuration() { return Date.now() - questionStartTime; }
+
+        // --- Event Listeners ---
+        musicToggleBtn.addEventListener('click', toggleMusic);
+        uploadBtn.addEventListener('click', handleFileUpload);
+        flashcardsBtn.addEventListener('click', () => { initializeAudio(); showFlashcardStackSelection(); });
+        matchingBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('matching'); });
+        multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('multipleChoice'); }); 
+        typeTranslationBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('typeTranslation'); }); 
+        talkToMeBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('talkToMe'); }); 
+
+        backToSelectionBtn.addEventListener('click', showGameSelection);
+        flashcardDiv.addEventListener('click', flipFlashcard); nextCardBtn.addEventListener('click', nextFlashcard); prevCardBtn.addEventListener('click', prevFlashcard);
+        
+        if(resetCurrentPartBtn) resetCurrentPartBtn.addEventListener('click', () => {
+            if(!matchingGameContainer.classList.contains('hidden')) initMatchingGame(false);
+            else if(!multipleChoiceGameContainer.classList.contains('hidden')) initMultipleChoiceGame(false);
+            else if(!typeTranslationGameContainer.classList.contains('hidden')) initTypeTranslationGame(false);
+            else if(!talkToMeGameContainer.classList.contains('hidden')) initTalkToMeGame(false);
+        });
+        
+        nextMcqBtn.addEventListener('click', nextMcqQuestion);
+        checkTypeTranslationBtn.addEventListener('click', checkTypeTranslationAnswer);
+        nextTypeTranslationBtn.addEventListener('click', nextTypeTranslationQuestion);
+        hintTypeTranslationBtn.addEventListener('click', showTypeTranslationHint); 
+        typeTranslationInput.addEventListener('keypress', function(event) { if (event.key === "Enter") { event.preventDefault(); if (!typeTranslationAnswered) checkTypeTranslationAnswer(); else if (mistakesRemaining > 0) nextTypeTranslationQuestion(); }});
+        
+        listenBtn.addEventListener('click', toggleListeningSpeech); 
+        nextTalkToMeBtn.addEventListener('click', nextTalkToMeItem); 
+        speakPhraseBtn.addEventListener('click', speakCurrentTalkToMePhrase);
+
+
+        // --- File Upload and Parsing ---
+        function handleFileUpload() { 
+            const file = csvFileInput.files[0]; 
+            if (!file) { 
+                uploadStatus.textContent = 'Please select a CSV file.'; 
+                uploadStatus.classList.remove('text-teal-600'); 
+                uploadStatus.classList.add('text-red-600'); 
+                return; 
+            } 
+            const localReader = new FileReader(); 
+            localReader.onload = function(event) { 
+                try { 
+                    const csvData = event.target.result; 
+                    parseCSV(csvData); 
+                    if (vocabulary.length > 0) { 
+                        uploadStatus.textContent = `Successfully loaded ${vocabulary.length} vocabulary pairs!`; 
+                        uploadStatus.classList.remove('text-red-600'); 
+                        uploadStatus.classList.add('text-teal-600'); 
+                        gameSelectionSection.classList.remove('hidden'); 
+                        noVocabularyMessage.classList.add('hidden'); 
+                    } else { 
+                        uploadStatus.textContent = 'No vocabulary found. Ensure CSV has 2 columns & data after header.'; 
+                        uploadStatus.classList.add('text-red-600'); 
+                        gameSelectionSection.classList.add('hidden'); 
+                    } 
+                } catch (error) { 
+                    uploadStatus.textContent = 'Error parsing CSV file. Please check format.'; 
+                    uploadStatus.classList.remove('text-teal-600'); 
+                    uploadStatus.classList.add('text-red-600'); 
+                    console.error("Error parsing CSV:", error); 
+                    vocabulary = []; 
+                    gameSelectionSection.classList.add('hidden'); 
+                } 
+            }; 
+            localReader.onerror = function() { 
+                uploadStatus.textContent = 'Error reading file.'; 
+                uploadStatus.classList.remove('text-teal-600'); 
+                uploadStatus.classList.add('text-red-600'); 
+                gameSelectionSection.classList.add('hidden'); 
+            }; 
+            localReader.readAsText(file); 
+        }
+        function parseCSV(csvData) { 
+            vocabulary = []; 
+            const lines = csvData.split(/\r\n|\n/);
+            const dataLines = lines.slice(1); 
+
+            dataLines.forEach((line, index) => { 
+                if (line.trim() === '') return; 
+                const parts = []; 
+                let currentPart = ''; 
+                let inQuotes = false; 
+                for (let i = 0; i < line.length; i++) { 
+                    const char = line[i]; 
+                    if (char === '"' && (i === 0 || line[i-1] !== '\\')) { 
+                        inQuotes = !inQuotes; 
+                    } else if (char === ',' && !inQuotes) { 
+                        parts.push(currentPart.trim()); 
+                        currentPart = ''; 
+                    } else { 
+                        currentPart += char; 
+                    } 
+                } 
+                parts.push(currentPart.trim()); 
+                const cleanedParts = parts.map(p => { 
+                    if (p.startsWith('"') && p.endsWith('"')) { 
+                        return p.substring(1, p.length - 1).replace(/""/g, '"'); 
+                    } 
+                    return p; 
+                }); 
+                if (cleanedParts.length === 2 && cleanedParts[0] && cleanedParts[1]) { 
+                    const englishPhrase = cleanedParts[0]; 
+                    const spanishPhrase = cleanedParts[1]; 
+                    const wordCount = englishPhrase.split(' ').filter(Boolean).length; 
+                    let category = 'expression'; 
+                    if (wordCount === 1) category = 'word'; 
+                    else if (wordCount >= 2 && wordCount <= 3) category = 'phrasal verb'; 
+                    vocabulary.push({ 
+                        english: englishPhrase, 
+                        spanish: spanishPhrase, 
+                        originalIndex: index, 
+                        category: category 
+                    }); 
+                } else if (cleanedParts.length > 0 && !(cleanedParts.length === 1 && cleanedParts[0] === '')) { 
+                    console.warn(`Skipping line due to incorrect format: "${line}"`, cleanedParts); 
+                } 
+            }); 
+        }
+
+        // --- Navigation & Game Part Selection ---
+        function showGameSelection() {
+            hideAnimatedKoala(); 
+            gameArea.classList.add('hidden');
+            [flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, flashcardStackSelectionContainer, partSelectionContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden'));
+            gameSelectionSection.classList.remove('hidden');
+            uploadSection.classList.remove('hidden'); 
+            sessionMaxScore = 0; 
+            updateScoreDisplay();
+        }
+        
+        function showPartSelection(gameType) {
+            currentPartName = ""; 
+            sessionMaxScore = 0; 
+            updateScoreDisplay();
+            hideAnimatedKoala();
+
+
+            if (vocabulary.length === 0) {
+                noVocabularyMessage.classList.remove('hidden');
+                gameArea.classList.remove('hidden'); 
+                [partSelectionContainer, flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, flashcardStackSelectionContainer, gameOverMessage].forEach(el => el.classList.add('hidden'));
+                return;
+            }
+            if (gameType === 'matching') gameTitle.textContent = 'Matching Game';
+            else if (gameType === 'multipleChoice') gameTitle.textContent = 'Multiple Choice';
+            else if (gameType === 'typeTranslation') gameTitle.textContent = 'Type the Translation';
+            else if (gameType === 'talkToMe') gameTitle.textContent = 'Talk to Me';
+
+
+            uploadSection.classList.add('hidden');
+            gameSelectionSection.classList.add('hidden');
+            gameArea.classList.remove('hidden');
+            partSelectionContainer.classList.remove('hidden');
+            [flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, flashcardStackSelectionContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden'));
+            showGameInfoBar(); 
+
+            partButtonsContainer.innerHTML = '';
+            const numParts = Math.ceil(vocabulary.length / ITEMS_PER_PART);
+
+            const fullMixButton = document.createElement('button');
+            fullMixButton.classList.add('btn', 'part-selection-btn', 'p-4', 'text-md');
+            let itemsForFullMix = MAX_GAME_ITEMS_MCQ; 
+            if (gameType === 'matching') itemsForFullMix = MAX_GAME_ITEMS_MATCHING + ' pairs';
+            else if (gameType === 'typeTranslation') itemsForFullMix = 'all items'; 
+            else if (gameType === 'talkToMe') itemsForFullMix = MAX_GAME_ITEMS_MCQ + ' phrases';
+
+
+            fullMixButton.textContent = `Full Mix (${itemsForFullMix})`;
+            fullMixButton.addEventListener('click', () => {
+                currentVocabularyPart = [...vocabulary]; 
+                currentPartName = "Full Mix";
+                currentPartIndexGlobal = -1; 
+                startGame(gameType);
+            });
+            partButtonsContainer.appendChild(fullMixButton);
+
+            for (let i = 0; i < numParts; i++) {
+                const start = i * ITEMS_PER_PART;
+                const end = start + ITEMS_PER_PART;
+                const partVocab = vocabulary.slice(start, end);
+                if (partVocab.length === 0) continue; 
+                const button = document.createElement('button');
+                button.classList.add('btn', 'part-selection-btn', 'p-4', 'text-md');
+                button.textContent = `Part ${i + 1} (Terms ${start + 1}-${Math.min(end, vocabulary.length)}) - ${partVocab.length} items`;
+                button.addEventListener('click', () => {
+                    currentVocabularyPart = partVocab;
+                    currentPartName = `Part ${i + 1}`;
+                    currentPartIndexGlobal = i; 
+                    startGame(gameType);
+                });
+                partButtonsContainer.appendChild(button);
+            }
+        }
+
+
+        function startGame(gameType) { 
+            if (!audioInitialized) initializeAudio(); 
+            if (musicPlaying && Tone.Transport.state !== "started" && audioInitialized) Tone.Transport.start(); 
+            
+            resetPartStats(); 
+            showAnimatedKoala(); 
+            
+            if (currentVocabularyPart.length === 0 && gameType !== 'flashcards_stack_selection' && currentPartName !== "Full Mix" && gameType !== 'typeTranslation') { 
+                 noVocabularyMessage.textContent = `No vocabulary in ${currentPartName}. Select another part or upload more.`;
+                 noVocabularyMessage.classList.remove('hidden');
+                 partSelectionContainer.classList.remove('hidden'); 
+                 return;
+            }
+             if (vocabulary.length === 0 && gameType !== 'flashcards_stack_selection') {
+                noVocabularyMessage.textContent = "Please upload a vocabulary list first.";
+                noVocabularyMessage.classList.remove('hidden');
+                gameArea.classList.remove('hidden');
+                [flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, flashcardStackSelectionContainer, partSelectionContainer].forEach(el => el.classList.add('hidden'));
+                return;
+            }
+            
+            noVocabularyMessage.classList.add('hidden');
+            uploadSection.classList.add('hidden');
+            gameSelectionSection.classList.add('hidden');
+            partSelectionContainer.classList.add('hidden'); 
+            gameArea.classList.remove('hidden');
+            [flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, flashcardStackSelectionContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden'));
+            showGameInfoBar();
+
+
+            if (gameType === 'flashcards') { 
+                gameTitle.textContent = 'Flashcards';
+                flashcardGameContainer.classList.remove('hidden');
+                hideAnimatedKoala(); 
+                initFlashcards();
+            } else if (gameType === 'matching') {
+                gameTitle.textContent = `Matching Game - ${currentPartName}`;
+                matchingGameContainer.classList.remove('hidden');
+                initMatchingGame();
+            } else if (gameType === 'multipleChoice') { 
+                gameTitle.textContent = `Multiple Choice - ${currentPartName}`;
+                multipleChoiceGameContainer.classList.remove('hidden');
+                initMultipleChoiceGame();
+            } else if (gameType === 'typeTranslation') { 
+                gameTitle.textContent = `Type Translation - ${currentPartName}`;
+                typeTranslationGameContainer.classList.remove('hidden');
+                initTypeTranslationGame();
+            } else if (gameType === 'talkToMe') { 
+                gameTitle.textContent = `Talk to Me - ${currentPartName}`;
+                talkToMeGameContainer.classList.remove('hidden');
+                initTalkToMeGame();
+            }
+        }
+        
+        function resetPartStats() { 
+            currentScore = 0; 
+            mistakeItems = [];
+            correctlyAnsweredItemsInPart.clear();
+            isBonusRound = false;
+            mistakesRemaining = MAX_MISTAKES;
+            updateScoreDisplay(); 
+            setupMistakeTracker(); 
+            gameOverMessage.classList.add('hidden'); 
+        }
+
+
+        function showFlashcardStackSelection() { if (vocabulary.length === 0) { startGame('flashcards'); return; } gameTitle.textContent = 'Flashcards'; uploadSection.classList.add('hidden'); gameSelectionSection.classList.add('hidden'); gameArea.classList.remove('hidden'); flashcardStackSelectionContainer.classList.remove('hidden'); [flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, partSelectionContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); document.getElementById('gameInfoBar').classList.add('hidden'); stackButtonsContainer.innerHTML = ''; const categories = { 'All Vocabulary': vocabulary, 'Words': vocabulary.filter(v => v.category === 'word'), 'Phrasal Verbs': vocabulary.filter(v => v.category === 'phrasal verb'), 'Expressions': vocabulary.filter(v => v.category === 'expression') }; for (const [name, stack] of Object.entries(categories)) { if (stack.length > 0 || name === 'All Vocabulary') { const button = document.createElement('button'); button.classList.add('btn', 'stack-selection-btn', 'p-4', 'text-md'); button.textContent = `${name} (${stack.length})`; button.addEventListener('click', () => { flashcardStackSelectionContainer.classList.add('hidden'); currentFlashcardStack = stack; startGame('flashcards'); }); stackButtonsContainer.appendChild(button); } } }
+        function initFlashcards() { currentFlashcardIndex = 0; currentFlashcardSide = 'front'; document.getElementById('gameInfoBar').classList.add('hidden'); if (currentFlashcardStack.length > 0) { displayFlashcard(); } else { flashcardFront.textContent = 'No vocabulary in this stack.'; flashcardBack.textContent = ''; flashcardCounter.textContent = '0/0'; prevCardBtn.disabled = true; nextCardBtn.disabled = true; } }
+        function showGameInfoBar() { document.getElementById('gameInfoBar').classList.remove('hidden'); }
+        function displayFlashcard() { if (currentFlashcardStack.length === 0 || currentFlashcardIndex < 0 || currentFlashcardIndex >= currentFlashcardStack.length) { flashcardFront.textContent = 'End of stack or error.'; flashcardBack.textContent = ''; return; } const pair = currentFlashcardStack[currentFlashcardIndex]; const frontText = pair.english; const backText = pair.spanish; flashcardFront.textContent = truncateText(frontText); flashcardFront.title = frontText; flashcardBack.textContent = truncateText(backText); flashcardBack.title = backText; if (currentFlashcardSide === 'front') { flashcardFront.classList.remove('hidden'); flashcardBack.classList.add('hidden'); } else { flashcardFront.classList.add('hidden'); flashcardBack.classList.remove('hidden'); } flashcardCounter.textContent = `${currentFlashcardIndex + 1} / ${currentFlashcardStack.length}`; prevCardBtn.disabled = currentFlashcardIndex === 0; nextCardBtn.disabled = currentFlashcardIndex === currentFlashcardStack.length - 1; }
+        function flipFlashcard() { if (currentFlashcardStack.length === 0) return; currentFlashcardSide = (currentFlashcardSide === 'front') ? 'back' : 'front'; displayFlashcard(); }
+        function nextFlashcard() { if (currentFlashcardIndex < currentFlashcardStack.length - 1) { currentFlashcardIndex++; currentFlashcardSide = 'front';  displayFlashcard(); } }
+        function prevFlashcard() { if (currentFlashcardIndex > 0) { currentFlashcardIndex--; currentFlashcardSide = 'front';  displayFlashcard(); } }
+
+        // --- Matching Game Logic ---
+        let matchingGameActiveVocab = [];
+        function initMatchingGame(isBonus = false) {
+            showGameInfoBar();
+            if (!isBonus) {
+                isBonusRound = false;
+                let sourceVocab = currentPartName === "Full Mix" ? shuffleArray([...vocabulary]) : shuffleArray([...currentVocabularyPart]);
+                matchingGameActiveVocab = sourceVocab.filter(item => !correctlyAnsweredItemsInPart.has(item.originalIndex))
+                                                .slice(0, MAX_GAME_ITEMS_MATCHING);
+                if (matchingGameActiveVocab.length < MAX_GAME_ITEMS_MATCHING && currentPartName !== "Full Mix" && matchingGameActiveVocab.length > 0 && matchingGameActiveVocab.length < sourceVocab.length) { 
+                    const needed = MAX_GAME_ITEMS_MATCHING - matchingGameActiveVocab.length;
+                    const filler = sourceVocab 
+                                    .filter(item => correctlyAnsweredItemsInPart.has(item.originalIndex) && !matchingGameActiveVocab.find(m => m.originalIndex === item.originalIndex))
+                                    .slice(0, needed);
+                    matchingGameActiveVocab.push(...filler);
+                } else if (matchingGameActiveVocab.length === 0 && sourceVocab.length > 0) { 
+                     matchingGameActiveVocab = shuffleArray([...currentVocabularyPart]).slice(0, MAX_GAME_ITEMS_MATCHING);
+                }
+                 matchingGameActiveVocab = shuffleArray(matchingGameActiveVocab).slice(0, MAX_GAME_ITEMS_MATCHING);
+            } else { 
+                isBonusRound = true;
+                matchingGameActiveVocab = shuffleArray([...mistakeItems]); 
+                gameTitle.textContent = `Matching - Bonus Round!`;
+            }
+            
+            resetGameStats(); 
+            setupMistakeTracker(); 
+            matchingGrid.innerHTML = ''; matchingFeedback.textContent = '';
+            selectedMatchCard = null; matchedPairs = 0;
+
+            if (matchingGameActiveVocab.length === 0) {
+                matchingInstructions.textContent = isBonus ? 'No mistakes to practice!' : 'All items in this part learned or no items available!';
+                if (!isBonus) proceedToNextPartOrEnd('matching', currentPartIndexGlobal); 
+                return;
+            }
+            
+            pairsToMatch = matchingGameActiveVocab.length;
+            matchingInstructions.textContent = `${isBonus ? 'Bonus Round:' : `Part: ${currentPartName}`} Match English to Spanish. (${pairsToMatch} pairs)`;
+
+            const englishCards = matchingGameActiveVocab.map((pair) => ({ id: `eng-${pair.originalIndex}`, text: pair.english, type: 'english', pairId: pair.originalIndex, item: pair }));
+            const spanishCards = matchingGameActiveVocab.map((pair) => ({ id: `spa-${pair.originalIndex}`, text: pair.spanish, type: 'spanish', pairId: pair.originalIndex, item: pair }));
+
+            const allCards = shuffleArray([...englishCards, ...spanishCards]);
+            allCards.forEach(cardData => { 
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card', 'game-card', 'p-2', 'sm:p-4', 'text-sm', 'sm:text-base', 'h-24', 'sm:h-28');
+                cardElement.textContent = truncateText(cardData.text);
+                cardElement.title = cardData.text; 
+                cardElement.dataset.id = cardData.id;
+                cardElement.dataset.type = cardData.type;
+                cardElement.dataset.pairId = cardData.pairId;
+                cardElement.addEventListener('click', handleMatchCardClick);
+                matchingGrid.appendChild(cardElement);
+            });
+            startQuestionTimer(); 
+        }
+
+        function handleMatchCardClick(event) {
+            if (mistakesRemaining === 0 && !isBonusRound) return; 
+            const clickedCard = event.currentTarget;
+            if (clickedCard.classList.contains('matched')) return; 
+
+            if (!selectedMatchCard) {
+                 if (clickedCard.classList.contains('selected-match')) { 
+                    clickedCard.classList.remove('selected-match'); selectedMatchCard = null; // Unselect
+                } else {
+                    document.querySelectorAll(`#matchingGrid .game-card[data-type="${clickedCard.dataset.type}"].selected-match`).forEach(c => c.classList.remove('selected-match'));
+                    clickedCard.classList.add('selected-match'); selectedMatchCard = clickedCard;
+                }
+                matchingFeedback.textContent = '';
+            } else {
+                if (selectedMatchCard === clickedCard) { 
+                     selectedMatchCard.classList.remove('selected-match');
+                     selectedMatchCard = null;
+                     return;
+                }
+                if (selectedMatchCard.dataset.type === clickedCard.dataset.type) { 
+                    matchingFeedback.textContent = 'Select one English and one Spanish item.';
+                    matchingFeedback.className = 'text-center font-medium mt-4 h-6 text-orange-500';
+                    return; 
+                }
+                
+                const duration = getAnswerDuration(); 
+                const originalPairItem = vocabulary.find(v => v.originalIndex === parseInt(selectedMatchCard.dataset.pairId)); 
+
+                if (selectedMatchCard.dataset.pairId === clickedCard.dataset.pairId) {
+                    handleCorrectAnswer(duration <= FAST_ANSWER_THRESHOLD, originalPairItem);
+                    selectedMatchCard.classList.add('matched'); clickedCard.classList.add('matched');
+                    selectedMatchCard.classList.remove('selected-match');
+                    matchingFeedback.textContent = 'Correct Match!';
+                    matchingFeedback.className = 'text-center font-medium mt-4 h-6 text-emerald-600';
+                    selectedMatchCard = null; matchedPairs++;
+                    if (matchedPairs === pairsToMatch) {
+                        if (isBonusRound) {
+                            roundCompleteMessageDiv.innerHTML = `Bonus Round Complete! <br> Score for ${currentPartName}: ${currentScore}`;
+                            roundCompleteMessageDiv.classList.remove('hidden');
+                            setTimeout(() => {
+                                roundCompleteMessageDiv.classList.add('hidden');
+                                isBonusRound = false; mistakeItems = []; 
+                                proceedToNextPartOrEnd('matching', currentPartIndexGlobalForBonusReturn);
+                            }, 3000);
+                        } else {
+                            handleRoundComplete('matching');
+                        }
+                    } else { startQuestionTimer(); }
+                } else {
+                    const gameOver = handleIncorrectAnswer(originalPairItem);
+                    matchingFeedback.textContent = 'Incorrect. Try again.';
+                    matchingFeedback.className = 'text-center font-medium mt-4 h-6 text-red-500';
+                    selectedMatchCard.classList.add('incorrect-match-animation'); clickedCard.classList.add('incorrect-match-animation');
+                     setTimeout(() => {
+                        selectedMatchCard.classList.remove('incorrect-match-animation', 'selected-match');
+                        clickedCard.classList.remove('incorrect-match-animation'); selectedMatchCard = null; 
+                        if (gameOver && !isBonusRound) { /* Game over handled by recordMistake */ } 
+                        else startQuestionTimer(); 
+                    }, 500);
+                }
+            }
+        }
+
+        // --- Multiple Choice Game Logic ---
+        let mcqGameActiveVocab = [];
+        function initMultipleChoiceGame(isBonus = false) {
+            showGameInfoBar(); 
+            if (!isBonus) {
+                isBonusRound = false;
+                let sourceVocab = currentPartName === "Full Mix" ? shuffleArray([...vocabulary]) : shuffleArray([...currentVocabularyPart]);
+                mcqGameActiveVocab = sourceVocab.filter(item => !correctlyAnsweredItemsInPart.has(item.originalIndex))
+                                            .slice(0, MAX_GAME_ITEMS_MCQ);
+                if (mcqGameActiveVocab.length < MAX_GAME_ITEMS_MCQ && currentPartName !== "Full Mix" && mcqGameActiveVocab.length > 0) {
+                    const needed = MAX_GAME_ITEMS_MCQ - mcqGameActiveVocab.length;
+                    const filler = shuffleArray([...currentVocabularyPart])
+                                    .filter(item => correctlyAnsweredItemsInPart.has(item.originalIndex) && !mcqGameActiveVocab.find(m => m.originalIndex === item.originalIndex) )
+                                    .slice(0, needed);
+                    mcqGameActiveVocab.push(...filler);
+                } else if (mcqGameActiveVocab.length === 0 && sourceVocab.length > 0) {
+                     mcqGameActiveVocab = shuffleArray([...currentVocabularyPart]).slice(0, MAX_GAME_ITEMS_MCQ);
+                }
+                mcqGameActiveVocab = shuffleArray(mcqGameActiveVocab).slice(0, MAX_GAME_ITEMS_MCQ);
+            } else { 
+                isBonusRound = true;
+                mcqGameActiveVocab = shuffleArray([...mistakeItems]);
+                gameTitle.textContent = `MCQ - Bonus Round!`;
+            }
+            
+            resetGameStats(); 
+            setupMistakeTracker();
+            currentMcqIndex = 0; mcqAnswered = false;
+            nextMcqBtn.classList.add('hidden'); mcqFeedback.textContent = '';
+            
+            if (mcqGameActiveVocab.length === 0) {
+                mcqQuestion.textContent = isBonus ? 'No mistakes to practice!' : 'All items in this part learned or no items available!';
+                mcqOptions.innerHTML = '';
+                if (!isBonus) proceedToNextPartOrEnd('multipleChoice', currentPartIndexGlobal);
+                return;
+            }
+            mcqInstructions.textContent = `${isBonus ? 'Bonus Round:' : `Part: ${currentPartName}`} Max ${mcqGameActiveVocab.length} questions. Choose the translation.`;
+            displayMcq();
+        }
+
+        function displayMcq() {
+            mcqAnswered = false; nextMcqBtn.classList.add('hidden');
+            mcqFeedback.textContent = ''; mcqOptions.innerHTML = ''; 
+
+            if (currentMcqIndex >= mcqGameActiveVocab.length) {
+                 if (isBonusRound) {
+                    roundCompleteMessageDiv.innerHTML = `Bonus Round Complete! <br> Score for ${currentPartName}: ${currentScore}`;
+                    roundCompleteMessageDiv.classList.remove('hidden');
+                    setTimeout(() => {
+                        roundCompleteMessageDiv.classList.add('hidden');
+                        isBonusRound = false; mistakeItems = []; 
+                        proceedToNextPartOrEnd('multipleChoice', currentPartIndexGlobalForBonusReturn);
+                    }, 3000);
+                } else {
+                    handleRoundComplete('multipleChoice');
+                }
+                return;
+            }
+            if (mistakesRemaining === 0 && !isBonusRound) return; 
+
+            const currentPair = mcqGameActiveVocab[currentMcqIndex];
+            mcqQuestion.textContent = truncateText(currentPair.english);
+            mcqQuestion.title = currentPair.english;
+
+            const correctAnswer = currentPair.spanish;
+            let options = [correctAnswer];
+            const distractors = vocabulary.filter(p => p.spanish !== correctAnswer).map(p => p.spanish);
+            const shuffledDistractors = shuffleArray(distractors);
+            let optionsNeeded = Math.min(4, vocabulary.length);
+            for (let i = 0; i < shuffledDistractors.length && options.length < optionsNeeded; i++) {
+                if (!options.includes(shuffledDistractors[i])) options.push(shuffledDistractors[i]);
+            }
+            while(options.length < Math.min(2, vocabulary.length) && options.length < 4) options.push(`Option ${options.length + 1}`);
+            
+            options = shuffleArray(options); 
+            options.forEach(optionText => { 
+                const optionButton = document.createElement('button');
+                optionButton.classList.add('btn', 'mcq-option-btn'); 
+                optionButton.textContent = truncateText(optionText);
+                optionButton.title = optionText; 
+                optionButton.addEventListener('click', () => handleMcqAnswer(optionText, correctAnswer, optionButton, currentPair));
+                mcqOptions.appendChild(optionButton);
+            });
+            mcqInstructions.textContent = `Question ${currentMcqIndex + 1} of ${mcqGameActiveVocab.length}. Choose the translation.`;
+            startQuestionTimer();
+        }
+        
+        function handleMcqAnswer(selectedAnswer, correctAnswer, buttonElement, item) {
+            if (mcqAnswered || (mistakesRemaining === 0 && !isBonusRound)) return;
+            mcqAnswered = true; nextMcqBtn.classList.remove('hidden');
+            const duration = getAnswerDuration();
+
+            mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
+                btn.disabled = true;
+                if (btn.title === correctAnswer) btn.classList.add('correct-answer'); 
+            });
+
+            if (buttonElement.title === correctAnswer) { 
+                handleCorrectAnswer(duration <= FAST_ANSWER_THRESHOLD, item);
+                mcqFeedback.textContent = 'Correct!'; mcqFeedback.className = 'text-center font-medium mt-4 h-6 text-emerald-600';
+            } else {
+                const gameOver = handleIncorrectAnswer(item);
+                mcqFeedback.textContent = `Incorrect. The answer was: ${truncateText(correctAnswer)}`;
+                mcqFeedback.title = `Full answer: ${correctAnswer}`;
+                mcqFeedback.className = 'text-center font-medium mt-4 h-6 text-red-500';
+                buttonElement.classList.add('incorrect-answer'); 
+                if (gameOver && !isBonusRound) { /* Game over handled by recordMistake */ }
+            }
+        }
+
+        function nextMcqQuestion() {
+            if (mistakesRemaining === 0 && !isBonusRound) { initMultipleChoiceGame(false); return; } 
+            currentMcqIndex++;
+            mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => btn.disabled = false); 
+            displayMcq();
+        }
+        
+        // --- Round Completion and Bonus Round ---
+        function handleRoundComplete(gameType) {
+            disableAllGameInteractions();
+            roundCompleteMessageDiv.innerHTML = `${currentPartName} Complete! <br> Score: ${currentScore} <br> Max Session Score: ${sessionMaxScore}`;
+            roundCompleteMessageDiv.classList.remove('hidden');
+            
+            currentPartIndexGlobalForBonusReturn = currentPartIndexGlobal; 
+
+            setTimeout(() => {
+                roundCompleteMessageDiv.classList.add('hidden');
+                if (mistakeItems.length > 0 && !isBonusRound) { 
+                    startBonusRoundCountdown(gameType);
+                } else {
+                    proceedToNextPartOrEnd(gameType, currentPartIndexGlobal);
+                }
+            }, 3000);
+        }
+
+        function proceedToNextPartOrEnd(gameType, completedPartIndex) {
+            mistakeItems = []; 
+            isBonusRound = false; 
+
+            if (currentPartName === "Full Mix" || completedPartIndex === -1) { 
+                showPartSelection(gameType);
+                return;
+            }
+
+            const nextPartIndex = completedPartIndex + 1;
+            const nextPartStartIndex = nextPartIndex * ITEMS_PER_PART;
+
+            if (nextPartStartIndex < vocabulary.length) {
+                currentPartIndexGlobal = nextPartIndex;
+                currentVocabularyPart = vocabulary.slice(nextPartStartIndex, nextPartStartIndex + ITEMS_PER_PART);
+                currentPartName = `Part ${nextPartIndex + 1}`;
+                resetPartStats(); 
+                startGame(gameType); 
+            } else {
+                roundCompleteMessageDiv.innerHTML = `All Parts Completed! <br> Final Max Score: ${sessionMaxScore}`;
+                roundCompleteMessageDiv.classList.remove('hidden');
+                setTimeout(() => {
+                    roundCompleteMessageDiv.classList.add('hidden');
+                    showPartSelection(gameType);
+                }, 3000);
+            }
+        }
+
+
+        function startBonusRoundCountdown(gameType) {
+            bonusRoundCountdownMessageDiv.classList.remove('hidden');
+            let countdown = 3;
+            bonusRoundCountdownMessageDiv.textContent = `Bonus Round in ${countdown}...`;
+            const interval = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    bonusRoundCountdownMessageDiv.textContent = `Bonus Round in ${countdown}...`;
+                } else {
+                    clearInterval(interval);
+                    bonusRoundCountdownMessageDiv.classList.add('hidden');
+                    if (gameType === 'matching') initMatchingGame(true); 
+                    else if (gameType === 'multipleChoice') initMultipleChoiceGame(true);
+                    else if (gameType === 'typeTranslation') initTypeTranslationGame(true);
+                    else if (gameType === 'talkToMe') initTalkToMeGame(true);
+                }
+            }, 1000);
+        }
+
+
+        // --- Type the Translation Game Logic --- 
+        let typeTransGameActiveVocab = []; 
+        function initTypeTranslationGame(isBonus = false) { 
+            showGameInfoBar(); 
+            if (!isBonus) { 
+                isBonusRound = false;
+                typeTransGameActiveVocab = currentPartName === "Full Mix" ? shuffleArray([...vocabulary]) : shuffleArray([...currentVocabularyPart]);
+            } else {
+                isBonusRound = true;
+                typeTransGameActiveVocab = shuffleArray([...mistakeItems]);
+                gameTitle.textContent = `Type Translation - Bonus Round!`;
+            }
+            resetPartStats(); 
+            setupMistakeTracker();
+            currentTypeTranslationIndex = 0; typeTranslationAnswered = false;
+            hintUsedForCurrentTypeTranslation = false; 
+            nextTypeTranslationBtn.classList.add('hidden'); typeTranslationFeedback.textContent = '';
+            typeTranslationInput.value = ''; typeTranslationInput.disabled = false;
+            checkTypeTranslationBtn.disabled = false; hintTypeTranslationBtn.disabled = false; 
+            typeTranslationHintDisplay.textContent = ''; 
+
+            if (typeTransGameActiveVocab.length === 0) {
+                typeTranslationPhrase.textContent = isBonus ? 'No mistakes to practice!' : 'No vocabulary for this part.';
+                typeTranslationCounter.textContent = '0/0'; 
+                if (!isBonus) proceedToNextPartOrEnd('typeTranslation', currentPartIndexGlobal);
+                return;
+            }
+            typeTranslationInstructions.textContent = `${isBonus ? 'Bonus Round:' : `Part: ${currentPartName}`} Type the Spanish translation. (${typeTransGameActiveVocab.length} items)`;
+            displayTypeTranslationQuestion();
+        }
+
+        function displayTypeTranslationQuestion() {
+            typeTranslationAnswered = false; hintUsedForCurrentTypeTranslation = false; 
+            nextTypeTranslationBtn.classList.add('hidden'); typeTranslationInput.value = '';
+            typeTranslationInput.disabled = false; checkTypeTranslationBtn.disabled = false;
+            hintTypeTranslationBtn.disabled = false; typeTranslationHintDisplay.textContent = ''; 
+            typeTranslationFeedback.textContent = ''; typeTranslationInput.focus();
+
+            if (currentTypeTranslationIndex >= typeTransGameActiveVocab.length) {
+                if (isBonusRound) {
+                    roundCompleteMessageDiv.innerHTML = `Bonus Round Complete! <br> Score for ${currentPartName}: ${currentScore}`;
+                    roundCompleteMessageDiv.classList.remove('hidden');
+                    setTimeout(() => {
+                        roundCompleteMessageDiv.classList.add('hidden');
+                        isBonusRound = false; mistakeItems = [];
+                        proceedToNextPartOrEnd('typeTranslation', currentPartIndexGlobalForBonusReturn); 
+                    }, 3000);
+                } else {
+                     handleRoundComplete('typeTranslation'); 
+                }
+                typeTranslationInput.disabled = true; checkTypeTranslationBtn.disabled = true; hintTypeTranslationBtn.disabled = true;
+                return;
+            }
+            if (mistakesRemaining === 0 && !isBonusRound) return;
+
+            const pair = typeTransGameActiveVocab[currentTypeTranslationIndex];
+            typeTranslationPhrase.textContent = truncateText(pair.english);
+            typeTranslationPhrase.title = pair.english;
+            typeTranslationCounter.textContent = `${currentTypeTranslationIndex + 1} / ${typeTransGameActiveVocab.length}`;
+            startQuestionTimer();
+        }
+
+        function showTypeTranslationHint() { if (typeTranslationAnswered || hintUsedForCurrentTypeTranslation || currentTypeTranslationIndex >= typeTransGameActiveVocab.length) return; const correctAnswer = typeTransGameActiveVocab[currentTypeTranslationIndex].spanish.trim(); if (correctAnswer.length > 0) { typeTranslationHintDisplay.textContent = `Hint: Starts with "${correctAnswer[0]}"`; hintUsedForCurrentTypeTranslation = true; hintTypeTranslationBtn.disabled = true; } }
+        
+        function checkTypeTranslationAnswer() {
+            if (typeTranslationAnswered || (mistakesRemaining === 0 && !isBonusRound) || currentTypeTranslationIndex >= typeTransGameActiveVocab.length) return;
+            const duration = getAnswerDuration();
+            const userAnswer = typeTranslationInput.value.trim().toLowerCase();
+            const currentItem = typeTransGameActiveVocab[currentTypeTranslationIndex];
+            const correctAnswer = currentItem.spanish.trim().toLowerCase();
+
+            typeTranslationAnswered = true; typeTranslationInput.disabled = true;
+            checkTypeTranslationBtn.disabled = true; hintTypeTranslationBtn.disabled = true; 
+            nextTypeTranslationBtn.classList.remove('hidden'); nextTypeTranslationBtn.focus();
+
+            if (userAnswer === correctAnswer) {
+                handleCorrectAnswer(duration <= FAST_ANSWER_THRESHOLD, currentItem);
+                typeTranslationFeedback.textContent = 'Correct!'; typeTranslationFeedback.className = 'text-center font-medium mt-4 h-6 text-emerald-600';
+                typeTranslationInput.classList.remove('border-red-500'); typeTranslationInput.classList.add('border-emerald-500');
+            } else {
+                const gameOver = handleIncorrectAnswer(currentItem);
+                typeTranslationFeedback.textContent = `Not quite. Correct: ${currentItem.spanish}`; 
+                typeTranslationFeedback.className = 'text-center font-medium mt-4 h-6 text-red-500';
+                typeTranslationInput.classList.remove('border-emerald-500'); typeTranslationInput.classList.add('border-red-500');
+                if (gameOver && !isBonusRound) { /* Game over handled by recordMistake */ }
+            }
+        }
+
+        function nextTypeTranslationQuestion() {
+            if (mistakesRemaining === 0 && !isBonusRound) { initTypeTranslationGame(false); return; }
+            currentTypeTranslationIndex++;
+            typeTranslationInput.classList.remove('border-red-500', 'border-emerald-500');
+            displayTypeTranslationQuestion(); 
+        }
+
+        // --- Talk to Me Game Logic ---
+        let talkToMeActiveVocab = [];
+        function initTalkToMeGame(isBonus = false) {
+            showGameInfoBar();
+            if (!isBonus) {
+                isBonusRound = false;
+                let sourceVocab = currentPartName === "Full Mix" ? shuffleArray([...vocabulary]) : shuffleArray([...currentVocabularyPart]);
+                talkToMeActiveVocab = (currentPartName === "Full Mix" ? sourceVocab.slice(0, MAX_GAME_ITEMS_MCQ) : sourceVocab); 
+                talkToMeActiveVocab = talkToMeActiveVocab.filter(item => !correctlyAnsweredItemsInPart.has(item.originalIndex));
+                if (talkToMeActiveVocab.length === 0 && sourceVocab.length > 0) { 
+                    talkToMeActiveVocab = shuffleArray(sourceVocab).slice(0, MAX_GAME_ITEMS_MCQ);
+                }
+            } else {
+                isBonusRound = true;
+                talkToMeActiveVocab = shuffleArray([...mistakeItems]);
+                gameTitle.textContent = `Talk to Me - Bonus Round!`;
+            }
+            resetPartStats(); 
+            setupMistakeTracker();
+            currentTalkToMeIndex = 0;
+            attemptCountForCurrentTalkToMeItem = 0; 
+            isListening = false;
+            listenBtnText.textContent = 'Start Listening'; 
+            listenBtn.classList.remove('listening', 'btn-danger');
+            listenBtn.classList.add('btn-primary');
+            nextTalkToMeBtn.classList.add('hidden');
+            talkToMeFeedback.textContent = '';
+            talkToMeRecognizedText.textContent = '...';
+            talkToMeSpanishReferenceContainer.classList.add('hidden');
+            speechApiStatus.textContent = '';
+
+            if (talkToMeActiveVocab.length === 0) {
+                talkToMePhraseText.textContent = isBonus ? 'No mistakes to practice speaking!' : 'All items in this part practiced or no items available!';
+                talkToMePhraseToRead.title = talkToMePhraseText.textContent;
+                if (!isBonus) proceedToNextPartOrEnd('talkToMe', currentPartIndexGlobal);
+                return;
+            }
+            
+            talkToMeInstructions.textContent = `${isBonus ? 'Bonus Round:' : `Part: ${currentPartName}`} Read the English phrase aloud. (${talkToMeActiveVocab.length} items)`;
+            setupSpeechRecognition();
+            displayTalkToMeItem();
+        }
+
+        function displayTalkToMeItem() {
+            if (currentTalkToMeIndex >= talkToMeActiveVocab.length) {
+                if (isBonusRound) {
+                    roundCompleteMessageDiv.innerHTML = `Bonus Speaking Round Complete! <br> Score for ${currentPartName}: ${currentScore}`;
+                    roundCompleteMessageDiv.classList.remove('hidden');
+                    setTimeout(() => {
+                        roundCompleteMessageDiv.classList.add('hidden');
+                        isBonusRound = false; mistakeItems = [];
+                        proceedToNextPartOrEnd('talkToMe', currentPartIndexGlobalForBonusReturn);
+                    }, 3000);
+                } else {
+                    handleRoundComplete('talkToMe');
+                }
+                listenBtn.disabled = true;
+                return;
+            }
+            if (mistakesRemaining === 0 && !isBonusRound) return;
+
+            attemptCountForCurrentTalkToMeItem = 0; 
+            const item = talkToMeActiveVocab[currentTalkToMeIndex];
+            talkToMePhraseText.textContent = item.english; 
+            talkToMePhraseToRead.title = item.english;
+            talkToMeSpanishReference.textContent = item.spanish;
+            talkToMeSpanishReferenceContainer.classList.add('hidden'); 
+            talkToMeRecognizedText.textContent = '...';
+            talkToMeFeedback.textContent = '';
+            listenBtn.disabled = false;
+            nextTalkToMeBtn.classList.add('hidden');
+            talkToMeCounter.textContent = `${currentTalkToMeIndex + 1} / ${talkToMeActiveVocab.length}`;
+            startQuestionTimer();
+        }
+        
+        function setupSpeechRecognition() {
+            const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognitionAPI) {
+                speechApiStatus.textContent = "Speech Recognition API not supported in this browser.";
+                listenBtn.disabled = true;
+                return;
+            }
+            recognition = new SpeechRecognitionAPI();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = (event) => {
+                const spokenText = event.results[event.results.length - 1][0].transcript.trim();
+                talkToMeRecognizedText.textContent = spokenText;
+                processSpokenText(spokenText);
+            };
+            recognition.onerror = (event) => {
+                speechApiStatus.textContent = `Speech recognition error: ${event.error}`;
+                console.error("Speech recognition error:", event.error);
+                if (isListening) toggleListeningSpeechUIUpdate(false); 
+            };
+            recognition.onend = () => { 
+                if (isListening) { 
+                    toggleListeningSpeechUIUpdate(false); 
+                }
+            };
+        }
+        
+        function toggleListeningSpeech() { 
+            if (!recognition) {
+                 speechApiStatus.textContent = "Speech recognition not initialized. Please try again or check browser support.";
+                return;
+            }
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                    toggleListeningSpeechUIUpdate(true);
+                } catch (e) {
+                    console.error("Error starting recognition:", e);
+                    speechApiStatus.textContent = "Could not start listening. Try again.";
+                    toggleListeningSpeechUIUpdate(false);
+                }
+            }
+        }
+
+        function toggleListeningSpeechUIUpdate(nowListening) {
+            isListening = nowListening;
+            if (isListening) {
+                listenBtnText.textContent = 'Stop Listening';
+                listenBtn.classList.add('listening', 'btn-danger');
+                listenBtn.classList.remove('btn-primary');
+                talkToMeFeedback.textContent = "Speak now...";
+                talkToMeRecognizedText.textContent = "...";
+            } else {
+                listenBtnText.textContent = 'Start Listening';
+                listenBtn.classList.remove('listening', 'btn-danger');
+                listenBtn.classList.add('btn-primary');
+            }
+        }
+
+
+        function processSpokenText(spokenText) {
+            if ((mistakesRemaining === 0 && !isBonusRound)) return;
+            attemptCountForCurrentTalkToMeItem++;
+            const currentItem = talkToMeActiveVocab[currentTalkToMeIndex];
+            const targetText = currentItem.english.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g,"").replace(/\s{2,}/g," ").trim(); 
+            const recognizedNormalized = spokenText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g,"").replace(/\s{2,}/g," ").trim();
+
+            const targetWords = new Set(targetText.split(" "));
+            const recognizedWords = new Set(recognizedNormalized.split(" "));
+            let matchingWords = 0;
+            recognizedWords.forEach(word => { if (targetWords.has(word)) matchingWords++; });
+            const similarity = targetWords.size > 0 ? (matchingWords / targetWords.size) : (recognizedNormalized === "" && targetText === "" ? 1 : 0); 
+            
+            talkToMeSpanishReferenceContainer.classList.remove('hidden'); 
+
+            if (similarity > 0.75) { 
+                handleCorrectAnswer(false, currentItem, POINTS_CORRECT_TALK_TO_ME); 
+                talkToMeFeedback.textContent = "Great! That sounds right.";
+                talkToMeFeedback.className = 'text-center font-medium mt-3 h-6 text-emerald-600';
+                nextTalkToMeBtn.classList.remove('hidden');
+                listenBtn.disabled = true; 
+            } else if (similarity > 0.5) { 
+                talkToMeFeedback.textContent = "Almost great, try focusing on clear enunciation and try again!";
+                talkToMeFeedback.className = 'text-center font-medium mt-3 h-6 text-amber-600';
+                if (attemptCountForCurrentTalkToMeItem >= 2 && !isBonusRound) { 
+                    const gameOver = handleIncorrectAnswer(currentItem, 0); 
+                     if (gameOver) { /* Game over handled */ }
+                }
+                nextTalkToMeBtn.classList.remove('hidden'); 
+                listenBtn.disabled = false; 
+            } else { 
+                talkToMeFeedback.textContent = "Not quite. Listen to the pronunciation and try again.";
+                talkToMeFeedback.className = 'text-center font-medium mt-3 h-6 text-red-500';
+                if (attemptCountForCurrentTalkToMeItem >= 2 && !isBonusRound) { 
+                    const gameOver = handleIncorrectAnswer(currentItem); 
+                    if (gameOver) { /* Game over handled */ }
+                }
+                nextTalkToMeBtn.classList.remove('hidden');
+                listenBtn.disabled = false; 
+            }
+        }
+        
+        function speakCurrentTalkToMePhrase() {
+            if (!audioInitialized || currentTalkToMeIndex >= talkToMeActiveVocab.length) return;
+            const phraseToSpeak = talkToMeActiveVocab[currentTalkToMeIndex].english;
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(phraseToSpeak);
+                utterance.lang = 'en-US'; 
+                window.speechSynthesis.speak(utterance);
+            } else {
+                speechApiStatus.textContent = "Text-to-Speech not supported in this browser.";
+            }
+        }
+
+
+        function nextTalkToMeItem() {
+            if (mistakesRemaining === 0 && !isBonusRound) { initTalkToMeGame(false); return; }
+            currentTalkToMeIndex++;
+            displayTalkToMeItem();
+        }
+
+
+        // --- Utility Functions ---
+        function shuffleArray(array) { const newArray = [...array]; for (let i = newArray.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; } return newArray; }
+
+        // --- Initial Setup ---
+        showGameSelection(); 
+        if (vocabulary.length === 0) gameSelectionSection.classList.add('hidden');
+        updateMusicButton(); 
+        setupMistakeTracker(); 
+        updateScoreDisplay(); 
+
+    </script>
+</body>
+</html>
