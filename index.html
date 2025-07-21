@@ -689,6 +689,29 @@ const authError = document.getElementById('authError');
     });
 }
 
+// --- Listen for authentication state changes to show/hide content ---
+const loginSection = document.getElementById('loginSection');
+const appContent = document.getElementById('appContent');
+const logoutBtn = document.getElementById('logoutBtn');
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) {
+        // User is logged in
+        loginSection.classList.add('hidden');
+        appContent.classList.remove('hidden');
+    } else {
+        // User is logged out
+        loginSection.classList.remove('hidden');
+        appContent.classList.add('hidden');
+    }
+});
+
+// --- Logout Button Logic ---
+if(logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+    });
+}
         
         // --- FULL ORIGINAL GAME LOGIC RESTORED BELOW ---
         // --- FULL ORIGINAL GAME LOGIC RESTORED BELOW ---
@@ -1056,7 +1079,7 @@ const authError = document.getElementById('authError');
        // Place this function inside your existing <script> tag in your main HTML file,
 // replacing the old handleFileUpload function.
 
-async function handleFileUpload(droppedFile = null) {
+function handleFileUpload(droppedFile = null) {
     const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
 
     if (!file) {
@@ -1065,98 +1088,36 @@ async function handleFileUpload(droppedFile = null) {
         return;
     }
 
-    // Validate file type (basic check)
     if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
         uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
         uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
         return;
     }
 
-    uploadStatus.textContent = 'Uploading file to server...';
-    uploadStatus.className = 'text-sm text-slate-500 mt-2 h-5';
-
-    const formData = new FormData();
-    // The key 'csvFile' here MUST match `upload.single('csvFile')` in your backend server.js
-    formData.append('csvFile', file);
-
-    // The URL of your local backend endpoint
-    const backendUploadUrl = 'http://localhost:3001/api/upload-csv';
-
-    try {
-        const response = await fetch(backendUploadUrl, {
-            method: 'POST',
-            body: formData,
-            // If you implement user authentication later, you'll add an Authorization header:
-            // headers: {
-            //   'Authorization': `Bearer ${your_auth_token_here}`
-            // }
-        });
-
-        const result = await response.json(); // Expecting a JSON response from the backend
-
-        if (response.ok) {
-            uploadStatus.textContent = `Server: ${result.message}. File: ${result.fileName}`;
-            uploadStatus.className = 'text-sm text-teal-600 mt-2 h-5';
-            console.log('Backend upload successful:', result);
-
-            // Now that the file is on Cloudinary (and your backend gave you the URL),
-            // we need to get its content to parse it for the game.
-            //
-            // OPTION A (Current Implementation for testing):
-            // Frontend fetches the CSV content directly from Cloudinary URL and parses it.
-            // This might face CORS issues if Cloudinary isn't configured to allow
-            // requests from your frontend's origin (e.g., file:// or localhost:some_other_port).
-            // For development, this might work. For production, backend parsing is better.
-            if (result.cloudinaryUrl) {
-                console.log("Attempting to fetch CSV content from Cloudinary URL:", result.cloudinaryUrl);
-                try {
-                    // Note: Fetching directly from Cloudinary URL might require CORS configuration on Cloudinary
-                    // or might be blocked by the browser depending on how Cloudinary serves raw files.
-                    // A more robust solution is for your backend to provide the parsed content.
-                    const fileContentResponse = await fetch(result.cloudinaryUrl);
-                    if (!fileContentResponse.ok) {
-                        throw new Error(`Failed to fetch CSV from Cloudinary: ${fileContentResponse.status} ${fileContentResponse.statusText}`);
-                    }
-                    const csvData = await fileContentResponse.text();
-
-                    // Now, use your existing client-side parseCSV function
-                    parseCSV(csvData);
-
-                    if (vocabulary.length > 0) {
-                        uploadStatus.textContent = `Processed ${vocabulary.length} pairs from '${result.fileName}'!`;
-                        uploadStatus.className = 'text-sm text-teal-600 mt-2 h-5';
-
-                        currentVocabularyPart = [...vocabulary];
-                        currentPartName = "Full List";
-                        currentPartIndexGlobal = -1;
-                        uploadSection.classList.add('hidden');
-                        showGameSelection();
-                    } else {
-                        uploadStatus.textContent = `File '${result.fileName}' uploaded but no vocabulary parsed.`;
-                        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                    }
-                } catch (fetchCsvError) {
-                    console.error("Error fetching or parsing CSV from Cloudinary URL:", fetchCsvError);
-                    uploadStatus.textContent = `Uploaded, but error fetching content: ${fetchCsvError.message}. Try backend parsing.`;
-                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                }
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        try {
+            parseCSV(event.target.result);
+            if (vocabulary.length > 0) {
+                uploadStatus.textContent = `Successfully loaded ${vocabulary.length} pairs!`;
+                uploadStatus.className = 'text-sm text-teal-600 mt-2 h-5';
+                uploadSection.classList.add('hidden');
+                showGameSelection();
             } else {
-                 uploadStatus.textContent = 'File uploaded to server, but no Cloudinary URL returned.';
-                 uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
             }
-
-        } else {
-            // The backend returned an error (e.g., 400, 500)
-            uploadStatus.textContent = `Upload failed: ${result.message || 'Unknown server error'}`;
+        } catch (error) {
+            uploadStatus.textContent = 'Error parsing CSV file.';
             uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-            console.error('Backend returned an error:', result);
+            console.error("Error parsing CSV:", error);
         }
-    } catch (error) {
-        // Network error or backend server not reachable
-        uploadStatus.textContent = 'Upload error. Is backend server running? Check console.';
+    };
+    reader.onerror = () => {
+        uploadStatus.textContent = 'Error reading file.';
         uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-        console.error('Error during file upload fetch to backend:', error);
-    }
+    };
+    reader.readAsText(file);
 }
 
         function parseCSV(csvData) {
