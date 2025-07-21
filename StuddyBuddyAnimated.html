@@ -608,18 +608,96 @@
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         // --- Authentication Logic ---
-        const googleLoginBtn = document.getElementById('googleLoginBtn');
-        if (googleLoginBtn) {
-            googleLoginBtn.addEventListener('click', async () => {
-                const { error } = await supabaseClient.auth.signInWithOAuth({
-                    provider: 'google',
-                });
-                if (error) {
-                    console.error('Error logging in with Google:', error.message);
-                    alert('Error logging in: ' + error.message);
-                }
-            });
+        // --- Authentication Logic ---
+const loginSection = document.getElementById('loginSection');
+const appContent = document.getElementById('appContent');
+const logoutBtn = document.getElementById('logoutBtn');
+const googleLoginBtn = document.getElementById('googleLoginBtn');
+const authForm = document.getElementById('authForm');
+const authTitle = document.getElementById('authTitle');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authToggleText = document.getElementById('authToggleText');
+const authError = document.getElementById('authError');
+let isSignUp = false; // Tracks if the form is in Login or Sign Up mode
+
+function setupAuthToggle() {
+    const toggleLink = document.getElementById('toggleToSignUp') || document.getElementById('toggleToLogin');
+    if (toggleLink) {
+        toggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            isSignUp = !isSignUp; // Flip the mode
+            authError.textContent = ''; // Clear errors on toggle
+
+            authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+            authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+            authToggleText.innerHTML = isSignUp 
+                ? `Already have an account? <span id="toggleToLogin" class="toggle-auth-link">Login</span>` 
+                : `Don't have an account? <span id="toggleToSignUp" class="toggle-auth-link">Sign Up</span>`;
+
+            // Re-run this function to attach the listener to the newly created link
+            setupAuthToggle();
+        });
+    }
+}
+
+// --- Handle Email/Password Form Submission ---
+if (authForm) {
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('emailInput').value;
+        const password = document.getElementById('passwordInput').value;
+        authError.textContent = '';
+
+        if (isSignUp) {
+            // --- Sign Up Logic ---
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) {
+                authError.textContent = error.message;
+            } else if (data.user) {
+                alert('Sign up successful! Please check your email to confirm your account.');
+                // Switch back to login mode by finding and clicking the new link
+                const toggleLink = document.getElementById('toggleToLogin');
+                if(toggleLink) toggleLink.click();
+            }
+        } else {
+            // --- Login Logic ---
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+                authError.textContent = error.message;
+            }
+            // Successful login is handled by the onAuthStateChange listener
         }
+    });
+}
+
+// --- Google Login ---
+if (googleLoginBtn) {
+    googleLoginBtn.addEventListener('click', async () => {
+        const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+        if (error) {
+            authError.textContent = error.message;
+        }
+    });
+}
+
+// --- Listen for authentication state changes to show/hide content ---
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) {
+        loginSection.classList.add('hidden');
+        appContent.classList.remove('hidden');
+    } else {
+        loginSection.classList.remove('hidden');
+        appContent.classList.add('hidden');
+    }
+});
+
+// --- Logout Button Logic ---
+if(logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+    });
+}
+       setupToggle(); // Initialize the first toggle link
              
         // --- FULL ORIGINAL GAME LOGIC RESTORED BELOW ---
         // --- FULL ORIGINAL GAME LOGIC RESTORED BELOW ---
