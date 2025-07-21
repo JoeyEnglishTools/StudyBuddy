@@ -596,8 +596,6 @@
     </div>
 
     <script>
-        // --- Supabase Client Setup ---
-        // CORRECTED: Destructure createClient from the global supabase object provided by the script tag
         const { createClient } = supabase; 
         const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
         // IMPORTANT: Replace this with your actual Supabase anon key
@@ -605,8 +603,6 @@
 
         // CORRECTED: Create a new client instance. This was the main error.
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        let isSignUp = false; // Tracks if the form is in Login or Sign Up mode
 
 
         // --- Authentication Logic ---
