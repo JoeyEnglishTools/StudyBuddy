@@ -20,7 +20,7 @@
             background-color: white;
             border-radius: 0.75rem; 
             padding: 1.5rem; 
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); ƒƒ
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
         }
         .btn {
             padding: 0.75rem 1.5rem;
@@ -164,7 +164,7 @@
             background-color: #ccfbf1; /* Tailwind teal-100 */
             border-color: #0d9488; /* Tailwind teal-600 */
         }
-        
+       
         /* New Login Form Styles */
         .form-input {
             width: 100%;
@@ -283,9 +283,7 @@
                 align-items: center;
             }
         }
-
     </style>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="min-h-screen flex flex-col items-center p-2 sm:p-4 md:p-6">
@@ -307,7 +305,7 @@
         <!-- New Login Section -->
         <section id="loginSection" class="card mb-8">
             <h2 id="authTitle" class="text-2xl font-semibold text-teal-700 mb-4 text-center">Login to Your Account</h2>
-            
+           
             <form id="authForm" class="space-y-4">
                 <div>
                     <label for="emailInput" class="block text-sm font-medium text-gray-700">Email Address</label>
@@ -330,7 +328,7 @@
                 <svg class="google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"></path><path fill="#34A853" d="M24 46c6.48 0 11.93-2.13 15.89-5.82l-7.11-5.52c-2.17 1.45-4.92 2.3-8.78 2.3-6.76 0-12.47-4.55-14.51-10.61H2.3v5.7C6.32 40.57 14.56 46 24 46z"></path><path fill="#FBBC05" d="M9.49 27.9c-.4-1.18-.62-2.45-.62-3.79s.22-2.61.62-3.79V14.6H2.3C.83 17.53 0 20.65 0 24.11s.83 6.58 2.3 9.51l7.19-5.72z"></path><path fill="#EA4335" d="M24 8.71c3.55 0 6.63 1.23 9.13 3.63l6.3-6.3C35.91 2.25 30.47 0 24 0 14.56 0 6.32 5.43 2.3 14.6l7.19 5.71C11.53 14.26 17.24 8.71 24 8.71z"></path></svg>
                 <span>Continue with Google</span>
             </button>
-            
+           
             <p id="authToggleText" class="text-center text-sm mt-4">
                 Don't have an account? <span id="toggleToSignUp" class="toggle-auth-link">Sign Up</span>
             </p>
@@ -443,24 +441,24 @@
                          <div id="languageSelectionInGameContainer" class="hidden">
                              <label for="languageSelectorInGame" class="text-xs sm:text-sm text-slate-700">Speech:</label>
                              <select id="languageSelectorInGame" class="bg-gray-50 border border-gray-300 text-gray-900 text-xs sm:text-sm rounded-md sm:rounded-lg focus:ring-teal-500 focus:border-teal-500 block p-1.5 sm:p-2.5">
-                                <option value="en-US">English (US)</option>
-                                <option value="en-GB">English (UK)</option>
-                                <option value="es-ES">Español (España)</option>
-                                <option value="es-MX">Español (México)</option>
-                                <option value="fr-FR">Français (France)</option>
-                                <option value="de-DE">Deutsch (German)</option>
-                                <option value="it-IT">Italiano (Italian)</option>
-                                <option value="pt-PT">Português (Portugal)</option>
-                                <option value="ja-JP">日本語 (Japanese)</option>
-                                <option value="ko-KR">한국어 (Korean)</option>
-                                <option value="zh-CN">中文 (简体 Chinese)</option>
-                                <option value="nl-NL">Nederlands (Dutch)</option>
-                                <option value="ru-RU">Русский (Russian)</option>
-                                <option value="ar-SA">العربية (Arabic)</option>
-                                <option value="hi-IN">हिन्दी (Hindi)</option>
-                                <option value="tl-PH">Tagalog (Filipino)</option>
+                                 <option value="en-US">English (US)</option>
+                                 <option value="en-GB">English (UK)</option>
+                                 <option value="es-ES">Español (España)</option>
+                                 <option value="es-MX">Español (México)</option>
+                                 <option value="fr-FR">Français (France)</option>
+                                 <option value="de-DE">Deutsch (German)</option>
+                                 <option value="it-IT">Italiano (Italian)</option>
+                                 <option value="pt-PT">Português (Portugal)</option>
+                                 <option value="ja-JP">日本語 (Japanese)</option>
+                                 <option value="ko-KR">한국어 (Korean)</option>
+                                 <option value="zh-CN">中文 (简体 Chinese)</option>
+                                 <option value="nl-NL">Nederlands (Dutch)</option>
+                                 <option value="ru-RU">Русский (Russian)</option>
+                                 <option value="ar-SA">العربية (Arabic)</option>
+                                 <option value="hi-IN">हिन्दी (Hindi)</option>
+                                 <option value="tl-PH">Tagalog (Filipino)</option>
                              </select>
-                        </div>
+                         </div>
                     </div>
                     <div class="flex items-center justify-center flex-grow basis-1/3"> <button id="hearItOutLoudToggleBtn" class="btn btn-outline text-xs sm:text-sm py-1 px-1.5 sm:py-1 sm:px-2 hidden">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 sm:h-4 sm:w-4 inline-block mr-0.5 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15z"></path></svg>
@@ -468,7 +466,7 @@
                     </button>
                     </div>
                     <div id="scoreDisplayContainer" class="text-right flex-grow basis-1/3"> <div id="currentScoreDisplay" class="text-lg sm:text-xl font-semibold text-teal-600">Score: 0</div>
-                        <div id="maxScoreDisplay" class="text-xs sm:text-sm text-teal-500">Max Score: 0</div>
+                         <div id="maxScoreDisplay" class="text-xs sm:text-sm text-teal-500">Max Score: 0</div>
                     </div>
                 </div>
                 <p id="ttsGeneralStatus" class="text-center text-xs text-red-500 mt-1 h-4"></p>
@@ -597,414 +595,132 @@
     </div>
 
     <script>
-       <script>
-document.addEventListener('DOMContentLoaded', () => {
-    // --- Supabase Client Setup ---
-    const { createClient } = supabase; 
-    const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ'; 
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Supabase Client Setup ---
+            const { createClient } = supabase;
+            const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
+            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- Authentication Elements & State ---
-    const loginSection = document.getElementById('loginSection');
-    const appContent = document.getElementById('appContent');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const googleLoginBtn = document.getElementById('googleLoginBtn');
-    const authForm = document.getElementById('authForm');
-    const authTitle = document.getElementById('authTitle');
-    const authSubmitBtn = document.getElementById('authSubmitBtn');
-    const authToggleText = document.getElementById('authToggleText');
-    const authError = document.getElementById('authError');
-    const addNotesBtn = document.getElementById('addNotesBtn');
-    let isSignUp = false;
+            // --- STATE & CONSTANTS ---
+            const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15, LEARNED_THRESHOLD_GAMES = 4, MASTERED_THRESHOLD_SPEAK_LISTEN = 5;
+            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", selectedSpeechLangInGame = "en-US", activeGameType = null, gameScores = { flashcards: 0, matching: 0, multipleChoice: 0, typeTranslation: 0, talkToMe: 0, fillInTheBlanks: 0, findTheWords: 0 }, sessionScores = { ...gameScores }, currentFlashcardStack = [], currentFlashcardIndex = 0, currentFlashcardSide = "front", currentGameActiveList = [], currentGameSubRoundOffset = 0, mcqGameActiveVocab = [], currentMcqIndex = 0, matchingGameActiveVocab = [], selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0, typeTransGameActiveVocab = [], currentTypeTranslationIndex = 0, talkToMeActiveVocab = [], currentTalkToMeIndex = 0, currentFillBlanksIndex = 0, mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0, mistakeItems = [], correctlyAnsweredItemsInPart = new Set, currentVocabularyPart = [], currentPartName = "", currentPartIndexGlobal = -1, currentPartIndexGlobalForBonusReturn = -1, questionStartTime = 0, hintUsedForCurrentTypeTranslation = !1, isBonusRound = !1, attemptCountForCurrentTalkToMeItem = 0, isEssentialsMode = !1, currentEssentialsCategoryName = "", findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [], backgroundMusicSynth, correctMatchSynth, incorrectBuzzSynth, notebookLostSynth, musicPlaying = !1, audioInitialized = !1, hearItOutLoudEnabled = !1, recognition, isListening = !1, isSignUp = false;
+            let mcqAnswered = !1, typeTranslationAnswered = !1, fillBlanksAnswered = !1, fillBlanksGameActiveVocab = [];
 
-    // --- Section and Button Elements ---
-    const mainSelectionSection = document.getElementById("mainSelectionSection");
-    const showUploadSectionBtn = document.getElementById("showUploadSectionBtn");
-    const showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn");
-    const csvFileInput = document.getElementById("csvFile");
-    const targetLanguageSelector = document.getElementById("targetLanguageSelector");
-    const uploadBtn = document.getElementById("uploadBtn");
-    const uploadStatus = document.getElementById("uploadStatus");
-    const uploadSection = document.getElementById("uploadSection");
-    const dropZone = document.getElementById("dropZone");
-    const backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn");
-    const essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection");
-    const essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer");
-    const backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn");
-    const essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection");
-    const essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle");
-    const reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn");
-    const playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn");
-    const backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn");
-    const gameSelectionSection = document.getElementById("gameSelectionSection");
-    const gameArea = document.getElementById("gameArea");
-    // ... Add any other game/section elements you need ...
+            // --- ELEMENT SELECTORS ---
+            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn');
+            const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), flashcardsBtn = document.getElementById("flashcardsBtn"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer"), flashcardStackSelectionContainer = document.getElementById("flashcardStackSelection"), stackButtonsContainer = document.getElementById("stackButtonsContainer"), flashcardGameContainer = document.getElementById("flashcardGame"), flashcardDiv = document.getElementById("flashcard"), flashcardFront = document.getElementById("flashcardFront"), flashcardBack = document.getElementById("flashcardBack"), prevCardBtn = document.getElementById("prevCardBtn"), nextCardBtn = document.getElementById("nextCardBtn"), flashcardCounter = document.getElementById("flashcardCounter"), matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
+            const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
+            const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
+            const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
 
-    // --- Authentication Logic ---
-    function toggleAuthMode() {
-        isSignUp = !isSignUp;
-        authError.textContent = '';
-        authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
-        authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
-        authToggleText.innerHTML = isSignUp
-            ? `Already have an account? <span class="toggle-auth-link">Login</span>`
-            : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
-    }
+            // --- DATA ---
+            const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
+            Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
 
-    authToggleText.addEventListener('click', (e) => {
-        if (e.target.matches('.toggle-auth-link')) {
-            e.preventDefault();
-            toggleAuthMode();
-        }
-    });
+            // --- AUTHENTICATION FUNCTIONS ---
+            function toggleAuthMode() {
+                isSignUp = !isSignUp;
+                authError.textContent = '';
+                authForm.reset();
+                authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+                authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+                authToggleText.innerHTML = isSignUp
+                    ? `Already have an account? <span class="toggle-auth-link">Login</span>`
+                    : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+            }
 
-    if (authForm) {
-        authForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('emailInput').value.trim();
-            const password = document.getElementById('passwordInput').value.trim();
-            authError.textContent = '';
-            try {
-                if (isSignUp) {
-                    const { error } = await supabaseClient.auth.signUp({ email, password });
-                    if (error) {
-                        authError.textContent = error.message;
-                    } else {
-                        alert('Sign up successful! Please check your email to confirm your account.');
-                        toggleAuthMode();
-                    }
+            // --- DATA & FILE FUNCTIONS ---
+            async function fetchNotes() {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    vocabulary = [];
+                    return;
+                }
+                const { data, error } = await supabaseClient
+                    .from('notes')
+                    .select('term, definition, term_lang')
+                    .eq('user_id', user.id);
+                if (error) {
+                    console.error('Error fetching notes:', error);
+                    vocabulary = [];
                 } else {
-                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                    if (error) {
-                        authError.textContent = error.message;
-                    }
-                }
-            } catch (err) {
-                authError.textContent = 'Unexpected error. Try again.';
-                console.error(err);
-            }
-        });
-    }
-
-    if (googleLoginBtn) {
-        googleLoginBtn.addEventListener('click', async () => {
-            const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
-            if (error) { authError.textContent = error.message; }
-        });
-    }
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            await supabaseClient.auth.signOut();
-            window.location.reload();
-        });
-    }
-
-    // --- Section Navigation ---
-    function showMainSelection() {
-        mainSelectionSection.classList.remove('hidden');
-        [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea].forEach(el => el && el.classList.add('hidden'));
-        // Optionally reset other state here
-    }
-    function showGameSelection() {
-        gameSelectionSection.classList.remove('hidden');
-        [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameArea].forEach(el => el && el.classList.add('hidden'));
-    }
-
-    if (showUploadSectionBtn) {
-        showUploadSectionBtn.addEventListener('click', () => {
-            uploadSection.classList.remove('hidden');
-            mainSelectionSection.classList.add('hidden');
-        });
-    }
-    if (backToMainSelectionFromUploadBtn) {
-        backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
-    }
-    if (addNotesBtn) {
-        addNotesBtn.addEventListener('click', async () => {
-            await fetchNotes();
-            // Optionally update UI after notes reload
-            showMainSelection();
-        });
-    }
-
-    // --- File Upload ---
-    async function handleFileUpload(droppedFile = null) {
-        const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
-        if (!file) {
-            uploadStatus.textContent = 'Please select or drop a CSV file.';
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-            return;
-        }
-        if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
-            uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = async function(event) {
-            try {
-                const parsedNotes = parseCSVToNotes(event.target.result);
-                if (parsedNotes.length > 0) {
-                    uploadStatus.textContent = 'Saving notes to your account...';
-                    const success = await saveNotes(parsedNotes);
-                    if (success) {
-                        await fetchNotes();
-                        uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
-                        uploadStatus.className = 'text-sm text-teal-600 mt-2 h-5';
-                        setTimeout(() => {
-                            uploadSection.classList.add('hidden');
-                            showGameSelection();
-                        }, 1500);
-                    }
-                } else {
-                    uploadStatus.textContent = 'No vocabulary found. Check file format.';
-                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                }
-            } catch (error) {
-                uploadStatus.textContent = 'Error parsing CSV file.';
-                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                console.error("Error parsing CSV:", error);
-            }
-        };
-        reader.onerror = () => {
-            uploadStatus.textContent = 'Error reading file.';
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-        };
-        reader.readAsText(file);
-    }
-
-    function parseCSVToNotes(csvData) {
-        const lines = csvData.split(/\r\n|\n/);
-        const parsed = [];
-        for (let l = 1; l < lines.length; l++) {
-            let line = lines[l];
-            if (!line.trim()) continue;
-            let match, regex = /("([^"]|"")*"|[^,]*)(,|$)/g, row = [], i = 0;
-            while ((match = regex.exec(line)) !== null) {
-                let val = match[1].trim();
-                if (val.startsWith('"') && val.endsWith('"')) {
-                    val = val.slice(1, -1).replace(/""/g, '"');
-                }
-                row.push(val);
-                i++;
-            }
-            if (row.length >= 2 && row[0] && row[1]) {
-                parsed.push({ lang1: row[0], lang2: row[1] });
-            }
-        }
-        return parsed;
-    }
-
-    // --- File Upload Listeners ---
-    if (uploadBtn) uploadBtn.addEventListener('click', () => handleFileUpload());
-    if (csvFileInput) csvFileInput.addEventListener('change', () => handleFileUpload());
-
-    // --- Data Functions ---
-    let vocabulary = [];
-    async function fetchNotes() {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) {
-            vocabulary = [];
-            return;
-        }
-        const { data, error } = await supabaseClient
-            .from('notes')
-            .select('term, definition, term_lang')
-            .eq('user_id', user.id);
-        if (error) {
-            console.error('Error fetching notes:', error);
-            vocabulary = [];
-        } else {
-            vocabulary = data.map((note, index) => ({
-                lang1: note.term,
-                lang2: note.definition,
-                originalIndex: index,
-            }));
-        }
-    }
-
-    async function saveNotes(notesToSave) {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) {
-            uploadStatus.textContent = 'You must be logged in to save notes.';
-            return false;
-        }
-        const notesWithUser = notesToSave.map(note => ({
-            user_id: user.id,
-            term: note.lang1,
-            definition: note.lang2,
-            term_lang: targetLanguageSelector.value || "en-US",
-            definition_lang: 'en'
-        }));
-        const { error } = await supabaseClient.from('notes').insert(notesWithUser);
-        if (error) {
-            console.error('Error saving notes:', error);
-            uploadStatus.textContent = 'Error saving notes to your account: ' + error.message;
-            return false;
-        }
-        return true;
-    }
-
-    // --- INITIALIZATION ---
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        if (session) {
-            loginSection.classList.add('hidden');
-            appContent.classList.remove('hidden');
-            await fetchNotes();
-            if (vocabulary.length > 0) {
-                showGameSelection();
-            } else {
-                showMainSelection();
-            }
-        } else {
-            loginSection.classList.remove('hidden');
-            appContent.classList.add('hidden');
-            vocabulary = [];
-        }
-    });
-
-   
-    const MAX_MISTAKES=3,FAST_ANSWER_THRESHOLD=5e3,POINTS_CORRECT_TALK_TO_ME=5,POINTS_FAST_CORRECT=10,POINTS_SLOW_CORRECT=5,POINTS_INCORRECT=-10,ITEMS_PER_PART=32,ITEMS_PER_SUB_ROUND=8,MAX_GAME_ITEMS_FILL_BLANKS=10,TEXT_TRUNCATE_LENGTH=60,MAX_FIND_WORDS_ROUNDS=5,WORDS_PER_FIND_WORDS_DISPLAY=8,WORDS_PER_FIND_WORDS_TARGET=3,FIND_WORDS_REQUIRED_VOCAB=15,LEARNED_THRESHOLD_GAMES=4,MASTERED_THRESHOLD_SPEAK_LISTEN=5;let vocabulary=[],csvUploadedTargetLanguage="en-US",activeTargetStudyLanguage="en-US",selectedSpeechLangInGame="en-US",activeGameType=null,gameScores={flashcards:0,matching:0,multipleChoice:0,typeTranslation:0,talkToMe:0,fillInTheBlanks:0,findTheWords:0},sessionScores={...gameScores},currentFlashcardStack=[],currentFlashcardIndex=0,currentFlashcardSide="front",currentGameActiveList=[],currentGameSubRoundOffset=0,mcqGameActiveVocab=[],currentMcqIndex=0,matchingGameActiveVocab=[],selectedMatchCard=null,matchedPairs=0,pairsToMatch=0,typeTransGameActiveVocab=[],currentTypeTranslationIndex=0,talkToMeActiveVocab=[],currentTalkToMeIndex=0,currentFillBlanksIndex=0,mistakesRemaining=3,currentScore=0,sessionMaxScore=0,mistakeItems=[],correctlyAnsweredItemsInPart=new Set,currentVocabularyPart=[],currentPartName="",currentPartIndexGlobal=-1,currentPartIndexGlobalForBonusReturn=-1,questionStartTime=0,hintUsedForCurrentTypeTranslation=!1,isBonusRound=!1,attemptCountForCurrentTalkToMeItem=0,isEssentialsMode=!1,currentEssentialsCategoryName="",findWordsSessionPool=[],currentFindWordsRound=0,findWordsCurrentChoices=[],findWordsTargetWords=[],findWordsSelectedWords=[],backgroundMusicSynth,correctMatchSynth,incorrectBuzzSynth,notebookLostSynth,musicPlaying=!1,audioInitialized=!1,hearItOutLoudEnabled=!1,recognition,isListening=!1;const mainSelectionSection=document.getElementById("mainSelectionSection"),showUploadSectionBtn=document.getElementById("showUploadSectionBtn"),showEssentialsSectionBtn=document.getElementById("showEssentialsSectionBtn"),csvFileInput=document.getElementById("csvFile"),targetLanguageSelector=document.getElementById("targetLanguageSelector"),languageSelectorInGame=document.getElementById("languageSelectorInGame"),languageSelectionInGameContainer=document.getElementById("languageSelectionInGameContainer"),uploadBtn=document.getElementById("uploadBtn"),uploadStatus=document.getElementById("uploadStatus"),uploadSection=document.getElementById("uploadSection"),dropZone=document.getElementById("dropZone"),backToMainSelectionFromUploadBtn=document.getElementById("backToMainSelectionFromUploadBtn"),essentialsCategorySelectionSection=document.getElementById("essentialsCategorySelectionSection"),essentialsCategoryButtonsContainer=document.getElementById("essentialsCategoryButtonsContainer"),backToMainSelectionFromEssentialsBtn=document.getElementById("backToMainSelectionFromEssentialsBtn"),essentialsCategoryOptionsSection=document.getElementById("essentialsCategoryOptionsSection"),essentialsOptionsTitle=document.getElementById("essentialsOptionsTitle"),reviewEssentialsCategoryBtn=document.getElementById("reviewEssentialsCategoryBtn"),playGamesWithEssentialsBtn=document.getElementById("playGamesWithEssentialsBtn"),backToEssentialsCategoriesBtn=document.getElementById("backToEssentialsCategoriesBtn"),gameSelectionSection=document.getElementById("gameSelectionSection"),gameButtonsContainer=document.getElementById("gameButtonsContainer"),backToSourceSelectionBtn=document.getElementById("backToSourceSelectionBtn"),gameArea=document.getElementById("gameArea"),noVocabularyMessage=document.getElementById("noVocabularyMessage"),gameOverMessage=document.getElementById("gameOverMessage"),roundCompleteMessageDiv=document.getElementById("roundCompleteMessage"),bonusRoundCountdownMessageDiv=document.getElementById("bonusRoundCountdownMessage"),flashcardsBtn=document.getElementById("flashcardsBtn"),matchingBtn=document.getElementById("matchingBtn"),multipleChoiceBtn=document.getElementById("multipleChoiceBtn"),typeTranslationBtn=document.getElementById("typeTranslationBtn"),talkToMeBtn=document.getElementById("talkToMeBtn"),fillInTheBlanksBtn=document.getElementById("fillInTheBlanksBtn"),findTheWordsBtn=document.getElementById("findTheWordsBtn"),backToGameSelectionBtn=document.getElementById("backToGameSelectionBtn"),gameTitle=document.getElementById("gameTitle"),musicToggleBtn=document.getElementById("musicToggleBtn"),musicIconOn=document.getElementById("musicIconOn"),musicIconOff=document.getElementById("musicIconOff"),musicStatusText=document.getElementById("musicStatusText"),mistakeTrackerDiv=document.getElementById("mistakeTracker"),currentScoreDisplay=document.getElementById("currentScoreDisplay"),maxScoreDisplay=document.getElementById("maxScoreDisplay"),partSelectionContainer=document.getElementById("partSelectionContainer"),partButtonsContainer=document.getElementById("partButtonsContainer"),flashcardStackSelectionContainer=document.getElementById("flashcardStackSelection"),stackButtonsContainer=document.getElementById("stackButtonsContainer"),flashcardGameContainer=document.getElementById("flashcardGame"),flashcardDiv=document.getElementById("flashcard"),flashcardFront=document.getElementById("flashcardFront"),flashcardBack=document.getElementById("flashcardBack"),prevCardBtn=document.getElementById("prevCardBtn"),nextCardBtn=document.getElementById("nextCardBtn"),flashcardCounter=document.getElementById("flashcardCounter"),matchingGameContainer=document.getElementById("matchingGame"),matchingGrid=document.getElementById("matchingGrid"),matchingInstructions=document.getElementById("matchingInstructions"),matchingFeedback=document.getElementById("matchingFeedback"),resetCurrentPartBtn=document.getElementById("resetCurrentPartBtn"),multipleChoiceGameContainer=document.getElementById("multipleChoiceGame"),mcqInstructions=document.getElementById("mcqInstructions"),mcqQuestion=document.getElementById("mcqQuestion"),mcqOptions=document.getElementById("mcqOptions"),mcqFeedback=document.getElementById("mcqFeedback"),nextMcqBtn=document.getElementById("nextMcqBtn");let mcqAnswered=!1;const typeTranslationGameContainer=document.getElementById("typeTranslationGame"),typeTranslationInstructions=document.getElementById("typeTranslationInstructions"),typeTranslationPhrase=document.getElementById("typeTranslationPhrase"),typeTranslationInput=document.getElementById("typeTranslationInput"),hintTypeTranslationBtn=document.getElementById("hintTypeTranslationBtn"),typeTranslationHintDisplay=document.getElementById("typeTranslationHintDisplay"),checkTypeTranslationBtn=document.getElementById("checkTypeTranslationBtn"),typeTranslationFeedback=document.getElementById("typeTranslationFeedback"),nextTypeTranslationBtn=document.getElementById("nextTypeTranslationBtn"),typeTranslationCounter=document.getElementById("typeTranslationCounter");let typeTranslationAnswered=!1;const fillInTheBlanksGameContainer=document.getElementById("fillInTheBlanksGame"),fillInTheBlanksInstructions=document.getElementById("fillInTheBlanksInstructions"),fillInTheBlanksSentence=document.getElementById("fillInTheBlanksSentence"),fillInTheBlanksInput=document.getElementById("fillInTheBlanksInput"),checkFillInTheBlanksBtn=document.getElementById("checkFillInTheBlanksBtn"),fillInTheBlanksFeedback=document.getElementById("fillInTheBlanksFeedback"),nextFillInTheBlanksBtn=document.getElementById("nextFillInTheBlanksBtn"),fillInTheBlanksCounter=document.getElementById("fillInTheBlanksCounter");let fillBlanksAnswered=!1,fillBlanksGameActiveVocab=[];const findTheWordsGameContainer=document.getElementById("findTheWordsGame"),findTheWordsInstructions=document.getElementById("findTheWordsInstructions"),replayFindTheWordsAudioBtn=document.getElementById("replayFindTheWordsAudioBtn"),findTheWordsRoundCounter=document.getElementById("findTheWordsRoundCounter"),findTheWordsGrid=document.getElementById("findTheWordsGrid"),sendFindTheWordsBtn=document.getElementById("sendFindTheWordsBtn"),findTheWordsFeedback=document.getElementById("findTheWordsFeedback"),nextFindTheWordsRoundBtn=document.getElementById("nextFindTheWordsRoundBtn"),talkToMeGameContainer=document.getElementById("talkToMeGame"),talkToMeInstructions=document.getElementById("talkToMeInstructions"),talkToMePhraseToRead=document.getElementById("talkToMePhraseToRead"),talkToMePhraseText=document.getElementById("talkToMePhraseText"),speakPhraseBtn=document.getElementById("speakPhraseBtn"),listenBtn=document.getElementById("listenBtn"),listenBtnText=document.getElementById("listenBtnText"),nextTalkToMeBtn=document.getElementById("nextTalkToMeBtn"),talkToMeRecognizedText=document.getElementById("talkToMeRecognizedText"),talkToMeFeedback=document.getElementById("talkToMeFeedback"),talkToMeReferenceContainer=document.getElementById("talkToMeReferenceContainer"),talkToMeReferenceLabel=document.getElementById("talkToMeReferenceLabel"),talkToMeReferenceDisplay=document.getElementById("talkToMeReferenceDisplay"),talkToMeCounter=document.getElementById("talkToMeCounter"),speechApiStatus=document.getElementById("speechApiStatus"),hearItOutLoudToggleBtn=document.getElementById("hearItOutLoudToggleBtn"),hearItOutLoudBtnText=document.getElementById("hearItOutLoudBtnText"),ttsGeneralStatus=document.getElementById("ttsGeneralStatus"),essentialsVocabularyData={"Travel (EN-ES)":[{lang1:"passport",lang2:"pasaporte",sentence:"You need a ____ to travel abroad.",correctCount:0,originalIndex:0},{lang1:"ticket",lang2:"billete",sentence:"I bought a round-trip ____ to Paris.",correctCount:0,originalIndex:1},{lang1:"luggage",lang2:"equipaje",sentence:"My ____ was too heavy.",correctCount:0,originalIndex:2},{lang1:"destination",lang2:"destino",sentence:"Our final ____ is Rome.",correctCount:0,originalIndex:3},{lang1:"reservation",lang2:"reserva",sentence:"I made a hotel ____ online.",correctCount:0,originalIndex:4}],"Business (EN-ES)":[{lang1:"meeting",lang2:"reunión",sentence:"The client ____ is at 2 PM.",correctCount:0,originalIndex:0},{lang1:"contract",lang2:"contrato",sentence:"Please review the ____ carefully.",correctCount:0,originalIndex:1},{lang1:"negotiation",lang2:"negociación",sentence:"The ____ lasted for hours.",correctCount:0,originalIndex:2},{lang1:"deadline",lang2:"fecha límite",sentence:"We must meet the project ____.",correctCount:0,originalIndex:3},{lang1:"presentation",lang2:"presentación",sentence:"She gave an excellent ____.",correctCount:0,originalIndex:4}],"Food (EN-FR)":[{lang1:"bread",lang2:"pain",sentence:"I would like some ____, please.",correctCount:0,originalIndex:0},{lang1:"water",lang2:"eau",sentence:"Can I have a glass of ____?",correctCount:0,originalIndex:1}]};Object.values(essentialsVocabularyData).forEach(e=>{e.forEach((e,t)=>{void 0===e.originalIndex&&(e.originalIndex=t),void 0===e.correctCount&&(e.correctCount=0)})});
-
- function truncateText(text, maxLength = TEXT_TRUNCATE_LENGTH) {
-                if (typeof text !== 'string') text = String(text);
-                return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
-            }
-
-            function shuffleArray(array) {
-                const newArray = [...array];
-                for (let i = newArray.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-                }
-                return newArray;
-            }
-
-            function getEffectiveLanguages(item, isEssentialsModeActive, currentActiveSpokenLang) {
-                if (!item) return { target: "", translation: "" };
-                if (isEssentialsModeActive) {
-                    if (currentActiveSpokenLang && !currentActiveSpokenLang.toLowerCase().startsWith('en') && item.lang2) {
-                        return { target: item.lang2, translation: item.lang1 };
-                    } else {
-                        return { target: item.lang1, translation: item.lang2 };
-                    }
-                } else {
-                    return { target: item.lang1, translation: item.lang2 };
+                    vocabulary = data.map((note, index) => ({
+                        lang1: note.term,
+                        lang2: note.definition,
+                        originalIndex: index,
+                    }));
                 }
             }
 
-            function categorizeTerm(term, lang) {
-                let mainCategory = 'word';
-                let subCategory = null;
-                const words = term.trim().split(/\s+/).filter(Boolean);
-                const wordCount = words.length;
-
-                if (wordCount > 1) {
-                    mainCategory = 'phrase';
+            async function saveNotes(notesToSave) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    uploadStatus.textContent = 'You must be logged in to save notes.';
+                    return false;
                 }
+                const notesWithUser = notesToSave.map(note => ({
+                    user_id: user.id,
+                    term: note.lang1,
+                    definition: note.lang2,
+                    term_lang: targetLanguageSelector.value || "en-US",
+                    definition_lang: 'en'
+                }));
+                const { error } = await supabaseClient.from('notes').insert(notesWithUser);
+                if (error) {
+                    console.error('Error saving notes:', error);
+                    uploadStatus.textContent = 'Error saving notes to your account: ' + error.message;
+                    return false;
+                }
+                return true;
+            }
 
-                const singleWord = words[0]?.toLowerCase();
+            function parseCSV(csvData) {
+                vocabulary = [];
+                const lines = csvData.split(/\r\n|\n/).slice(1); 
 
-                if (wordCount === 1 && singleWord) {
-                    if (!isNaN(parseFloat(singleWord)) && isFinite(singleWord)) {
-                        subCategory = 'number';
-                    } else {
-                        if (lang.startsWith('en')) {
-                            if (singleWord.match(/^(is|am|are|was|were|be|have|has|had|do|does|did|will|can|could|may|might|should|would|go|get|say|see|make|know|take|come|think|look|want|give|use|find|tell|ask|work|seem|feel|try|leave|call)$/i)) subCategory = 'verb';
-                            else if (singleWord.endsWith('ing') || singleWord.endsWith('ed') || singleWord.endsWith('ize') || singleWord.endsWith('ate') || singleWord.endsWith('ify') || singleWord.endsWith('en')) subCategory = 'verb';
-                            else if (singleWord.endsWith('tion') || singleWord.endsWith('sion') || singleWord.endsWith('ment') || singleWord.endsWith('ness') || singleWord.endsWith('ity') || singleWord.endsWith('er') || singleWord.endsWith('or') || singleWord.endsWith('ist') || singleWord.endsWith('ism') || singleWord.endsWith('age')) subCategory = 'noun';
-                        } else if (lang.startsWith('fr')) {
-                            if (singleWord.match(/^(être|avoir|faire|aller|pouvoir|vouloir|devoir|dire|voir|savoir|venir|falloir|croire|trouver|donner|parler|aimer|passer|mettre|demander|tenir|sembler|laisser|rester)$/i)) subCategory = 'verb';
-                            else if (singleWord.endsWith('er') || singleWord.endsWith('ir') || singleWord.endsWith('re') || singleWord.endsWith('oir')) subCategory = 'verb';
-                            else if (singleWord.endsWith('tion') || singleWord.endsWith('age') || singleWord.endsWith('ment') || singleWord.endsWith('isme') || singleWord.endsWith('eur') || singleWord.endsWith('euse') || singleWord.endsWith('té') || singleWord.endsWith('esse')) subCategory = 'noun';
-                        } else if (lang.startsWith('tl')) {
-                            if (singleWord.match(/^(um|mag|ma|mang|maki|nag|na|ini|ina|ika|ipa|ipang|ikapag)/i) || (singleWord.match(/(in|an)$/i) && !singleWord.match(/^(ka|pag|san|pan)/i)) ) subCategory = 'verb';
-                            else if (singleWord.match(/^(pag|ka|tag|pala|sinta|taga|pang|pam|pan|sangka)/i) || (singleWord.endsWith('an') && singleWord.match(/^(ka|pag)/i))) subCategory = 'noun';
+                lines.forEach((line, lineIndex) => {
+                    if (line.trim() === '') return;
+
+                    const parts = [];
+                    let currentField = '';
+                    let inQuotedField = false;
+
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+
+                        if (char === '"') {
+                            if (inQuotedField && i + 1 < line.length && line[i + 1] === '"') {
+                                currentField += '"';
+                                i++; 
+                            } else {
+                                inQuotedField = !inQuotedField;
+                            }
+                        } else if (char === ',' && !inQuotedField) {
+                            parts.push(currentField);
+                            currentField = '';
+                        } else {
+                            currentField += char;
                         }
                     }
-                }
-                return { mainCategory, subCategory };
-            }
+                    parts.push(currentField); 
 
-            function speakText(text, intendedLangOfText) {
-                return new Promise((resolve, reject) => {
-                    const langToUse = selectedSpeechLangInGame || intendedLangOfText;
-                    if (!text || !langToUse) {
-                        console.warn("speakText: No text or language provided.", {text, langToUse});
-                        resolve(); return;
-                    }
-                    if ('speechSynthesis' in window) {
-                        if (ttsGeneralStatus) ttsGeneralStatus.textContent = '';
-                        window.speechSynthesis.cancel(); 
-                        const utterance = new SpeechSynthesisUtterance(text);
-                        utterance.lang = langToUse;
-                        utterance.onend = resolve;
-                        utterance.onerror = (e) => {
-                            console.error("SpeechSynthesisUtterance error:", e, "Text:", text, "Lang:", langToUse);
-                            if (ttsGeneralStatus) ttsGeneralStatus.textContent = `TTS error: ${e.error} for lang ${langToUse}. Try another voice/lang.`;
-                            reject(e);
-                        };
-                        window.speechSynthesis.speak(utterance);
-                    } else {
-                        if (ttsGeneralStatus) ttsGeneralStatus.textContent = "Text-to-Speech not supported by your browser.";
-                        console.warn("Speech synthesis not supported.");
-                        resolve(); 
+                    if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
+                        const lang1Text = parts[0].trim();
+                        const lang2Text = parts[1].trim();
+                        const sentence = parts.length > 2 && parts[2] ? parts[2].trim() : `This is a ____.`;
+                        const { mainCategory, subCategory } = categorizeTerm(lang1Text, csvUploadedTargetLanguage);
+                        vocabulary.push({
+                            lang1: lang1Text, lang2: lang2Text, originalIndex: vocabulary.length,
+                            category: mainCategory, subCategory: subCategory, sentence: sentence, correctCount: 0
+                        });
+                    } else if (line.trim().length > 0) { 
+                        console.warn(`Skipping line ${lineIndex + 2} due to insufficient columns or empty required fields: "${line}" Parsed:`, parts);
                     }
                 });
             }
 
-            function toggleHearItOutLoud() { hearItOutLoudEnabled = !hearItOutLoudEnabled; updateHearItOutLoudButton(); if (mcqQuestion) mcqQuestion.classList.toggle('speakable-question', hearItOutLoudEnabled && !multipleChoiceGameContainer.classList.contains('hidden')); }
-            function updateHearItOutLoudButton() { if (hearItOutLoudToggleBtn && hearItOutLoudBtnText) { hearItOutLoudBtnText.textContent = `Hear: ${hearItOutLoudEnabled ? 'ON' : 'OFF'}`; hearItOutLoudToggleBtn.classList.toggle('active', hearItOutLoudEnabled); } }
-            function initializeAudio() { if (audioInitialized) return; Tone.start().then(() => { audioInitialized = true; backgroundMusicSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }, volume: -28 }).toDestination(); const vivaldiSpringMotif = [ { time: "0:0", note: "E4", duration: "4n" }, { time: "0:1", note: "E4", duration: "4n" }, { time: "0:2", note: "E4", duration: "4n" }, { time: "0:3", note: "C#5", duration: "4n" }, { time: "1:0", note: "D#5", duration: "4n" }, { time: "1:1", note: "D#5", duration: "4n" }, { time: "1:2", note: "D#5", duration: "4n" }, { time: "1:3", note: "B4", duration: "4n" }, { time: "2:0", note: "E4", duration: "4n" }, { time: "2:1", note: "E4", duration: "4n" }, { time: "2:2", note: "E4", duration: "4n" }, { time: "2:3", note: "C#5", duration: "4n" }, { time: "3:0", note: "D#5", duration: "4n" }, { time: "3:1", note: "D#5", duration: "4n" }, { time: "3:2", note: "B4", duration: "4n" }, { time: "3:3", note: "E4", duration: "4n" } ]; const musicPart = new Tone.Part((time, value) => backgroundMusicSynth.triggerAttackRelease(value.note, value.duration, time), vivaldiSpringMotif).start(0); musicPart.loop = true; musicPart.loopEnd = "4m"; correctMatchSynth = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.2 }, volume: -12 }).toDestination(); incorrectBuzzSynth = new Tone.NoiseSynth ({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }, volume: -18 }).toDestination(); notebookLostSynth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, filter: { Q: 2, type: "lowpass", rolloff: -24 }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.2, baseFrequency: 200, octaves: 2 }, volume: -15 }).toDestination(); updateMusicButton(); if(musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start(); else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause(); }).catch(e => console.error("Failed to start audio context:", e)); }
-            function toggleMusic() { if (!audioInitialized) { initializeAudio(); musicPlaying = !musicPlaying; return; } musicPlaying = !musicPlaying; if (musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start(); else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause(); updateMusicButton(); }
-            function updateMusicButton() { if (musicPlaying) { musicIconOn.classList.remove('hidden'); musicIconOff.classList.add('hidden'); musicStatusText.textContent = "Music: ON"; } else { musicIconOn.classList.add('hidden'); musicIconOff.classList.remove('hidden'); musicStatusText.textContent = "Music: OFF"; } }
-            function playCorrectMatchSound() { if (audioInitialized && correctMatchSynth) { correctMatchSynth.triggerAttackRelease("C5", "8n", Tone.now()); correctMatchSynth.triggerAttackRelease("G5", "4n", Tone.now() + 0.12); } }
-            function playIncorrectSound() {  if (audioInitialized && incorrectBuzzSynth) { incorrectBuzzSynth.triggerAttackRelease("0.2n"); } }
-            function playNotebookLostSound() { if (audioInitialized && notebookLostSynth) { notebookLostSynth.triggerAttackRelease("C3", "0.3n"); } }
-
-            function setupMistakeTracker() { mistakeTrackerDiv.innerHTML = ''; for (let i = 0; i < MAX_MISTAKES; i++) { const capybaraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); capybaraSvg.setAttribute("viewBox", "0 0 60 60"); capybaraSvg.setAttribute("fill", "currentColor"); capybaraSvg.classList.add("capybara-life-icon"); capybaraSvg.innerHTML = ` <path d="M30,15 C18,15 10,23 10,33 C10,43 15,50 22,52 C20,48 20,42 23,40 C25,38 28,38 30,39 C32,38 35,38 37,40 C40,42 40,48 38,52 C45,50 50,43 50,33 C50,23 42,15 30,15 Z M22,28 A2,2 0 0,1 24,30 A2,2 0 0,1 22,32 A2,2 0 0,1 20,30 A2,2 0 0,1 22,28 Z M38,28 A2,2 0 0,1 40,30 A2,2 0 0,1 38,32 A2,2 0 0,1 36,30 A2,2 0 0,1 38,28 Z M30,42 C28,42 27,41 27,40 C27,39 28,38 30,38 C32,38 33,39 33,40 C33,41 32,42 30,42 Z"></path> <ellipse cx="23" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <ellipse cx="37" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <path d="M28,33 Q30,35 32,33" stroke="#4a2c2a" stroke-width="1.5" fill="none" /> `; mistakeTrackerDiv.appendChild(capybaraSvg); } }
-            function updateMistakeDisplay() { const icons = mistakeTrackerDiv.querySelectorAll('.capybara-life-icon'); icons.forEach((icon, index) => { icon.classList.toggle('mistake', index < MAX_MISTAKES - mistakesRemaining); }); }
-            function updateScoreDisplay() { currentScoreDisplay.textContent = `Score: ${currentScore}`; maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; }
-            function recordMistake(item = null) { if (item && !isBonusRound && !isEssentialsMode) { if (!mistakeItems.find(mi => mi.originalIndex === item.originalIndex && mi.lang1 === item.lang1)) { mistakeItems.push(item); } } if (mistakesRemaining > 0) { mistakesRemaining--; playNotebookLostSound(); updateMistakeDisplay(); if (mistakesRemaining === 0 && !isBonusRound) { let restartFn = showGameSelection; if(!matchingGameContainer.classList.contains('hidden')) restartFn = () => initMatchingGame(false); else if(!multipleChoiceGameContainer.classList.contains('hidden')) restartFn = () => initMultipleChoiceGame(false); else if(!typeTranslationGameContainer.classList.contains('hidden')) restartFn = () => initTypeTranslationGame(false); else if(!talkToMeGameContainer.classList.contains('hidden')) restartFn = () => initTalkToMeGame(false); else if(!fillInTheBlanksGameContainer.classList.contains('hidden')) restartFn = () => initFillInTheBlanksGame(false); else if(!findTheWordsGameContainer.classList.contains('hidden')) restartFn = () => initFindTheWordsGame(); handleGameOver(restartFn); return true; } } return false; }
-
-            function handleCorrectAnswer(isFast, item = null, points = null) {
-                const pointsEarned = points !== null ? points : (isFast ? POINTS_FAST_CORRECT : POINTS_SLOW_CORRECT);
-                currentScore += pointsEarned;
-                if (activeGameType && sessionScores.hasOwnProperty(activeGameType)) {
-                    sessionScores[activeGameType] += pointsEarned;
-                }
-
-                if (currentScore > sessionMaxScore) sessionMaxScore = currentScore;
-                updateScoreDisplay();
-                playCorrectMatchSound();
-
-                if (item && !isBonusRound) { 
-                    const mainVocabList = isEssentialsMode ? essentialsVocabularyData[currentEssentialsCategoryName] : vocabulary;
-                    const vocabItemRef = mainVocabList.find(v =>
-                        v.originalIndex === item.originalIndex && v.lang1 === item.lang1 
-                    );
-
-                    if (vocabItemRef) {
-                        vocabItemRef.correctCount = (vocabItemRef.correctCount || 0) + 1;
-                    }
-                    if (!isEssentialsMode) { 
-                         correctlyAnsweredItemsInPart.add(item.originalIndex);
-                    }
-                }
-            }
-            function handleIncorrectAnswer(item = null, pointsDeducted = POINTS_INCORRECT) { currentScore += pointsDeducted; if (currentScore < 0) currentScore = 0; if (activeGameType && sessionScores.hasOwnProperty(activeGameType)) { sessionScores[activeGameType] += pointsDeducted; if(sessionScores[activeGameType] < 0) sessionScores[activeGameType] = 0;} updateScoreDisplay(); playIncorrectSound(); return recordMistake(item); }
-            function handleGameOver(gameSpecificRestartFn) { gameOverMessage.textContent = "Game Over! Too many mistakes. Restarting this part..."; gameOverMessage.classList.remove('hidden'); disableAllGameInteractions(); setTimeout(() => { gameOverMessage.classList.add('hidden'); gameSpecificRestartFn(); }, 2500); }
-            function disableAllGameInteractions() { if(nextMcqBtn) nextMcqBtn.classList.add('hidden'); if (mcqOptions) mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => btn.disabled = true); if (typeTranslationInput) typeTranslationInput.disabled = true; if (checkTypeTranslationBtn) checkTypeTranslationBtn.disabled = true; if (nextTypeTranslationBtn) nextTypeTranslationBtn.classList.add('hidden'); if (listenBtn) listenBtn.disabled = true; if (nextTalkToMeBtn) nextTalkToMeBtn.classList.add('hidden'); if (checkFillInTheBlanksBtn) checkFillInTheBlanksBtn.disabled = true; if (nextFillInTheBlanksBtn) nextFillInTheBlanksBtn.classList.add('hidden'); if (fillInTheBlanksInput) fillInTheBlanksInput.disabled = true; if (sendFindTheWordsBtn) sendFindTheWordsBtn.disabled = true; if (replayFindTheWordsAudioBtn) replayFindTheWordsAudioBtn.disabled = true; if (nextFindTheWordsRoundBtn) nextFindTheWordsRoundBtn.classList.add('hidden'); if (findTheWordsGrid) findTheWordsGrid.querySelectorAll('.game-card').forEach(card => card.style.pointerEvents = 'none'); }
-            function resetSessionStats() { currentScore = 0; mistakeItems = []; correctlyAnsweredItemsInPart.clear(); isBonusRound = false; resetGameStats(); Object.keys(sessionScores).forEach(key => sessionScores[key] = 0); }
-            function resetGameStats() { mistakesRemaining = MAX_MISTAKES; updateScoreDisplay(); setupMistakeTracker(); gameOverMessage.classList.add('hidden'); }
-            function startQuestionTimer() { questionStartTime = Date.now(); }
-            function getAnswerDuration() { return Date.now() - questionStartTime; }
-
-            // --- Navigation and Setup ---
-
-        async function handleFileUpload(droppedFile = null) {
+    async function handleFileUpload(droppedFile = null) {
     const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
     if (!file) {
         uploadStatus.textContent = 'Please select or drop a CSV file.';
@@ -1019,18 +735,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const reader = new FileReader();
     reader.onload = async function(event) {
         try {
-            const parsedNotes = parseCSVToNotes(event.target.result);
-            if (parsedNotes.length > 0) {
+            parseCSV(event.target.result); // This populates your `vocabulary` array
+            if (vocabulary.length > 0) {
+                // Check if user is logged in
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    uploadStatus.textContent = "Please log in to save your vocabulary.";
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                    return;
+                }
                 uploadStatus.textContent = 'Saving notes to your account...';
-                const success = await saveNotes(parsedNotes);
+                const success = await saveNotes(vocabulary);
                 if (success) {
-                    await fetchNotes();
-                    uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
+                    await fetchNotes(); // Refresh from Supabase
+                    uploadStatus.textContent = `Successfully saved ${vocabulary.length} new notes!`;
                     uploadStatus.className = 'text-sm text-teal-600 mt-2 h-5';
                     setTimeout(() => {
                         uploadSection.classList.add('hidden');
                         showGameSelection();
                     }, 1500);
+                } else {
+                    uploadStatus.textContent = 'Error saving notes to your account.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                 }
             } else {
                 uploadStatus.textContent = 'No vocabulary found. Check file format.';
@@ -1049,156 +775,164 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsText(file);
 }
 
+            // --- UI & NAVIGATION FUNCTIONS ---
+            function showMainSelection() { mainSelectionSection.classList.remove('hidden'); [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer, languageSelectionInGameContainer].forEach(el => el.classList.add('hidden')); isEssentialsMode = false; currentEssentialsCategoryName = ""; sessionMaxScore = 0; updateScoreDisplay(); hearItOutLoudToggleBtn.classList.add('hidden'); if(ttsGeneralStatus) ttsGeneralStatus.textContent = ''; activeTargetStudyLanguage = csvUploadedTargetLanguage; selectedSpeechLangInGame = csvUploadedTargetLanguage; }
+            function showGameSelection() {
+                if (!isEssentialsMode) {
+                    activeTargetStudyLanguage = csvUploadedTargetLanguage; 
+                    selectedSpeechLangInGame = csvUploadedTargetLanguage;
+                } else {
+                    selectedSpeechLangInGame = activeTargetStudyLanguage; 
+                }
+                [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea, languageSelectionInGameContainer].forEach(el => el.classList.add('hidden'));
+                [flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden'));
+                gameSelectionSection.classList.remove('hidden');
+                fillInTheBlanksBtn.classList.toggle('hidden', !isEssentialsMode); 
+                findTheWordsBtn.classList.remove('hidden'); 
 
-function parseCSVToNotes(csvData) {
-    const lines = csvData.split(/\r\n|\n/);
-    const parsed = [];
-    // skip header
-    for (let l = 1; l < lines.length; l++) {
-        let line = lines[l];
-        if (!line.trim()) continue;
-        // Basic CSV split, handles quoted items with commas
-        let match, regex = /("([^"]|"")*"|[^,]*)(,|$)/g, row = [], i = 0;
-        while ((match = regex.exec(line)) !== null) {
-            let val = match[1].trim();
-            if (val.startsWith('"') && val.endsWith('"')) {
-                val = val.slice(1, -1).replace(/""/g, '"');
+                const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
+                if (activeVocab.length === 0) { noVocabularyMessage.classList.remove('hidden'); gameButtonsContainer.classList.add('hidden'); }
+                else { noVocabularyMessage.classList.add('hidden'); gameButtonsContainer.classList.remove('hidden'); }
+
+                sessionMaxScore = 0; updateScoreDisplay(); 
+                hearItOutLoudToggleBtn.classList.add('hidden'); if(ttsGeneralStatus) ttsGeneralStatus.textContent = '';
             }
-            row.push(val);
-            i++;
-        }
-        if (row.length >= 2 && row[0] && row[1]) {
-            parsed.push({ lang1: row[0], lang2: row[1] });
-        }
-    }
-    return parsed;
-}
-        
-
-            // ... (All other 1000+ lines of your game logic functions go here)
-            // I am just showing the placeholder for brevity, but they are all in the full code below
-     function showMainSelection() {
-            mainSelectionSection.classList.remove('hidden');
-            [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea].forEach(el => el && el.classList.add('hidden'));
-        }
-
-        function showGameSelection() {
-            gameSelectionSection.classList.remove('hidden');
-            [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameArea].forEach(el => el && el.classList.add('hidden'));
-            // ... update UI based on vocabulary loaded ...
-        }
-
-        // Example: navigation for upload section
-        if (showUploadSectionBtn) {
-            showUploadSectionBtn.addEventListener('click', () => {
-                uploadSection.classList.remove('hidden');
-                mainSelectionSection.classList.add('hidden');
-            });
-        }
-        if (backToMainSelectionFromUploadBtn) {
-            backToMainSelectionFromUploadBtn.addEventListener('click', () => {
-                showMainSelection();
-            });
-        }
-
-        // Add all your other game logic below...
-        // (This means: keep all the original game logic and event listeners you already have!)
-
-        if (addNotesBtn) {
-            addNotesBtn.addEventListener('click', async () => {
-                await fetchNotes();
-                // Optionally, update UI or do something after notes are reloaded
-            });
-        }
-
-        // ... rest of your game logic from the original file goes here ...
-    });
-
+            
+            // --- ALL GAME LOGIC FUNCTIONS ---
+            function truncateText(text, maxLength = TEXT_TRUNCATE_LENGTH) { if (typeof text !== 'string') text = String(text); return text.length > maxLength ? text.substring(0, maxLength) + "..." : text; }
+            function shuffleArray(array) { const newArray = [...array]; for (let i = newArray.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; } return newArray; }
+            function getEffectiveLanguages(item, isEssentialsModeActive, currentActiveSpokenLang) { if (!item) return { target: "", translation: "" }; if (isEssentialsModeActive) { if (currentActiveSpokenLang && !currentActiveSpokenLang.toLowerCase().startsWith('en') && item.lang2) { return { target: item.lang2, translation: item.lang1 }; } else { return { target: item.lang1, translation: item.lang2 }; } } else { return { target: item.lang1, translation: item.lang2 }; } }
+            function categorizeTerm(term, lang) { let mainCategory = 'word'; let subCategory = null; const words = term.trim().split(/\s+/).filter(Boolean); const wordCount = words.length; if (wordCount > 1) { mainCategory = 'phrase'; } const singleWord = words[0]?.toLowerCase(); if (wordCount === 1 && singleWord) { if (!isNaN(parseFloat(singleWord)) && isFinite(singleWord)) { subCategory = 'number'; } else { if (lang.startsWith('en')) { if (singleWord.match(/^(is|am|are|was|were|be|have|has|had|do|does|did|will|can|could|may|might|should|would|go|get|say|see|make|know|take|come|think|look|want|give|use|find|tell|ask|work|seem|feel|try|leave|call)$/i)) subCategory = 'verb'; else if (singleWord.endsWith('ing') || singleWord.endsWith('ed') || singleWord.endsWith('ize') || singleWord.endsWith('ate') || singleWord.endsWith('ify') || singleWord.endsWith('en')) subCategory = 'verb'; else if (singleWord.endsWith('tion') || singleWord.endsWith('sion') || singleWord.endsWith('ment') || singleWord.endsWith('ness') || singleWord.endsWith('ity') || singleWord.endsWith('er') || singleWord.endsWith('or') || singleWord.endsWith('ist') || singleWord.endsWith('ism') || singleWord.endsWith('age')) subCategory = 'noun'; } else if (lang.startsWith('fr')) { if (singleWord.match(/^(être|avoir|faire|aller|pouvoir|vouloir|devoir|dire|voir|savoir|venir|falloir|croire|trouver|donner|parler|aimer|passer|mettre|demander|tenir|sembler|laisser|rester)$/i)) subCategory = 'verb'; else if (singleWord.endsWith('er') || singleWord.endsWith('ir') || singleWord.endsWith('re') || singleWord.endsWith('oir')) subCategory = 'verb'; else if (singleWord.endsWith('tion') || singleWord.endsWith('age') || singleWord.endsWith('ment') || singleWord.endsWith('isme') || singleWord.endsWith('eur') || singleWord.endsWith('euse') || singleWord.endsWith('té') || singleWord.endsWith('esse')) subCategory = 'noun'; } else if (lang.startsWith('tl')) { if (singleWord.match(/^(um|mag|ma|mang|maki|nag|na|ini|ina|ika|ipa|ipang|ikapag)/i) || (singleWord.match(/(in|an)$/i) && !singleWord.match(/^(ka|pag|san|pan)/i)) ) subCategory = 'verb'; else if (singleWord.match(/^(pag|ka|tag|pala|sinta|taga|pang|pam|pan|sangka)/i) || (singleWord.endsWith('an') && singleWord.match(/^(ka|pag)/i))) subCategory = 'noun'; } } } return { mainCategory, subCategory }; }
+            function speakText(text, intendedLangOfText) { return new Promise((resolve, reject) => { const langToUse = selectedSpeechLangInGame || intendedLangOfText; if (!text || !langToUse) { console.warn("speakText: No text or language provided.", {text, langToUse}); resolve(); return; } if ('speechSynthesis' in window) { if (ttsGeneralStatus) ttsGeneralStatus.textContent = ''; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = langToUse; utterance.onend = resolve; utterance.onerror = (e) => { console.error("SpeechSynthesisUtterance error:", e, "Text:", text, "Lang:", langToUse); if (ttsGeneralStatus) ttsGeneralStatus.textContent = `TTS error: ${e.error} for lang ${langToUse}. Try another voice/lang.`; reject(e); }; window.speechSynthesis.speak(utterance); } else { if (ttsGeneralStatus) ttsGeneralStatus.textContent = "Text-to-Speech not supported by your browser."; console.warn("Speech synthesis not supported."); resolve(); } }); }
+            function toggleHearItOutLoud() { hearItOutLoudEnabled = !hearItOutLoudEnabled; updateHearItOutLoudButton(); if (mcqQuestion) mcqQuestion.classList.toggle('speakable-question', hearItOutLoudEnabled && !multipleChoiceGameContainer.classList.contains('hidden')); }
+            function updateHearItOutLoudButton() { if (hearItOutLoudToggleBtn && hearItOutLoudBtnText) { hearItOutLoudBtnText.textContent = `Hear: ${hearItOutLoudEnabled ? 'ON' : 'OFF'}`; hearItOutLoudToggleBtn.classList.toggle('active', hearItOutLoudEnabled); } }
+            function initializeAudio() { if (audioInitialized) return; Tone.start().then(() => { audioInitialized = true; backgroundMusicSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }, volume: -28 }).toDestination(); const vivaldiSpringMotif = [ { time: "0:0", note: "E4", duration: "4n" }, { time: "0:1", note: "E4", duration: "4n" }, { time: "0:2", note: "E4", duration: "4n" }, { time: "0:3", note: "C#5", duration: "4n" }, { time: "1:0", note: "D#5", duration: "4n" }, { time: "1:1", note: "D#5", duration: "4n" }, { time: "1:2", note: "D#5", duration: "4n" }, { time: "1:3", note: "B4", duration: "4n" }, { time: "2:0", note: "E4", duration: "4n" }, { time: "2:1", note: "E4", duration: "4n" }, { time: "2:2", note: "E4", duration: "4n" }, { time: "2:3", note: "C#5", duration: "4n" }, { time: "3:0", note: "D#5", duration: "4n" }, { time: "3:1", note: "D#5", duration: "4n" }, { time: "3:2", note: "B4", duration: "4n" }, { time: "3:3", note: "E4", duration: "4n" } ]; const musicPart = new Tone.Part((time, value) => backgroundMusicSynth.triggerAttackRelease(value.note, value.duration, time), vivaldiSpringMotif).start(0); musicPart.loop = true; musicPart.loopEnd = "4m"; correctMatchSynth = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.2 }, volume: -12 }).toDestination(); incorrectBuzzSynth = new Tone.NoiseSynth ({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }, volume: -18 }).toDestination(); notebookLostSynth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, filter: { Q: 2, type: "lowpass", rolloff: -24 }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.2, baseFrequency: 200, octaves: 2 }, volume: -15 }).toDestination(); updateMusicButton(); if(musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start(); else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause(); }).catch(e => console.error("Failed to start audio context:", e)); }
+            function toggleMusic() { if (!audioInitialized) { initializeAudio(); musicPlaying = !musicPlaying; return; } musicPlaying = !musicPlaying; if (musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start(); else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause(); updateMusicButton(); }
+            function updateMusicButton() { if (musicPlaying) { musicIconOn.classList.remove('hidden'); musicIconOff.classList.add('hidden'); musicStatusText.textContent = "Music: ON"; } else { musicIconOn.classList.add('hidden'); musicIconOff.classList.remove('hidden'); musicStatusText.textContent = "Music: OFF"; } }
+            function playCorrectMatchSound() { if (audioInitialized && correctMatchSynth) { correctMatchSynth.triggerAttackRelease("C5", "8n", Tone.now()); correctMatchSynth.triggerAttackRelease("G5", "4n", Tone.now() + 0.12); } }
+            function playIncorrectSound() {  if (audioInitialized && incorrectBuzzSynth) { incorrectBuzzSynth.triggerAttackRelease("0.2n"); } }
+            function playNotebookLostSound() { if (audioInitialized && notebookLostSynth) { notebookLostSynth.triggerAttackRelease("C3", "0.3n"); } }
+            function setupMistakeTracker() { mistakeTrackerDiv.innerHTML = ''; for (let i = 0; i < MAX_MISTAKES; i++) { const capybaraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); capybaraSvg.setAttribute("viewBox", "0 0 60 60"); capybaraSvg.setAttribute("fill", "currentColor"); capybaraSvg.classList.add("capybara-life-icon"); capybaraSvg.innerHTML = ` <path d="M30,15 C18,15 10,23 10,33 C10,43 15,50 22,52 C20,48 20,42 23,40 C25,38 28,38 30,39 C32,38 35,38 37,40 C40,42 40,48 38,52 C45,50 50,43 50,33 C50,23 42,15 30,15 Z M22,28 A2,2 0 0,1 24,30 A2,2 0 0,1 22,32 A2,2 0 0,1 20,30 A2,2 0 0,1 22,28 Z M38,28 A2,2 0 0,1 40,30 A2,2 0 0,1 38,32 A2,2 0 0,1 36,30 A2,2 0 0,1 38,28 Z M30,42 C28,42 27,41 27,40 C27,39 28,38 30,38 C32,38 33,39 33,40 C33,41 32,42 30,42 Z"></path> <ellipse cx="23" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <ellipse cx="37" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <path d="M28,33 Q30,35 32,33" stroke="#4a2c2a" stroke-width="1.5" fill="none" /> `; mistakeTrackerDiv.appendChild(capybaraSvg); } }
+            function updateMistakeDisplay() { const icons = mistakeTrackerDiv.querySelectorAll('.capybara-life-icon'); icons.forEach((icon, index) => { icon.classList.toggle('mistake', index < MAX_MISTAKES - mistakesRemaining); }); }
+            function updateScoreDisplay() { currentScoreDisplay.textContent = `Score: ${currentScore}`; maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; }
+            function recordMistake(item = null) { if (item && !isBonusRound && !isEssentialsMode) { if (!mistakeItems.find(mi => mi.originalIndex === item.originalIndex && mi.lang1 === item.lang1)) { mistakeItems.push(item); } } if (mistakesRemaining > 0) { mistakesRemaining--; playNotebookLostSound(); updateMistakeDisplay(); if (mistakesRemaining === 0 && !isBonusRound) { let restartFn = showGameSelection; if(!matchingGameContainer.classList.contains('hidden')) restartFn = () => initMatchingGame(false); else if(!multipleChoiceGameContainer.classList.contains('hidden')) restartFn = () => initMultipleChoiceGame(false); else if(!typeTranslationGameContainer.classList.contains('hidden')) restartFn = () => initTypeTranslationGame(false); else if(!talkToMeGameContainer.classList.contains('hidden')) restartFn = () => initTalkToMeGame(false); else if(!fillInTheBlanksGameContainer.classList.contains('hidden')) restartFn = () => initFillInTheBlanksGame(false); else if(!findTheWordsGameContainer.classList.contains('hidden')) restartFn = () => initFindTheWordsGame(); handleGameOver(restartFn); return true; } } return false; }
+            function handleCorrectAnswer(isFast, item = null, points = null) { const pointsEarned = points !== null ? points : (isFast ? POINTS_FAST_CORRECT : POINTS_SLOW_CORRECT); currentScore += pointsEarned; if (activeGameType && sessionScores.hasOwnProperty(activeGameType)) { sessionScores[activeGameType] += pointsEarned; } if (currentScore > sessionMaxScore) sessionMaxScore = currentScore; updateScoreDisplay(); playCorrectMatchSound(); if (item && !isBonusRound) { const mainVocabList = isEssentialsMode ? essentialsVocabularyData[currentEssentialsCategoryName] : vocabulary; const vocabItemRef = mainVocabList.find(v => v.originalIndex === item.originalIndex && v.lang1 === item.lang1 ); if (vocabItemRef) { vocabItemRef.correctCount = (vocabItemRef.correctCount || 0) + 1; } if (!isEssentialsMode) {  correctlyAnsweredItemsInPart.add(item.originalIndex); } } }
+            function handleIncorrectAnswer(item = null, pointsDeducted = POINTS_INCORRECT) { currentScore += pointsDeducted; if (currentScore < 0) currentScore = 0; if (activeGameType && sessionScores.hasOwnProperty(activeGameType)) { sessionScores[activeGameType] += pointsDeducted; if(sessionScores[activeGameType] < 0) sessionScores[activeGameType] = 0;} updateScoreDisplay(); playIncorrectSound(); return recordMistake(item); }
+            function handleGameOver(gameSpecificRestartFn) { gameOverMessage.textContent = "Game Over! Too many mistakes. Restarting this part..."; gameOverMessage.classList.remove('hidden'); disableAllGameInteractions(); setTimeout(() => { gameOverMessage.classList.add('hidden'); gameSpecificRestartFn(); }, 2500); }
+            function disableAllGameInteractions() { if(nextMcqBtn) nextMcqBtn.classList.add('hidden'); if (mcqOptions) mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => btn.disabled = true); if (typeTranslationInput) typeTranslationInput.disabled = true; if (checkTypeTranslationBtn) checkTypeTranslationBtn.disabled = true; if (nextTypeTranslationBtn) nextTypeTranslationBtn.classList.add('hidden'); if (listenBtn) listenBtn.disabled = true; if (nextTalkToMeBtn) nextTalkToMeBtn.classList.add('hidden'); if (checkFillInTheBlanksBtn) checkFillInTheBlanksBtn.disabled = true; if (nextFillInTheBlanksBtn) nextFillInTheBlanksBtn.classList.add('hidden'); if (fillInTheBlanksInput) fillInTheBlanksInput.disabled = true; if (sendFindTheWordsBtn) sendFindTheWordsBtn.disabled = true; if (replayFindTheWordsAudioBtn) replayFindTheWordsAudioBtn.disabled = true; if (nextFindTheWordsRoundBtn) nextFindTheWordsRoundBtn.classList.add('hidden'); if (findTheWordsGrid) findTheWordsGrid.querySelectorAll('.game-card').forEach(card => card.style.pointerEvents = 'none'); }
+            function resetSessionStats() { currentScore = 0; mistakeItems = []; correctlyAnsweredItemsInPart.clear(); isBonusRound = false; resetGameStats(); Object.keys(sessionScores).forEach(key => sessionScores[key] = 0); }
+            function resetGameStats() { mistakesRemaining = MAX_MISTAKES; updateScoreDisplay(); setupMistakeTracker(); gameOverMessage.classList.add('hidden'); }
+            function startQuestionTimer() { questionStartTime = Date.now(); }
+            function getAnswerDuration() { return Date.now() - questionStartTime; }
+            function populateEssentialsCategoryButtons() { essentialsCategoryButtonsContainer.innerHTML = ''; Object.keys(essentialsVocabularyData).forEach(categoryKey => { const button = document.createElement('button'); button.className = 'btn essentials-category-btn p-3 sm:p-4 text-sm sm:text-md'; button.textContent = categoryKey; button.addEventListener('click', () => { currentEssentialsCategoryName = categoryKey; isEssentialsMode = true; if (categoryKey.toLowerCase().includes("(en-es)")) { activeTargetStudyLanguage = 'es-ES'; } else if (categoryKey.toLowerCase().includes("(en-fr)")) { activeTargetStudyLanguage = 'fr-FR'; } else { activeTargetStudyLanguage = 'en-US'; } selectedSpeechLangInGame = activeTargetStudyLanguage; currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({...item, originalIndex: index, correctCount: item.correctCount || 0 })); essentialsOptionsTitle.textContent = `Category: ${categoryKey}`; essentialsCategorySelectionSection.classList.add('hidden'); essentialsCategoryOptionsSection.classList.remove('hidden'); }); essentialsCategoryButtonsContainer.appendChild(button); }); }
+            function showPartSelection(gameType) { if (!isEssentialsMode) { activeTargetStudyLanguage = csvUploadedTargetLanguage; selectedSpeechLangInGame = csvUploadedTargetLanguage; } else { selectedSpeechLangInGame = activeTargetStudyLanguage; } if(languageSelectorInGame) languageSelectorInGame.value = selectedSpeechLangInGame; currentPartName = ""; sessionMaxScore = 0; updateScoreDisplay(); const sourceForParts = isEssentialsMode ? currentVocabularyPart : vocabulary; if (sourceForParts.length === 0) { noVocabularyMessage.classList.remove('hidden'); gameArea.classList.remove('hidden'); [partSelectionContainer, flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, flashcardStackSelectionContainer, gameOverMessage, languageSelectionInGameContainer].forEach(el => el.classList.add('hidden')); hearItOutLoudToggleBtn.classList.add('hidden'); return; } gameTitle.textContent = gameType.charAt(0).toUpperCase() + gameType.slice(1).replace(/([A-Z])/g, ' $1'); [uploadSection, gameSelectionSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, mainSelectionSection].forEach(el => el.classList.add('hidden')); gameArea.classList.remove('hidden'); partSelectionContainer.classList.remove('hidden'); languageSelectionInGameContainer.classList.remove('hidden'); [flashcardGameContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, flashcardStackSelectionContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); showGameInfoBar(); const showHearButton = gameType === 'flashcards' || gameType === 'matching' || gameType === 'multipleChoice' || gameType === 'findTheWords'; hearItOutLoudToggleBtn.classList.toggle('hidden', !showHearButton); if(showHearButton) updateHearItOutLoudButton(); if(ttsGeneralStatus) ttsGeneralStatus.textContent = ''; partButtonsContainer.innerHTML = ''; const numParts = Math.ceil(sourceForParts.length / ITEMS_PER_PART); const fullMixButton = document.createElement('button'); fullMixButton.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md'; let itemsForFullMixText = isEssentialsMode ? `${sourceForParts.length} items` : `${sourceForParts.length} items`; fullMixButton.textContent = `Full Mix (${itemsForFullMixText})`; fullMixButton.addEventListener('click', () => { currentVocabularyPart = [...sourceForParts]; currentPartName = "Full Mix"; currentPartIndexGlobal = -1; startGame(gameType); }); partButtonsContainer.appendChild(fullMixButton); if (!isEssentialsMode && numParts > 1 && sourceForParts.length > ITEMS_PER_PART) { for (let i = 0; i < numParts; i++) { const start = i * ITEMS_PER_PART; const end = start + ITEMS_PER_PART; const partVocab = sourceForParts.slice(start, end); if (partVocab.length === 0) continue; const button = document.createElement('button'); button.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md'; button.textContent = `Part ${i + 1} (Items ${start + 1}-${Math.min(end, sourceForParts.length)}) - ${partVocab.length} items`; button.addEventListener('click', () => { currentVocabularyPart = partVocab; currentPartName = `Part ${i + 1}`; currentPartIndexGlobal = i; startGame(gameType); }); partButtonsContainer.appendChild(button); } } }
+            // ... (The rest of the game logic functions would continue here) ...
 
             // --- EVENT LISTENERS ---
-
-            // Authentication Listeners
+            
+            // Authentication
             authToggleText.addEventListener('click', (e) => {
                 if (e.target.matches('.toggle-auth-link')) {
                     e.preventDefault();
-                    isSignUp = !isSignUp;
-                    authError.textContent = '';
-                    authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
-                    authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
-                    authToggleText.innerHTML = isSignUp 
-                        ? `Already have an account? <span class="toggle-auth-link">Login</span>` 
-                        : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+                    toggleAuthMode();
                 }
             });
 
-            if (authForm) {
-               
-                authForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const email = document.getElementById('emailInput').value;
-                    const password = document.getElementById('passwordInput').value;
-                    authError.textContent = '';
-
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('emailInput').value.trim();
+                const password = document.getElementById('passwordInput').value.trim();
+                authError.textContent = '';
+                try {
                     if (isSignUp) {
-                         const { data, error } = await supabaseClient.auth.signUp({ email, password });
-    if (error) {
-        authError.textContent = error.message;
-    } else {
-        alert('Sign up successful! Please check your email to confirm your account.');
-        // Optionally, hide the form or switch to login view
-    }
+                        const { error } = await supabaseClient.auth.signUp({ email, password });
+                        if (error) {
+                            authError.textContent = error.message;
+                        } else {
+                            alert('Sign up successful! Please check your email to confirm your account.');
+                            toggleAuthMode();
+                        }
                     } else {
                         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                         if (error) {
                             authError.textContent = error.message;
                         }
                     }
-                });
-            }
+                } catch (err) {
+                    authError.textContent = 'Unexpected error. Try again.';
+                    console.error(err);
+                }
+            });
 
-            if (googleLoginBtn) {
-                googleLoginBtn.addEventListener('click', async () => {
-                    const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
-                    if (error) { authError.textContent = error.message; }
-                });
-            }
+            googleLoginBtn.addEventListener('click', async () => {
+                const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+                if (error) { authError.textContent = error.message; }
+            });
 
-            if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-        await supabaseClient.auth.signOut();
-        // Option 1: reload page (simplest)
-        window.location.reload();
-        // Option 2: manually reset UI state
-        // loginSection.classList.remove('hidden');
-        // appContent.classList.add('hidden');
-    });
-}
-            
-            if (addNotesBtn) {
-                addNotesBtn.addEventListener('click', () => {
-                    gameSelectionSection.classList.add('hidden');
-                    gameArea.classList.add('hidden');
-                    showMainSelection();
-                });
-            }
-            
-            // App Navigation Listeners
+            logoutBtn.addEventListener('click', async () => {
+                await supabaseClient.auth.signOut();
+                window.location.reload();
+            });
+
+            // App Navigation & Game Setup
+            addNotesBtn.addEventListener('click', () => {
+                gameSelectionSection.classList.add('hidden');
+                gameArea.classList.add('hidden');
+                showMainSelection();
+            });
+
             showUploadSectionBtn.addEventListener('click', () => {
                 mainSelectionSection.classList.add('hidden');
                 uploadSection.classList.remove('hidden');
             });
-            backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
-
-            // File Upload Listeners
-            uploadBtn.addEventListener('click', () => handleFileUpload());
-            csvFileInput.addEventListener('change', () => handleFileUpload());
             
+            backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
+            
+            // ... (Add all other event listeners from your original file here) ...
+            musicToggleBtn.addEventListener('click', toggleMusic);
+            showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
+            backToMainSelectionFromEssentialsBtn.addEventListener('click', () => { essentialsCategorySelectionSection.classList.add('hidden'); mainSelectionSection.classList.remove('hidden'); isEssentialsMode = false; activeTargetStudyLanguage = csvUploadedTargetLanguage; selectedSpeechLangInGame = csvUploadedTargetLanguage; });
+            backToEssentialsCategoriesBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); });
+            reviewEssentialsCategoryBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); gameArea.classList.remove('hidden'); activeGameType = 'flashcards'; showFlashcardStackSelection(); });
+            playGamesWithEssentialsBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); showGameSelection(); });
+            flashcardsBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'flashcards'; showFlashcardStackSelection(); });
+            matchingBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'matching'; showPartSelection('matching'); });
+            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'multipleChoice'; showPartSelection('multipleChoice'); });
+            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'typeTranslation'; showPartSelection('typeTranslation'); });
+            talkToMeBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'talkToMe'; showPartSelection('talkToMe'); });
+            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'fillInTheBlanks'; startGame('fillInTheBlanks'); });
+            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'findTheWords'; showPartSelection('findTheWords'); });
+            backToGameSelectionBtn.addEventListener('click', showGameSelection);
+            backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
+            flashcardDiv.addEventListener('click', flipFlashcard);
+            nextCardBtn.addEventListener('click', nextFlashcard);
+            prevCardBtn.addEventListener('click', prevFlashcard);
+            if(resetCurrentPartBtn) resetCurrentPartBtn.addEventListener('click', () => { if(activeGameType === 'matching') initMatchingGame(false); else if(activeGameType === 'multipleChoice') initMultipleChoiceGame(false); else if(activeGameType === 'typeTranslation') initTypeTranslationGame(false); else if(activeGameType === 'talkToMe') initTalkToMeGame(false); else if(activeGameType === 'fillInTheBlanks') initFillInTheBlanksGame(false); else if(activeGameType === 'findTheWords') initFindTheWordsGame(); });
+            nextMcqBtn.addEventListener('click', nextMcqQuestion);
+            if (mcqQuestion) mcqQuestion.addEventListener('click', () => { if (hearItOutLoudEnabled && mcqGameActiveVocab.length > 0 && currentMcqIndex < mcqGameActiveVocab.length) { const currentPairForTTS = mcqGameActiveVocab[currentMcqIndex]; const { target: questionText } = getEffectiveLanguages(currentPairForTTS, isEssentialsMode, activeTargetStudyLanguage); if (questionText) speakText(questionText, activeTargetStudyLanguage); } });
+            checkTypeTranslationBtn.addEventListener('click', checkTypeTranslationAnswer);
+            nextTypeTranslationBtn.addEventListener('click', nextTypeTranslationQuestion);
+            hintTypeTranslationBtn.addEventListener('click', showTypeTranslationHint);
+            typeTranslationInput.addEventListener('keypress', (e) => { if (e.key === "Enter") { e.preventDefault(); if (!typeTranslationAnswered) checkTypeTranslationAnswer(); else if (mistakesRemaining > 0 || isBonusRound) nextTypeTranslationQuestion(); }});
+            checkFillInTheBlanksBtn.addEventListener('click', checkFillInTheBlanksAnswer);
+            nextFillInTheBlanksBtn.addEventListener('click', nextFillInTheBlanksQuestion);
+            fillInTheBlanksInput.addEventListener('keypress', (e) => { if (e.key === "Enter") { e.preventDefault(); if (!fillBlanksAnswered) checkFillInTheBlanksAnswer(); else if (mistakesRemaining > 0) nextFillInTheBlanksQuestion(); }});
+            replayFindTheWordsAudioBtn.addEventListener('click', () => speakFindTheWordsTargets(findWordsTargetWords, 0));
+            sendFindTheWordsBtn.addEventListener('click', checkFindTheWordsAnswer);
+            nextFindTheWordsRoundBtn.addEventListener('click', nextFindTheWordsRound);
+            listenBtn.addEventListener('click', toggleListeningSpeech);
+            nextTalkToMeBtn.addEventListener('click', nextTalkToMeItem);
+            speakPhraseBtn.addEventListener('click', speakCurrentTalkToMePhrase);
+            hearItOutLoudToggleBtn.addEventListener('click', toggleHearItOutLoud);
+            if (languageSelectorInGame) { languageSelectorInGame.addEventListener('change', (event) => { selectedSpeechLangInGame = event.target.value; if (!talkToMeGameContainer.classList.contains('hidden') && recognition) { const wasListening = isListening; if (wasListening) recognition.stop(); recognition.lang = selectedSpeechLangInGame; if (wasListening) { try { recognition.start(); } catch (e) { console.error("Error restarting recognition after lang change:", e); if(speechApiStatus) speechApiStatus.textContent = "Could not restart listening."; toggleListeningSpeechUIUpdate(false); } } } if (hearItOutLoudEnabled) { if (!flashcardGameContainer.classList.contains('hidden') && currentFlashcardSide === 'front' && currentFlashcardStack.length > 0 && currentFlashcardIndex < currentFlashcardStack.length) { const item = currentFlashcardStack[currentFlashcardIndex]; const { target } = getEffectiveLanguages(item, isEssentialsMode, activeTargetStudyLanguage); if (target) speakText(target, activeTargetStudyLanguage); } else if (!multipleChoiceGameContainer.classList.contains('hidden') && mcqGameActiveVocab.length > 0 && currentMcqIndex < mcqGameActiveVocab.length) { const currentPairForTTS = mcqGameActiveVocab[currentMcqIndex]; const { target: questionText } = getEffectiveLanguages(currentPairForTTS, isEssentialsMode, activeTargetStudyLanguage); if (questionText) speakText(questionText, activeTargetStudyLanguage); } else if (!talkToMeGameContainer.classList.contains('hidden') && talkToMeActiveVocab.length > 0 && currentTalkToMeIndex < talkToMeActiveVocab.length) { speakCurrentTalkToMePhrase(); } } }); }
+
+
             // --- INITIALIZATION ---
             supabaseClient.auth.onAuthStateChange(async (event, session) => {
                 if (session) {
                     loginSection.classList.add('hidden');
                     appContent.classList.remove('hidden');
-                    await fetchNotes();
+                    await fetchNotes(); // This will populate `vocabulary` for logged-in users
                     if (vocabulary.length > 0) {
                         showGameSelection();
                     } else {
@@ -1209,22 +943,16 @@ function parseCSVToNotes(csvData) {
                     appContent.classList.add('hidden');
                     vocabulary = []; // Clear vocabulary on logout
                 }
-         
-            
-      
-        function toggleAuthMode() {
-            isSignUp = !isSignUp;
-            authError.textContent = '';
-            authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
-            authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
-            authToggleText.innerHTML = isSignUp
-                ? `Already have an account? <span class="toggle-auth-link">Login</span>`
-                : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
-        }
+            });
 
+            // Initial UI setup on page load
+            showMainSelection(); 
+            updateMusicButton(); 
+            setupMistakeTracker(); 
+            updateScoreDisplay(); 
+            updateHearItOutLoudButton();
 
-});
-</script>
+        });
     </script>
 </body>
 </html>
