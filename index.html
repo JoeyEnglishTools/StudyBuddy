@@ -577,8 +577,7 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {            // --- Supabase Client Setup ---
-            const { createClient } = supabase;
+        document.addEventListener('DOMContentLoaded', () => {       const { createClient } = supabase;
             const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -635,7 +634,7 @@
             }
             
             function parseCSV(csvData) {
-                vocabulary = [];
+                const parsed = [];
                 const lines = csvData.split(/\r\n|\n/).slice(1); 
 
                 lines.forEach((line) => {
@@ -664,43 +663,81 @@
                     if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
                         const lang1Text = parts[0].trim();
                         const lang2Text = parts[1].trim();
-                        vocabulary.push({
-                            lang1: lang1Text, lang2: lang2Text, originalIndex: vocabulary.length,
-                            correctCount: 0
+                        parsed.push({
+                            lang1: lang1Text, lang2: lang2Text
                         });
                     }
                 });
+                return parsed;
             }
 
-            async function handleFileUpload(droppedFile = null) {
-                const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
-                if (!file) {
-                    uploadStatus.textContent = 'Please select or drop a CSV file.';
-                    return;
+            async function saveNotes(notesToSave) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    uploadStatus.textContent = 'You must be logged in to save notes.';
+                    return false;
                 }
-                csvUploadedTargetLanguage = targetLanguageSelector.value;
-                const reader = new FileReader();
-                reader.onload = async function(event) {
-                    try {
-                        parseCSV(event.target.result);
-                        if (vocabulary.length > 0) {
-                            uploadStatus.textContent = `Successfully loaded ${vocabulary.length} pairs! Ready to play.`;
-                            isEssentialsMode = false;
-                            setTimeout(() => {
-                                uploadSection.classList.add('hidden');
-                                showGameSelection();
-                            }, 1500);
-                        } else {
-                            uploadStatus.textContent = 'No vocabulary found. Check file format.';
-                        }
-                    } catch (error) {
-                        uploadStatus.textContent = 'Error parsing CSV file.';
-                        console.error("Error parsing CSV:", error);
-                    }
-                };
-                reader.readAsText(file);
+                const notesWithUser = notesToSave.map(note => ({
+                    user_id: user.id,
+                    term: note.lang1,
+                    definition: note.lang2,
+                    term_lang: targetLanguageSelector.value || "en-US",
+                    definition_lang: 'en' // Assuming the definition is always English for now
+                }));
+                const { error } = await supabaseClient.from('notes').insert(notesWithUser);
+                if (error) {
+                    console.error('Error saving notes:', error);
+                    uploadStatus.textContent = 'Error saving notes: ' + error.message;
+                    return false;
+                }
+                return true;
             }
 
+       async function handleFileUpload(droppedFile = null) {
+    const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
+    if (!file) {
+        uploadStatus.textContent = 'Please select or drop a CSV file.';
+        return;
+    }
+    csvUploadedTargetLanguage = targetLanguageSelector.value;
+
+    // PREVENT UPLOADING IF USER ALREADY HAS NOTES
+    await fetchNotes();
+    if (vocabulary.length > 0) {
+        uploadStatus.textContent = 'You have already uploaded vocabulary! Go to games.';
+        setTimeout(() => {
+            uploadSection.classList.add('hidden');
+            showGameSelection();
+        }, 1500);
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async function(event) {
+        try {
+            const parsedNotes = parseCSV(event.target.result);
+            if (parsedNotes.length > 0) {
+                uploadStatus.textContent = 'Saving notes to your account...';
+                const success = await saveNotes(parsedNotes);
+                if (success) {
+                    await fetchNotes(); // Refresh the vocabulary from the database
+                    uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
+                    isEssentialsMode = false;
+                    setTimeout(() => {
+                        uploadSection.classList.add('hidden');
+                        showGameSelection();
+                    }, 1500);
+                }
+            } else {
+                uploadStatus.textContent = 'No vocabulary found. Check file format.';
+            }
+        } catch (error) {
+            uploadStatus.textContent = 'Error processing CSV file.';
+            console.error("Error processing CSV:", error);
+        }
+    };
+    reader.readAsText(file);
+}
             // --- UI & NAVIGATION ---
             function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
             function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
@@ -813,7 +850,9 @@
                     };
                     
                     recognition.onend = () => {
-                        stopListening();
+                        if (isListening) {
+                           stopListening();
+                        }
                     };
                 } else {
                     speechApiStatus.textContent = "Speech Recognition not supported in this browser.";
@@ -871,6 +910,7 @@
 
             function stopListening() {
                 if (!recognition || !isListening) return;
+                recognition.stop();
                 isListening = false;
                 listenBtn.classList.remove('listening');
                 listenBtnText.textContent = 'Start Listening';
@@ -917,11 +957,8 @@
                 sendFindTheWordsBtn.disabled = true;
                 nextFindTheWordsRoundBtn.classList.add('hidden');
 
-                // Select target words for this round
                 findWordsTargetWords = findWordsSessionPool.splice(0, WORDS_PER_FIND_WORDS_TARGET);
-                
-                // Select distractors
-                let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.includes(v)))
+                let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.find(t => t.lang1 === v.lang1)))
                                   .slice(0, WORDS_PER_FIND_WORDS_DISPLAY - WORDS_PER_FIND_WORDS_TARGET);
                 
                 findWordsCurrentChoices = shuffleArray([...findWordsTargetWords, ...distractors]);
@@ -936,10 +973,10 @@
                     findTheWordsGrid.appendChild(card);
                 });
 
-                // Speak the target words
                 replayFindTheWordsAudioBtn.disabled = true;
                 for (const word of findWordsTargetWords) {
                     await speakText(word.lang1, activeTargetStudyLanguage);
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Brief pause between words
                 }
                 replayFindTheWordsAudioBtn.disabled = false;
             }
@@ -957,8 +994,8 @@
             }
 
             function checkFindTheWordsAnswer() {
-                const correctSelections = findWordsSelectedWords.filter(selected => findWordsTargetWords.includes(selected));
-                const incorrectSelections = findWordsSelectedWords.filter(selected => !findWordsTargetWords.includes(selected));
+                const correctSelections = findWordsSelectedWords.filter(selected => findWordsTargetWords.find(t => t.lang1 === selected.lang1));
+                const incorrectSelections = findWordsSelectedWords.filter(selected => !findWordsTargetWords.find(t => t.lang1 === selected.lang1));
 
                 if (correctSelections.length === findWordsTargetWords.length && incorrectSelections.length === 0) {
                     findTheWordsFeedback.textContent = "Perfect!";
@@ -966,7 +1003,6 @@
                     findTheWordsFeedback.textContent = `You found ${correctSelections.length} out of ${findWordsTargetWords.length}.`;
                 }
 
-                // Visually show correct/incorrect answers
                 const allCards = findTheWordsGrid.querySelectorAll('.game-card');
                 allCards.forEach(card => {
                     const word = card.dataset.word;
@@ -975,10 +1011,11 @@
 
                     if (isTarget) card.classList.add('correct-answer');
                     if (isSelected && !isTarget) card.classList.add('incorrect-answer');
-                    card.style.pointerEvents = 'none'; // Disable further clicks
+                    card.style.pointerEvents = 'none';
                 });
 
                 sendFindTheWordsBtn.classList.add('hidden');
+                replayFindTheWordsAudioBtn.disabled = true;
                 nextFindTheWordsRoundBtn.classList.remove('hidden');
             }
 
@@ -1055,7 +1092,12 @@
                 if (session) {
                     loginSection.classList.add('hidden');
                     appContent.classList.remove('hidden');
-                    showMainSelection();
+                    await fetchNotes();
+                    if (vocabulary.length > 0) {
+                        showGameSelection();
+                    } else {
+                        showMainSelection();
+                    }
                 } else {
                     loginSection.classList.remove('hidden');
                     appContent.classList.add('hidden');
@@ -1068,7 +1110,8 @@
             setupMistakeTracker(); 
             updateScoreDisplay();
             initSpeechRecognition();
-     
+        
+
         });
     </script>
 </body>
