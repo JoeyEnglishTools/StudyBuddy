@@ -597,123 +597,278 @@
     </div>
 
     <script>
-       document.addEventListener('DOMContentLoaded', () => {
-            // --- Supabase Client Setup ---
-            const { createClient } = supabase; 
-            const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ'; 
-            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+       <script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Supabase Client Setup ---
+    const { createClient } = supabase; 
+    const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ'; 
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            // --- Authentication Elements & State ---
-            const loginSection = document.getElementById('loginSection');
-            const appContent = document.getElementById('appContent');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const googleLoginBtn = document.getElementById('googleLoginBtn');
-            const authForm = document.getElementById('authForm');
-            const authTitle = document.getElementById('authTitle');
-            const authSubmitBtn = document.getElementById('authSubmitBtn');
-            const authToggleText = document.getElementById('authToggleText');
-            const authError = document.getElementById('authError');
-            const addNotesBtn = document.getElementById('addNotesBtn');
-            let isSignUp = false;
+    // --- Authentication Elements & State ---
+    const loginSection = document.getElementById('loginSection');
+    const appContent = document.getElementById('appContent');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const googleLoginBtn = document.getElementById('googleLoginBtn');
+    const authForm = document.getElementById('authForm');
+    const authTitle = document.getElementById('authTitle');
+    const authSubmitBtn = document.getElementById('authSubmitBtn');
+    const authToggleText = document.getElementById('authToggleText');
+    const authError = document.getElementById('authError');
+    const addNotesBtn = document.getElementById('addNotesBtn');
+    let isSignUp = false;
 
-                  authToggleText.addEventListener('click', (e) => {
-            if (e.target.matches('.toggle-auth-link')) {
-                e.preventDefault();
-                toggleAuthMode();
+    // --- Section and Button Elements ---
+    const mainSelectionSection = document.getElementById("mainSelectionSection");
+    const showUploadSectionBtn = document.getElementById("showUploadSectionBtn");
+    const showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn");
+    const csvFileInput = document.getElementById("csvFile");
+    const targetLanguageSelector = document.getElementById("targetLanguageSelector");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const uploadStatus = document.getElementById("uploadStatus");
+    const uploadSection = document.getElementById("uploadSection");
+    const dropZone = document.getElementById("dropZone");
+    const backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn");
+    const essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection");
+    const essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer");
+    const backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn");
+    const essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection");
+    const essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle");
+    const reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn");
+    const playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn");
+    const backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn");
+    const gameSelectionSection = document.getElementById("gameSelectionSection");
+    const gameArea = document.getElementById("gameArea");
+    // ... Add any other game/section elements you need ...
+
+    // --- Authentication Logic ---
+    function toggleAuthMode() {
+        isSignUp = !isSignUp;
+        authError.textContent = '';
+        authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+        authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+        authToggleText.innerHTML = isSignUp
+            ? `Already have an account? <span class="toggle-auth-link">Login</span>`
+            : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+    }
+
+    authToggleText.addEventListener('click', (e) => {
+        if (e.target.matches('.toggle-auth-link')) {
+            e.preventDefault();
+            toggleAuthMode();
+        }
+    });
+
+    if (authForm) {
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
+            authError.textContent = '';
+            try {
+                if (isSignUp) {
+                    const { error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) {
+                        authError.textContent = error.message;
+                    } else {
+                        alert('Sign up successful! Please check your email to confirm your account.');
+                        toggleAuthMode();
+                    }
+                } else {
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        authError.textContent = error.message;
+                    }
+                }
+            } catch (err) {
+                authError.textContent = 'Unexpected error. Try again.';
+                console.error(err);
             }
         });
+    }
 
-        function showMainSelection() { mainSelectionSection.classList.remove('hidden'); [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer, languageSelectionInGameContainer].forEach(el => el.classList.add('hidden')); isEssentialsMode = false; currentEssentialsCategoryName = ""; sessionMaxScore = 0; updateScoreDisplay(); hearItOutLoudToggleBtn.classList.add('hidden'); if(ttsGeneralStatus) ttsGeneralStatus.textContent = ''; activeTargetStudyLanguage = csvUploadedTargetLanguage; selectedSpeechLangInGame = csvUploadedTargetLanguage; console.log("Main Selection: Active/InGame Speech lang defaulted to CSV's: " + activeTargetStudyLanguage); }
-        if (authForm) {
-            authForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('emailInput').value.trim();
-                const password = document.getElementById('passwordInput').value.trim();
-                authError.textContent = '';
-                try {
-                    if (isSignUp) {
-                        const { error } = await supabaseClient.auth.signUp({ email, password });
-                        if (error) {
-                            authError.textContent = error.message;
-                        } else {
-                            alert('Sign up successful! Please check your email to confirm your account.');
-                            toggleAuthMode();
-                        }
-                    } else {
-                        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                        if (error) {
-                            authError.textContent = error.message;
-                        }
-                    }
-                } catch (err) {
-                    authError.textContent = 'Unexpected error. Try again.';
-                    console.error(err);
-                }
-            });
+    if (googleLoginBtn) {
+        googleLoginBtn.addEventListener('click', async () => {
+            const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+            if (error) { authError.textContent = error.message; }
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+        });
+    }
+
+    // --- Section Navigation ---
+    function showMainSelection() {
+        mainSelectionSection.classList.remove('hidden');
+        [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea].forEach(el => el && el.classList.add('hidden'));
+        // Optionally reset other state here
+    }
+    function showGameSelection() {
+        gameSelectionSection.classList.remove('hidden');
+        [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameArea].forEach(el => el && el.classList.add('hidden'));
+    }
+
+    if (showUploadSectionBtn) {
+        showUploadSectionBtn.addEventListener('click', () => {
+            uploadSection.classList.remove('hidden');
+            mainSelectionSection.classList.add('hidden');
+        });
+    }
+    if (backToMainSelectionFromUploadBtn) {
+        backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
+    }
+    if (addNotesBtn) {
+        addNotesBtn.addEventListener('click', async () => {
+            await fetchNotes();
+            // Optionally update UI after notes reload
+            showMainSelection();
+        });
+    }
+
+    // --- File Upload ---
+    async function handleFileUpload(droppedFile = null) {
+        const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
+        if (!file) {
+            uploadStatus.textContent = 'Please select or drop a CSV file.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+            return;
         }
-
-            // --- Game Logic and other variables ---
-            const MAX_MISTAKES=3,FAST_ANSWER_THRESHOLD=5e3,POINTS_CORRECT_TALK_TO_ME=5,POINTS_FAST_CORRECT=10,POINTS_SLOW_CORRECT=5,POINTS_INCORRECT=-10,ITEMS_PER_PART=32,ITEMS_PER_SUB_ROUND=8,MAX_GAME_ITEMS_FILL_BLANKS=10,TEXT_TRUNCATE_LENGTH=60,MAX_FIND_WORDS_ROUNDS=5,WORDS_PER_FIND_WORDS_DISPLAY=8,WORDS_PER_FIND_WORDS_TARGET=3,FIND_WORDS_REQUIRED_VOCAB=15,LEARNED_THRESHOLD_GAMES=4,MASTERED_THRESHOLD_SPEAK_LISTEN=5;let vocabulary=[],csvUploadedTargetLanguage="en-US",activeTargetStudyLanguage="en-US",selectedSpeechLangInGame="en-US",activeGameType=null,gameScores={flashcards:0,matching:0,multipleChoice:0,typeTranslation:0,talkToMe:0,fillInTheBlanks:0,findTheWords:0},sessionScores={...gameScores},currentFlashcardStack=[],currentFlashcardIndex=0,currentFlashcardSide="front",currentGameActiveList=[],currentGameSubRoundOffset=0,mcqGameActiveVocab=[],currentMcqIndex=0,matchingGameActiveVocab=[],selectedMatchCard=null,matchedPairs=0,pairsToMatch=0,typeTransGameActiveVocab=[],currentTypeTranslationIndex=0,talkToMeActiveVocab=[],currentTalkToMeIndex=0,currentFillBlanksIndex=0,mistakesRemaining=3,currentScore=0,sessionMaxScore=0,mistakeItems=[],correctlyAnsweredItemsInPart=new Set,currentVocabularyPart=[],currentPartName="",currentPartIndexGlobal=-1,currentPartIndexGlobalForBonusReturn=-1,questionStartTime=0,hintUsedForCurrentTypeTranslation=!1,isBonusRound=!1,attemptCountForCurrentTalkToMeItem=0,isEssentialsMode=!1,currentEssentialsCategoryName="",findWordsSessionPool=[],currentFindWordsRound=0,findWordsCurrentChoices=[],findWordsTargetWords=[],findWordsSelectedWords=[],backgroundMusicSynth,correctMatchSynth,incorrectBuzzSynth,notebookLostSynth,musicPlaying=!1,audioInitialized=!1,hearItOutLoudEnabled=!1,recognition,isListening=!1;const mainSelectionSection=document.getElementById("mainSelectionSection"),showUploadSectionBtn=document.getElementById("showUploadSectionBtn"),showEssentialsSectionBtn=document.getElementById("showEssentialsSectionBtn"),csvFileInput=document.getElementById("csvFile"),targetLanguageSelector=document.getElementById("targetLanguageSelector"),languageSelectorInGame=document.getElementById("languageSelectorInGame"),languageSelectionInGameContainer=document.getElementById("languageSelectionInGameContainer"),uploadBtn=document.getElementById("uploadBtn"),uploadStatus=document.getElementById("uploadStatus"),uploadSection=document.getElementById("uploadSection"),dropZone=document.getElementById("dropZone"),backToMainSelectionFromUploadBtn=document.getElementById("backToMainSelectionFromUploadBtn"),essentialsCategorySelectionSection=document.getElementById("essentialsCategorySelectionSection"),essentialsCategoryButtonsContainer=document.getElementById("essentialsCategoryButtonsContainer"),backToMainSelectionFromEssentialsBtn=document.getElementById("backToMainSelectionFromEssentialsBtn"),essentialsCategoryOptionsSection=document.getElementById("essentialsCategoryOptionsSection"),essentialsOptionsTitle=document.getElementById("essentialsOptionsTitle"),reviewEssentialsCategoryBtn=document.getElementById("reviewEssentialsCategoryBtn"),playGamesWithEssentialsBtn=document.getElementById("playGamesWithEssentialsBtn"),backToEssentialsCategoriesBtn=document.getElementById("backToEssentialsCategoriesBtn"),gameSelectionSection=document.getElementById("gameSelectionSection"),gameButtonsContainer=document.getElementById("gameButtonsContainer"),backToSourceSelectionBtn=document.getElementById("backToSourceSelectionBtn"),gameArea=document.getElementById("gameArea"),noVocabularyMessage=document.getElementById("noVocabularyMessage"),gameOverMessage=document.getElementById("gameOverMessage"),roundCompleteMessageDiv=document.getElementById("roundCompleteMessage"),bonusRoundCountdownMessageDiv=document.getElementById("bonusRoundCountdownMessage"),flashcardsBtn=document.getElementById("flashcardsBtn"),matchingBtn=document.getElementById("matchingBtn"),multipleChoiceBtn=document.getElementById("multipleChoiceBtn"),typeTranslationBtn=document.getElementById("typeTranslationBtn"),talkToMeBtn=document.getElementById("talkToMeBtn"),fillInTheBlanksBtn=document.getElementById("fillInTheBlanksBtn"),findTheWordsBtn=document.getElementById("findTheWordsBtn"),backToGameSelectionBtn=document.getElementById("backToGameSelectionBtn"),gameTitle=document.getElementById("gameTitle"),musicToggleBtn=document.getElementById("musicToggleBtn"),musicIconOn=document.getElementById("musicIconOn"),musicIconOff=document.getElementById("musicIconOff"),musicStatusText=document.getElementById("musicStatusText"),mistakeTrackerDiv=document.getElementById("mistakeTracker"),currentScoreDisplay=document.getElementById("currentScoreDisplay"),maxScoreDisplay=document.getElementById("maxScoreDisplay"),partSelectionContainer=document.getElementById("partSelectionContainer"),partButtonsContainer=document.getElementById("partButtonsContainer"),flashcardStackSelectionContainer=document.getElementById("flashcardStackSelection"),stackButtonsContainer=document.getElementById("stackButtonsContainer"),flashcardGameContainer=document.getElementById("flashcardGame"),flashcardDiv=document.getElementById("flashcard"),flashcardFront=document.getElementById("flashcardFront"),flashcardBack=document.getElementById("flashcardBack"),prevCardBtn=document.getElementById("prevCardBtn"),nextCardBtn=document.getElementById("nextCardBtn"),flashcardCounter=document.getElementById("flashcardCounter"),matchingGameContainer=document.getElementById("matchingGame"),matchingGrid=document.getElementById("matchingGrid"),matchingInstructions=document.getElementById("matchingInstructions"),matchingFeedback=document.getElementById("matchingFeedback"),resetCurrentPartBtn=document.getElementById("resetCurrentPartBtn"),multipleChoiceGameContainer=document.getElementById("multipleChoiceGame"),mcqInstructions=document.getElementById("mcqInstructions"),mcqQuestion=document.getElementById("mcqQuestion"),mcqOptions=document.getElementById("mcqOptions"),mcqFeedback=document.getElementById("mcqFeedback"),nextMcqBtn=document.getElementById("nextMcqBtn");let mcqAnswered=!1;const typeTranslationGameContainer=document.getElementById("typeTranslationGame"),typeTranslationInstructions=document.getElementById("typeTranslationInstructions"),typeTranslationPhrase=document.getElementById("typeTranslationPhrase"),typeTranslationInput=document.getElementById("typeTranslationInput"),hintTypeTranslationBtn=document.getElementById("hintTypeTranslationBtn"),typeTranslationHintDisplay=document.getElementById("typeTranslationHintDisplay"),checkTypeTranslationBtn=document.getElementById("checkTypeTranslationBtn"),typeTranslationFeedback=document.getElementById("typeTranslationFeedback"),nextTypeTranslationBtn=document.getElementById("nextTypeTranslationBtn"),typeTranslationCounter=document.getElementById("typeTranslationCounter");let typeTranslationAnswered=!1;const fillInTheBlanksGameContainer=document.getElementById("fillInTheBlanksGame"),fillInTheBlanksInstructions=document.getElementById("fillInTheBlanksInstructions"),fillInTheBlanksSentence=document.getElementById("fillInTheBlanksSentence"),fillInTheBlanksInput=document.getElementById("fillInTheBlanksInput"),checkFillInTheBlanksBtn=document.getElementById("checkFillInTheBlanksBtn"),fillInTheBlanksFeedback=document.getElementById("fillInTheBlanksFeedback"),nextFillInTheBlanksBtn=document.getElementById("nextFillInTheBlanksBtn"),fillInTheBlanksCounter=document.getElementById("fillInTheBlanksCounter");let fillBlanksAnswered=!1,fillBlanksGameActiveVocab=[];const findTheWordsGameContainer=document.getElementById("findTheWordsGame"),findTheWordsInstructions=document.getElementById("findTheWordsInstructions"),replayFindTheWordsAudioBtn=document.getElementById("replayFindTheWordsAudioBtn"),findTheWordsRoundCounter=document.getElementById("findTheWordsRoundCounter"),findTheWordsGrid=document.getElementById("findTheWordsGrid"),sendFindTheWordsBtn=document.getElementById("sendFindTheWordsBtn"),findTheWordsFeedback=document.getElementById("findTheWordsFeedback"),nextFindTheWordsRoundBtn=document.getElementById("nextFindTheWordsRoundBtn"),talkToMeGameContainer=document.getElementById("talkToMeGame"),talkToMeInstructions=document.getElementById("talkToMeInstructions"),talkToMePhraseToRead=document.getElementById("talkToMePhraseToRead"),talkToMePhraseText=document.getElementById("talkToMePhraseText"),speakPhraseBtn=document.getElementById("speakPhraseBtn"),listenBtn=document.getElementById("listenBtn"),listenBtnText=document.getElementById("listenBtnText"),nextTalkToMeBtn=document.getElementById("nextTalkToMeBtn"),talkToMeRecognizedText=document.getElementById("talkToMeRecognizedText"),talkToMeFeedback=document.getElementById("talkToMeFeedback"),talkToMeReferenceContainer=document.getElementById("talkToMeReferenceContainer"),talkToMeReferenceLabel=document.getElementById("talkToMeReferenceLabel"),talkToMeReferenceDisplay=document.getElementById("talkToMeReferenceDisplay"),talkToMeCounter=document.getElementById("talkToMeCounter"),speechApiStatus=document.getElementById("speechApiStatus"),hearItOutLoudToggleBtn=document.getElementById("hearItOutLoudToggleBtn"),hearItOutLoudBtnText=document.getElementById("hearItOutLoudBtnText"),ttsGeneralStatus=document.getElementById("ttsGeneralStatus"),essentialsVocabularyData={"Travel (EN-ES)":[{lang1:"passport",lang2:"pasaporte",sentence:"You need a ____ to travel abroad.",correctCount:0,originalIndex:0},{lang1:"ticket",lang2:"billete",sentence:"I bought a round-trip ____ to Paris.",correctCount:0,originalIndex:1},{lang1:"luggage",lang2:"equipaje",sentence:"My ____ was too heavy.",correctCount:0,originalIndex:2},{lang1:"destination",lang2:"destino",sentence:"Our final ____ is Rome.",correctCount:0,originalIndex:3},{lang1:"reservation",lang2:"reserva",sentence:"I made a hotel ____ online.",correctCount:0,originalIndex:4}],"Business (EN-ES)":[{lang1:"meeting",lang2:"reunión",sentence:"The client ____ is at 2 PM.",correctCount:0,originalIndex:0},{lang1:"contract",lang2:"contrato",sentence:"Please review the ____ carefully.",correctCount:0,originalIndex:1},{lang1:"negotiation",lang2:"negociación",sentence:"The ____ lasted for hours.",correctCount:0,originalIndex:2},{lang1:"deadline",lang2:"fecha límite",sentence:"We must meet the project ____.",correctCount:0,originalIndex:3},{lang1:"presentation",lang2:"presentación",sentence:"She gave an excellent ____.",correctCount:0,originalIndex:4}],"Food (EN-FR)":[{lang1:"bread",lang2:"pain",sentence:"I would like some ____, please.",correctCount:0,originalIndex:0},{lang1:"water",lang2:"eau",sentence:"Can I have a glass of ____?",correctCount:0,originalIndex:1}]};Object.values(essentialsVocabularyData).forEach(e=>{e.forEach((e,t)=>{void 0===e.originalIndex&&(e.originalIndex=t),void 0===e.correctCount&&(e.correctCount=0)})});
-            
-            // --- AUTHENTICATION FUNCTIONS ---
-            
-      
-
-            // --- DATA FUNCTIONS ---
-
-          async function fetchNotes() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-        vocabulary = [];
-        return;
+        if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
+            uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+            try {
+                const parsedNotes = parseCSVToNotes(event.target.result);
+                if (parsedNotes.length > 0) {
+                    uploadStatus.textContent = 'Saving notes to your account...';
+                    const success = await saveNotes(parsedNotes);
+                    if (success) {
+                        await fetchNotes();
+                        uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
+                        uploadStatus.className = 'text-sm text-teal-600 mt-2 h-5';
+                        setTimeout(() => {
+                            uploadSection.classList.add('hidden');
+                            showGameSelection();
+                        }, 1500);
+                    }
+                } else {
+                    uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                }
+            } catch (error) {
+                uploadStatus.textContent = 'Error parsing CSV file.';
+                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                console.error("Error parsing CSV:", error);
+            }
+        };
+        reader.onerror = () => {
+            uploadStatus.textContent = 'Error reading file.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        };
+        reader.readAsText(file);
     }
-    const { data, error } = await supabaseClient
-        .from('notes')
-        .select('term, definition, term_lang')
-        .eq('user_id', user.id);
-    if (error) {
-        console.error('Error fetching notes:', error);
-        vocabulary = [];
-    } else {
-        vocabulary = data.map((note, index) => ({
-            lang1: note.term,
-            lang2: note.definition,
-            originalIndex: index,
-            // ... other processing ...
+
+    function parseCSVToNotes(csvData) {
+        const lines = csvData.split(/\r\n|\n/);
+        const parsed = [];
+        for (let l = 1; l < lines.length; l++) {
+            let line = lines[l];
+            if (!line.trim()) continue;
+            let match, regex = /("([^"]|"")*"|[^,]*)(,|$)/g, row = [], i = 0;
+            while ((match = regex.exec(line)) !== null) {
+                let val = match[1].trim();
+                if (val.startsWith('"') && val.endsWith('"')) {
+                    val = val.slice(1, -1).replace(/""/g, '"');
+                }
+                row.push(val);
+                i++;
+            }
+            if (row.length >= 2 && row[0] && row[1]) {
+                parsed.push({ lang1: row[0], lang2: row[1] });
+            }
+        }
+        return parsed;
+    }
+
+    // --- File Upload Listeners ---
+    if (uploadBtn) uploadBtn.addEventListener('click', () => handleFileUpload());
+    if (csvFileInput) csvFileInput.addEventListener('change', () => handleFileUpload());
+
+    // --- Data Functions ---
+    let vocabulary = [];
+    async function fetchNotes() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) {
+            vocabulary = [];
+            return;
+        }
+        const { data, error } = await supabaseClient
+            .from('notes')
+            .select('term, definition, term_lang')
+            .eq('user_id', user.id);
+        if (error) {
+            console.error('Error fetching notes:', error);
+            vocabulary = [];
+        } else {
+            vocabulary = data.map((note, index) => ({
+                lang1: note.term,
+                lang2: note.definition,
+                originalIndex: index,
+            }));
+        }
+    }
+
+    async function saveNotes(notesToSave) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) {
+            uploadStatus.textContent = 'You must be logged in to save notes.';
+            return false;
+        }
+        const notesWithUser = notesToSave.map(note => ({
+            user_id: user.id,
+            term: note.lang1,
+            definition: note.lang2,
+            term_lang: targetLanguageSelector.value || "en-US",
+            definition_lang: 'en'
         }));
+        const { error } = await supabaseClient.from('notes').insert(notesWithUser);
+        if (error) {
+            console.error('Error saving notes:', error);
+            uploadStatus.textContent = 'Error saving notes to your account: ' + error.message;
+            return false;
+        }
+        return true;
     }
-}
 
+    // --- INITIALIZATION ---
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+            loginSection.classList.add('hidden');
+            appContent.classList.remove('hidden');
+            await fetchNotes();
+            if (vocabulary.length > 0) {
+                showGameSelection();
+            } else {
+                showMainSelection();
+            }
+        } else {
+            loginSection.classList.remove('hidden');
+            appContent.classList.add('hidden');
+            vocabulary = [];
+        }
+    });
 
-   async function saveNotes(notesToSave) {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-        uploadStatus.textContent = 'You must be logged in to save notes.';
-        return false;
-    }
-    const notesWithUser = notesToSave.map(note => ({
-        user_id: user.id,
-        term: note.lang1,
-        definition: note.lang2,
-        term_lang: csvUploadedTargetLanguage,
-        definition_lang: 'en'
-    }));
-    const { error } = await supabaseClient.from('notes').insert(notesWithUser);
-    if (error) {
-        console.error('Error saving notes:', error);
-        uploadStatus.textContent = 'Error saving notes to your account: ' + error.message;
-        return false;
-    }
-    return true;
-}
+   
+    const MAX_MISTAKES=3,FAST_ANSWER_THRESHOLD=5e3,POINTS_CORRECT_TALK_TO_ME=5,POINTS_FAST_CORRECT=10,POINTS_SLOW_CORRECT=5,POINTS_INCORRECT=-10,ITEMS_PER_PART=32,ITEMS_PER_SUB_ROUND=8,MAX_GAME_ITEMS_FILL_BLANKS=10,TEXT_TRUNCATE_LENGTH=60,MAX_FIND_WORDS_ROUNDS=5,WORDS_PER_FIND_WORDS_DISPLAY=8,WORDS_PER_FIND_WORDS_TARGET=3,FIND_WORDS_REQUIRED_VOCAB=15,LEARNED_THRESHOLD_GAMES=4,MASTERED_THRESHOLD_SPEAK_LISTEN=5;let vocabulary=[],csvUploadedTargetLanguage="en-US",activeTargetStudyLanguage="en-US",selectedSpeechLangInGame="en-US",activeGameType=null,gameScores={flashcards:0,matching:0,multipleChoice:0,typeTranslation:0,talkToMe:0,fillInTheBlanks:0,findTheWords:0},sessionScores={...gameScores},currentFlashcardStack=[],currentFlashcardIndex=0,currentFlashcardSide="front",currentGameActiveList=[],currentGameSubRoundOffset=0,mcqGameActiveVocab=[],currentMcqIndex=0,matchingGameActiveVocab=[],selectedMatchCard=null,matchedPairs=0,pairsToMatch=0,typeTransGameActiveVocab=[],currentTypeTranslationIndex=0,talkToMeActiveVocab=[],currentTalkToMeIndex=0,currentFillBlanksIndex=0,mistakesRemaining=3,currentScore=0,sessionMaxScore=0,mistakeItems=[],correctlyAnsweredItemsInPart=new Set,currentVocabularyPart=[],currentPartName="",currentPartIndexGlobal=-1,currentPartIndexGlobalForBonusReturn=-1,questionStartTime=0,hintUsedForCurrentTypeTranslation=!1,isBonusRound=!1,attemptCountForCurrentTalkToMeItem=0,isEssentialsMode=!1,currentEssentialsCategoryName="",findWordsSessionPool=[],currentFindWordsRound=0,findWordsCurrentChoices=[],findWordsTargetWords=[],findWordsSelectedWords=[],backgroundMusicSynth,correctMatchSynth,incorrectBuzzSynth,notebookLostSynth,musicPlaying=!1,audioInitialized=!1,hearItOutLoudEnabled=!1,recognition,isListening=!1;const mainSelectionSection=document.getElementById("mainSelectionSection"),showUploadSectionBtn=document.getElementById("showUploadSectionBtn"),showEssentialsSectionBtn=document.getElementById("showEssentialsSectionBtn"),csvFileInput=document.getElementById("csvFile"),targetLanguageSelector=document.getElementById("targetLanguageSelector"),languageSelectorInGame=document.getElementById("languageSelectorInGame"),languageSelectionInGameContainer=document.getElementById("languageSelectionInGameContainer"),uploadBtn=document.getElementById("uploadBtn"),uploadStatus=document.getElementById("uploadStatus"),uploadSection=document.getElementById("uploadSection"),dropZone=document.getElementById("dropZone"),backToMainSelectionFromUploadBtn=document.getElementById("backToMainSelectionFromUploadBtn"),essentialsCategorySelectionSection=document.getElementById("essentialsCategorySelectionSection"),essentialsCategoryButtonsContainer=document.getElementById("essentialsCategoryButtonsContainer"),backToMainSelectionFromEssentialsBtn=document.getElementById("backToMainSelectionFromEssentialsBtn"),essentialsCategoryOptionsSection=document.getElementById("essentialsCategoryOptionsSection"),essentialsOptionsTitle=document.getElementById("essentialsOptionsTitle"),reviewEssentialsCategoryBtn=document.getElementById("reviewEssentialsCategoryBtn"),playGamesWithEssentialsBtn=document.getElementById("playGamesWithEssentialsBtn"),backToEssentialsCategoriesBtn=document.getElementById("backToEssentialsCategoriesBtn"),gameSelectionSection=document.getElementById("gameSelectionSection"),gameButtonsContainer=document.getElementById("gameButtonsContainer"),backToSourceSelectionBtn=document.getElementById("backToSourceSelectionBtn"),gameArea=document.getElementById("gameArea"),noVocabularyMessage=document.getElementById("noVocabularyMessage"),gameOverMessage=document.getElementById("gameOverMessage"),roundCompleteMessageDiv=document.getElementById("roundCompleteMessage"),bonusRoundCountdownMessageDiv=document.getElementById("bonusRoundCountdownMessage"),flashcardsBtn=document.getElementById("flashcardsBtn"),matchingBtn=document.getElementById("matchingBtn"),multipleChoiceBtn=document.getElementById("multipleChoiceBtn"),typeTranslationBtn=document.getElementById("typeTranslationBtn"),talkToMeBtn=document.getElementById("talkToMeBtn"),fillInTheBlanksBtn=document.getElementById("fillInTheBlanksBtn"),findTheWordsBtn=document.getElementById("findTheWordsBtn"),backToGameSelectionBtn=document.getElementById("backToGameSelectionBtn"),gameTitle=document.getElementById("gameTitle"),musicToggleBtn=document.getElementById("musicToggleBtn"),musicIconOn=document.getElementById("musicIconOn"),musicIconOff=document.getElementById("musicIconOff"),musicStatusText=document.getElementById("musicStatusText"),mistakeTrackerDiv=document.getElementById("mistakeTracker"),currentScoreDisplay=document.getElementById("currentScoreDisplay"),maxScoreDisplay=document.getElementById("maxScoreDisplay"),partSelectionContainer=document.getElementById("partSelectionContainer"),partButtonsContainer=document.getElementById("partButtonsContainer"),flashcardStackSelectionContainer=document.getElementById("flashcardStackSelection"),stackButtonsContainer=document.getElementById("stackButtonsContainer"),flashcardGameContainer=document.getElementById("flashcardGame"),flashcardDiv=document.getElementById("flashcard"),flashcardFront=document.getElementById("flashcardFront"),flashcardBack=document.getElementById("flashcardBack"),prevCardBtn=document.getElementById("prevCardBtn"),nextCardBtn=document.getElementById("nextCardBtn"),flashcardCounter=document.getElementById("flashcardCounter"),matchingGameContainer=document.getElementById("matchingGame"),matchingGrid=document.getElementById("matchingGrid"),matchingInstructions=document.getElementById("matchingInstructions"),matchingFeedback=document.getElementById("matchingFeedback"),resetCurrentPartBtn=document.getElementById("resetCurrentPartBtn"),multipleChoiceGameContainer=document.getElementById("multipleChoiceGame"),mcqInstructions=document.getElementById("mcqInstructions"),mcqQuestion=document.getElementById("mcqQuestion"),mcqOptions=document.getElementById("mcqOptions"),mcqFeedback=document.getElementById("mcqFeedback"),nextMcqBtn=document.getElementById("nextMcqBtn");let mcqAnswered=!1;const typeTranslationGameContainer=document.getElementById("typeTranslationGame"),typeTranslationInstructions=document.getElementById("typeTranslationInstructions"),typeTranslationPhrase=document.getElementById("typeTranslationPhrase"),typeTranslationInput=document.getElementById("typeTranslationInput"),hintTypeTranslationBtn=document.getElementById("hintTypeTranslationBtn"),typeTranslationHintDisplay=document.getElementById("typeTranslationHintDisplay"),checkTypeTranslationBtn=document.getElementById("checkTypeTranslationBtn"),typeTranslationFeedback=document.getElementById("typeTranslationFeedback"),nextTypeTranslationBtn=document.getElementById("nextTypeTranslationBtn"),typeTranslationCounter=document.getElementById("typeTranslationCounter");let typeTranslationAnswered=!1;const fillInTheBlanksGameContainer=document.getElementById("fillInTheBlanksGame"),fillInTheBlanksInstructions=document.getElementById("fillInTheBlanksInstructions"),fillInTheBlanksSentence=document.getElementById("fillInTheBlanksSentence"),fillInTheBlanksInput=document.getElementById("fillInTheBlanksInput"),checkFillInTheBlanksBtn=document.getElementById("checkFillInTheBlanksBtn"),fillInTheBlanksFeedback=document.getElementById("fillInTheBlanksFeedback"),nextFillInTheBlanksBtn=document.getElementById("nextFillInTheBlanksBtn"),fillInTheBlanksCounter=document.getElementById("fillInTheBlanksCounter");let fillBlanksAnswered=!1,fillBlanksGameActiveVocab=[];const findTheWordsGameContainer=document.getElementById("findTheWordsGame"),findTheWordsInstructions=document.getElementById("findTheWordsInstructions"),replayFindTheWordsAudioBtn=document.getElementById("replayFindTheWordsAudioBtn"),findTheWordsRoundCounter=document.getElementById("findTheWordsRoundCounter"),findTheWordsGrid=document.getElementById("findTheWordsGrid"),sendFindTheWordsBtn=document.getElementById("sendFindTheWordsBtn"),findTheWordsFeedback=document.getElementById("findTheWordsFeedback"),nextFindTheWordsRoundBtn=document.getElementById("nextFindTheWordsRoundBtn"),talkToMeGameContainer=document.getElementById("talkToMeGame"),talkToMeInstructions=document.getElementById("talkToMeInstructions"),talkToMePhraseToRead=document.getElementById("talkToMePhraseToRead"),talkToMePhraseText=document.getElementById("talkToMePhraseText"),speakPhraseBtn=document.getElementById("speakPhraseBtn"),listenBtn=document.getElementById("listenBtn"),listenBtnText=document.getElementById("listenBtnText"),nextTalkToMeBtn=document.getElementById("nextTalkToMeBtn"),talkToMeRecognizedText=document.getElementById("talkToMeRecognizedText"),talkToMeFeedback=document.getElementById("talkToMeFeedback"),talkToMeReferenceContainer=document.getElementById("talkToMeReferenceContainer"),talkToMeReferenceLabel=document.getElementById("talkToMeReferenceLabel"),talkToMeReferenceDisplay=document.getElementById("talkToMeReferenceDisplay"),talkToMeCounter=document.getElementById("talkToMeCounter"),speechApiStatus=document.getElementById("speechApiStatus"),hearItOutLoudToggleBtn=document.getElementById("hearItOutLoudToggleBtn"),hearItOutLoudBtnText=document.getElementById("hearItOutLoudBtnText"),ttsGeneralStatus=document.getElementById("ttsGeneralStatus"),essentialsVocabularyData={"Travel (EN-ES)":[{lang1:"passport",lang2:"pasaporte",sentence:"You need a ____ to travel abroad.",correctCount:0,originalIndex:0},{lang1:"ticket",lang2:"billete",sentence:"I bought a round-trip ____ to Paris.",correctCount:0,originalIndex:1},{lang1:"luggage",lang2:"equipaje",sentence:"My ____ was too heavy.",correctCount:0,originalIndex:2},{lang1:"destination",lang2:"destino",sentence:"Our final ____ is Rome.",correctCount:0,originalIndex:3},{lang1:"reservation",lang2:"reserva",sentence:"I made a hotel ____ online.",correctCount:0,originalIndex:4}],"Business (EN-ES)":[{lang1:"meeting",lang2:"reunión",sentence:"The client ____ is at 2 PM.",correctCount:0,originalIndex:0},{lang1:"contract",lang2:"contrato",sentence:"Please review the ____ carefully.",correctCount:0,originalIndex:1},{lang1:"negotiation",lang2:"negociación",sentence:"The ____ lasted for hours.",correctCount:0,originalIndex:2},{lang1:"deadline",lang2:"fecha límite",sentence:"We must meet the project ____.",correctCount:0,originalIndex:3},{lang1:"presentation",lang2:"presentación",sentence:"She gave an excellent ____.",correctCount:0,originalIndex:4}],"Food (EN-FR)":[{lang1:"bread",lang2:"pain",sentence:"I would like some ____, please.",correctCount:0,originalIndex:0},{lang1:"water",lang2:"eau",sentence:"Can I have a glass of ____?",correctCount:0,originalIndex:1}]};Object.values(essentialsVocabularyData).forEach(e=>{e.forEach((e,t)=>{void 0===e.originalIndex&&(e.originalIndex=t),void 0===e.correctCount&&(e.correctCount=0)})});
 
-                
-            
-
-            // --- GAME LOGIC FUNCTIONS ---
-            
-            function truncateText(text, maxLength = TEXT_TRUNCATE_LENGTH) {
+ function truncateText(text, maxLength = TEXT_TRUNCATE_LENGTH) {
                 if (typeof text !== 'string') text = String(text);
                 return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
             }
@@ -1067,8 +1222,9 @@ function parseCSVToNotes(csvData) {
                 : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
         }
 
-         });  
-           
+
+});
+</script>
     </script>
 </body>
 </html>
