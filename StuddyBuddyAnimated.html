@@ -617,24 +617,14 @@
             const addNotesBtn = document.getElementById('addNotesBtn');
             let isSignUp = false;
 
-                  
-        function toggleAuthMode() {
-            isSignUp = !isSignUp;
-            authError.textContent = '';
-            authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
-            authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
-            authToggleText.innerHTML = isSignUp
-                ? `Already have an account? <span class="toggle-auth-link">Login</span>`
-                : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
-        }
-
-        authToggleText.addEventListener('click', (e) => {
+                  authToggleText.addEventListener('click', (e) => {
             if (e.target.matches('.toggle-auth-link')) {
                 e.preventDefault();
                 toggleAuthMode();
             }
         });
 
+        function showMainSelection() { mainSelectionSection.classList.remove('hidden'); [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer, languageSelectionInGameContainer].forEach(el => el.classList.add('hidden')); isEssentialsMode = false; currentEssentialsCategoryName = ""; sessionMaxScore = 0; updateScoreDisplay(); hearItOutLoudToggleBtn.classList.add('hidden'); if(ttsGeneralStatus) ttsGeneralStatus.textContent = ''; activeTargetStudyLanguage = csvUploadedTargetLanguage; selectedSpeechLangInGame = csvUploadedTargetLanguage; console.log("Main Selection: Active/InGame Speech lang defaulted to CSV's: " + activeTargetStudyLanguage); }
         if (authForm) {
             authForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -987,6 +977,7 @@ function parseCSVToNotes(csvData) {
             });
 
             if (authForm) {
+               
                 authForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const email = document.getElementById('emailInput').value;
@@ -1063,9 +1054,20 @@ function parseCSVToNotes(csvData) {
                     appContent.classList.add('hidden');
                     vocabulary = []; // Clear vocabulary on logout
                 }
-            });
+         
             
       
+        function toggleAuthMode() {
+            isSignUp = !isSignUp;
+            authError.textContent = '';
+            authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+            authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+            authToggleText.innerHTML = isSignUp
+                ? `Already have an account? <span class="toggle-auth-link">Login</span>`
+                : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+        }
+
+         });  
            
     </script>
 </body>
