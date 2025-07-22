@@ -686,6 +686,7 @@
             }
 
             async function saveNotes(notesToSave) {
+                  console.log('saveNotes called with:', notesToSave); // <--- add
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (!user) {
                     uploadStatus.textContent = 'You must be logged in to save notes.';
@@ -700,7 +701,7 @@
                     term_lang: csvUploadedTargetLanguage,
                     definition_lang: 'en'
                 }));
-                
+                     console.log('Inserting into supabase:', notesWithUser); // <--- add
                 const { error } = await supabaseClient.from('notes').insert(notesWithUser);
                 if (error) {
                     console.error('Error saving notes:', error);
@@ -712,6 +713,7 @@
             }
 
             async function handleFileUpload(droppedFile = null) {
+                console.log('handleFileUpload called'); // <--- add
                 const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
                 if (!file) {
                     uploadStatus.textContent = 'Please select or drop a CSV file.';
@@ -732,7 +734,9 @@
                 const reader = new FileReader();
                 reader.onload = async function(event) {
                     try {
+                         console.log('FileReader loaded:', event.target.result.slice(0,100)); // <--- add preview
                         const parsedNotes = parseCSV(event.target.result);
+                           console.log('Parsed notes:', parsedNotes); // <--- add
                         if (parsedNotes.length > 0) {
                             uploadStatus.textContent = 'Saving notes to your account...';
                             uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
