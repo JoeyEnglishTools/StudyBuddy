@@ -580,7 +580,7 @@
         document.addEventListener('DOMContentLoaded', () => {     
           
 
-            const { createClient } = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const { createClient } = window.supabase;
             const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
