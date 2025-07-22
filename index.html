@@ -686,9 +686,12 @@
             }
 
 async function saveNotes(notesToSave) {
-    console.log('saveNotes called with:', notesToSave); // <--- add
+    console.log('saveNotes called with:', notesToSave);
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const userResult = await supabaseClient.auth.getUser();
+    console.log('userResult:', userResult);
+
+    const user = userResult?.data?.user;
     if (!user) {
         uploadStatus.textContent = 'You must be logged in to save notes.';
         uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
@@ -715,7 +718,6 @@ async function saveNotes(notesToSave) {
     }
     return true;
 }
-
             async function handleFileUpload(droppedFile = null) {
                 console.log('handleFileUpload called'); // <--- add
                 const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
