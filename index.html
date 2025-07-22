@@ -579,27 +579,84 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {     
           
-     // --- Supabase Client Setup ---
+            // --- Supabase Client Setup ---
             const { createClient } = supabase;
             const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
-	@@ -644,59 +644,68 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+            // --- STATE & CONSTANTS ---
+            const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
+            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false;
+            let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
+            let isEssentialsMode = false, currentEssentialsCategoryName = "";
+            let audioInitialized = false;
+            let mcqAnswered = false, typeTranslationAnswered = false, fillBlanksAnswered = false;
+            let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0;
+            let findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [];
+            let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
+
+            // --- ELEMENT SELECTORS ---
+            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn');
+            const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
+            const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
+            const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
+            const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
+            const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
+
+            // --- DATA ---
+            const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
+            Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
+
+            // --- AUTHENTICATION & DATA FUNCTIONS ---
+            function toggleAuthMode() {
+                isSignUp = !isSignUp;
+                authError.textContent = '';
+                authForm.reset();
+                authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+                authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+                authToggleText.innerHTML = isSignUp
+                    ? `Already have an account? <span class="toggle-auth-link">Login</span>`
+                    : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+            }
+
+            async function fetchNotes() {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    vocabulary = [];
+                    return;
+                }
+                const { data, error } = await supabaseClient
+                    .from('notes')
+                    .select('term, definition, term_lang')
+                    .eq('user_id', user.id);
+                if (error) {
+                    console.error('Error fetching notes:', error);
+                    vocabulary = [];
+                } else {
+                    vocabulary = data.map((note, index) => ({
+                        lang1: note.term,
+                        lang2: note.definition,
+                        originalIndex: index,
+                    }));
+                }
+            }
+            
             function parseCSV(csvData) {
                 const parsed = [];
                 const lines = csvData.split(/\r\n|\n/);
-
+                
                 // Skip header row if it exists
                 const startIndex = lines.length > 0 && lines[0].toLowerCase().includes('word') ? 1 : 0;
 
                 for (let i = startIndex; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (line === '') continue;
-
+                    
                     const parts = [];
                     let currentField = '';
                     let inQuotedField = false;
-
+                    
                     for (let j = 0; j < line.length; j++) {
                         const char = line[j];
                         if (char === '"') {
@@ -635,7 +692,7 @@
                     uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                     return false;
                 }
-
+                
                 const notesWithUser = notesToSave.map(note => ({
                     user_id: user.id,
                     term: note.lang1,
@@ -643,7 +700,7 @@
                     term_lang: csvUploadedTargetLanguage,
                     definition_lang: 'en'
                 }));
-
+                
                 const { error } = await supabaseClient.from('notes').insert(notesWithUser);
                 if (error) {
                     console.error('Error saving notes:', error);
@@ -652,24 +709,26 @@
                     return false;
                 }
                 return true;
-	@@ -706,19 +715,32 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+            }
+
+            async function handleFileUpload(droppedFile = null) {
                 const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
                 if (!file) {
                     uploadStatus.textContent = 'Please select or drop a CSV file.';
                     uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                     return;
                 }
-
+                
                 if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
                     uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
                     uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                     return;
                 }
-
+                
                 csvUploadedTargetLanguage = targetLanguageSelector.value;
                 uploadStatus.textContent = 'Processing CSV file...';
                 uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
-
+                
                 const reader = new FileReader();
                 reader.onload = async function(event) {
                     try {
@@ -685,7 +744,8 @@
                                 isEssentialsMode = false;
                                 setTimeout(() => {
                                     uploadSection.classList.add('hidden');
-	@@ -727,39 +749,84 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+                                    showGameSelection();
+                                }, 1500);
                             }
                         } else {
                             uploadStatus.textContent = 'No vocabulary found. Check file format.';
@@ -758,7 +818,7 @@
                     essentialsCategoryButtonsContainer.appendChild(button); 
                 }); 
             }
-
+            
             function showPartSelection(gameType) {
                 const sourceForParts = isEssentialsMode ? currentVocabularyPart : vocabulary;
                 if (sourceForParts.length === 0) { 
@@ -770,7 +830,10 @@
                 gameTitle.textContent = gameType.charAt(0).toUpperCase() + gameType.slice(1).replace(/([A-Z])/g, ' $1');
                 [uploadSection, gameSelectionSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, mainSelectionSection].forEach(el => el.classList.add('hidden'));
                 gameArea.classList.remove('hidden');
-	@@ -770,7 +837,11 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+                partSelectionContainer.classList.remove('hidden');
+                hideAllGames();
+                partButtonsContainer.innerHTML = '';
+                const numParts = Math.ceil(sourceForParts.length / ITEMS_PER_PART);
                 const fullMixButton = document.createElement('button');
                 fullMixButton.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
                 fullMixButton.textContent = `Full Mix (${sourceForParts.length} items)`;
@@ -782,7 +845,10 @@
                 partButtonsContainer.appendChild(fullMixButton);
                 if (!isEssentialsMode && numParts > 1 && sourceForParts.length > ITEMS_PER_PART) {
                     for (let i = 0; i < numParts; i++) {
-	@@ -781,11 +852,16 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+                        const start = i * ITEMS_PER_PART;
+                        const end = start + ITEMS_PER_PART;
+                        const partVocab = sourceForParts.slice(start, end);
+                        if (partVocab.length === 0) continue;
                         const button = document.createElement('button');
                         button.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
                         button.textContent = `Part ${i + 1} (Items ${start + 1}-${Math.min(end, sourceForParts.length)})`;
@@ -795,11 +861,19 @@
                     }
                 }
             }
-
+            
             function startGame(gameType) {
                 if (!audioInitialized) initializeAudio();
                 partSelectionContainer.classList.add('hidden');
-	@@ -801,20 +877,48 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+                resetGameStats();
+                switch (gameType) {
+                    case 'matching': initMatchingGame(); break;
+                    case 'multipleChoice': initMultipleChoiceGame(); break;
+                    case 'typeTranslation': initTypeTranslationGame(); break;
+                    case 'talkToMe': initTalkToMeGame(); break;
+                    case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
+                    case 'findTheWords': initFindTheWordsGame(); break;
+                }
             }
 
             // --- HELPER & CORE GAME MECHANICS ---
@@ -839,7 +913,7 @@
                 setupMistakeTracker(); 
                 gameOverMessage.classList.add('hidden'); 
             }
-
+            
             // --- SPEECH & AUDIO ---
             function initializeAudio() {
                 if (audioInitialized) return;
@@ -848,7 +922,30 @@
             }
 
             function speakText(text, lang) {
-	@@ -845,8 +949,13 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+                return new Promise((resolve) => {
+                    if ('speechSynthesis' in window && text) {
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = lang;
+                        utterance.onend = resolve;
+                        utterance.onerror = () => resolve();
+                        window.speechSynthesis.speak(utterance);
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+
+            function initSpeechRecognition() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = false;
+                    recognition.lang = 'en-US';
+                    recognition.interimResults = false;
+                    recognition.maxAlternatives = 1;
+
+                    recognition.onresult = (event) => {
+                        const speechResult = event.results[0][0].transcript;
                         talkToMeRecognizedText.textContent = speechResult;
                         checkSpeechAnswer(speechResult);
                     };
@@ -862,7 +959,210 @@
                 } else {
                     speechApiStatus.textContent = "Browser doesn't support speech recognition.";
                     if(listenBtn) listenBtn.disabled = true;
-	@@ -1057,9 +1166,46 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+                }
+            }
+
+            // --- GAME LOGIC FUNCTIONS ---
+            function initMatchingGame() {
+                let gameVocab = shuffleArray(currentVocabularyPart).slice(0, ITEMS_PER_SUB_ROUND);
+                pairsToMatch = gameVocab.length;
+                let cards = [];
+                gameVocab.forEach((item, index) => {
+                    cards.push({ id: index, type: 'lang1', text: item.lang1 });
+                    cards.push({ id: index, type: 'lang2', text: item.lang2 });
+                });
+
+                matchingGameContainer.classList.remove('hidden');
+                matchingGrid.innerHTML = '';
+                shuffleArray(cards).forEach(cardData => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'game-card card p-2';
+                    cardElement.textContent = cardData.text;
+                    cardElement.dataset.id = cardData.id;
+                    cardElement.addEventListener('click', () => handleMatchCardClick(cardElement));
+                    matchingGrid.appendChild(cardElement);
+                });
+            }
+
+            function handleMatchCardClick(cardElement) {
+                if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
+                if (!selectedMatchCard) {
+                    selectedMatchCard = cardElement;
+                    cardElement.classList.add('selected-match');
+                } else {
+                    if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
+                        [selectedMatchCard, cardElement].forEach(el => {
+                            el.classList.add('matched');
+                            el.classList.remove('selected-match');
+                        });
+                        matchedPairs++;
+                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
+                    } else {
+                        [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
+                        setTimeout(() => {
+                            [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
+                            selectedMatchCard = null;
+                        }, 400);
+                    }
+                    if (selectedMatchCard) selectedMatchCard = null;
+                }
+            }
+
+            function initMultipleChoiceGame() {
+                let mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentMcqIndex = 0;
+                multipleChoiceGameContainer.classList.remove('hidden');
+                displayNextMcq(mcqGameActiveVocab);
+            }
+
+            function displayNextMcq(gameVocab) {
+                if (currentMcqIndex >= gameVocab.length) {
+                    mcqQuestion.textContent = "Part Complete!";
+                    mcqOptions.innerHTML = '';
+                    return;
+                }
+                const currentItem = gameVocab[currentMcqIndex];
+                mcqQuestion.textContent = currentItem.lang1;
+                let options = [currentItem.lang2, ...shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3).map(v => v.lang2)];
+                mcqOptions.innerHTML = '';
+                shuffleArray(options).forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn mcq-option-btn';
+                    btn.textContent = opt;
+                    btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
+                    mcqOptions.appendChild(btn);
+                });
+            }
+
+            function checkMcqAnswer(button, isCorrect, item) {
+                if (mcqAnswered) return;
+                mcqAnswered = true;
+                button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
+                if (!isCorrect) {
+                    mcqFeedback.textContent = `Correct: ${item.lang2}`;
+                    mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
+                        if (btn.textContent === item.lang2) btn.classList.add('correct-answer');
+                    });
+                }
+                nextMcqBtn.classList.remove('hidden');
+            }
+
+            function initTypeTranslationGame() {
+                let typeTransGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTypeTranslationIndex = 0;
+                typeTranslationGameContainer.classList.remove('hidden');
+                displayNextTypeTranslation(typeTransGameActiveVocab);
+            }
+
+            function displayNextTypeTranslation(gameVocab) {
+                if (currentTypeTranslationIndex >= gameVocab.length) {
+                    typeTranslationPhrase.textContent = "Part Complete!";
+                    typeTranslationInput.style.display = 'none';
+                    return;
+                }
+                const item = gameVocab[currentTypeTranslationIndex];
+                typeTranslationPhrase.textContent = item.lang2;
+                typeTranslationInput.value = '';
+                typeTranslationFeedback.textContent = '';
+                nextTypeTranslationBtn.classList.add('hidden');
+            }
+
+            function checkTypeTranslation() {
+                const item = currentVocabularyPart[currentTypeTranslationIndex];
+                const isCorrect = typeTranslationInput.value.trim().toLowerCase() === item.lang1.toLowerCase();
+                typeTranslationFeedback.textContent = isCorrect ? "Correct!" : `Correct: ${item.lang1}`;
+                nextTypeTranslationBtn.classList.remove('hidden');
+            }
+
+            function initFillInTheBlanksGame() {
+                fillInTheBlanksGameContainer.classList.remove('hidden');
+                fillInTheBlanksSentence.textContent = "Fill in the blanks is not yet implemented.";
+            }
+
+            function initTalkToMeGame() {
+                talkToMeGameContainer.classList.remove('hidden');
+                let talkToMeActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTalkToMeIndex = 0;
+                displayNextTalkToMe(talkToMeActiveVocab);
+            }
+
+            function displayNextTalkToMe(gameVocab) {
+                if (currentTalkToMeIndex >= gameVocab.length) {
+                    talkToMePhraseText.textContent = "Part Complete!";
+                    return;
+                }
+                const item = gameVocab[currentTalkToMeIndex];
+                talkToMePhraseText.textContent = item.lang1;
+                talkToMeRecognizedText.textContent = "...";
+                talkToMeFeedback.textContent = "";
+                nextTalkToMeBtn.classList.add('hidden');
+            }
+
+            function startListening() {
+                if (!recognition || isListening) return;
+                recognition.lang = activeTargetStudyLanguage;
+                recognition.start();
+                isListening = true;
+                listenBtnText.textContent = 'Listening...';
+            }
+
+            function stopListening() {
+                if (!recognition || !isListening) return;
+                recognition.stop();
+                isListening = false;
+                listenBtnText.textContent = 'Start Listening';
+            }
+
+            function checkSpeechAnswer(spokenText) {
+                const item = currentVocabularyPart[currentTalkToMeIndex];
+                const isCorrect = normalizeText(spokenText) === normalizeText(item.lang1);
+                talkToMeFeedback.textContent = isCorrect ? "Correct!" : "Not quite, try again.";
+                nextTalkToMeBtn.classList.remove('hidden');
+            }
+
+            function initFindTheWordsGame() {
+                findTheWordsGameContainer.classList.remove('hidden');
+                let findWordsSessionPool = shuffleArray(currentVocabularyPart);
+                currentFindWordsRound = 0;
+                nextFindTheWordsRound(findWordsSessionPool);
+            }
+
+            async function nextFindTheWordsRound(pool) {
+                if (currentFindWordsRound >= MAX_FIND_WORDS_ROUNDS || pool.length < WORDS_PER_FIND_WORDS_TARGET) {
+                    findTheWordsInstructions.textContent = "Game Complete!";
+                    findTheWordsGrid.innerHTML = '';
+                    return;
+                }
+                currentFindWordsRound++;
+                findWordsTargetWords = pool.splice(0, WORDS_PER_FIND_WORDS_TARGET);
+                let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.includes(v))).slice(0, WORDS_PER_FIND_WORDS_DISPLAY - WORDS_PER_FIND_WORDS_TARGET);
+                let findWordsCurrentChoices = shuffleArray([...findWordsTargetWords, ...distractors]);
+                findTheWordsGrid.innerHTML = '';
+                findWordsCurrentChoices.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'game-card card p-2';
+                    card.textContent = item.lang1;
+                    card.onclick = () => toggleFindWordSelection(card, item);
+                    findTheWordsGrid.appendChild(card);
+                });
+                for (const word of findWordsTargetWords) {
+                    await speakText(word.lang1, activeTargetStudyLanguage);
+                }
+            }
+            
+            function toggleFindWordSelection(card, item) {
+                card.classList.toggle('selected-find-word');
+                const index = findWordsSelectedWords.findIndex(i => i.lang1 === item.lang1);
+                if (index > -1) findWordsSelectedWords.splice(index, 1);
+                else findWordsSelectedWords.push(item);
+                sendFindTheWordsBtn.disabled = findWordsSelectedWords.length === 0;
+            }
+
+            function checkFindTheWordsAnswer() {
+                const correctCount = findWordsSelectedWords.filter(s => findWordsTargetWords.includes(s)).length;
+                findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length}.`;
+                nextFindTheWordsRoundBtn.classList.remove('hidden');
+            }
 
             // --- EVENT LISTENERS ---
             authToggleText.addEventListener('click', (e) => { if (e.target.matches('.toggle-auth-link')) { e.preventDefault(); toggleAuthMode(); } });
@@ -905,11 +1205,14 @@
                     window.location.reload();
                 }
             });
-
+            
             addNotesBtn.addEventListener('click', showMainSelection);
             showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
             backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
-	@@ -1070,18 +1216,40 @@ <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a
+            showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
+            backToMainSelectionFromEssentialsBtn.addEventListener('click', showMainSelection);
+            backToEssentialsCategoriesBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); });
+            reviewEssentialsCategoryBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); gameArea.classList.remove('hidden'); startGame('matching'); });
             playGamesWithEssentialsBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); showGameSelection(); });
             backToGameSelectionBtn.addEventListener('click', showGameSelection);
             backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
@@ -964,6 +1267,7 @@
                     vocabulary = [];
                 }
             });
+
             showMainSelection(); 
             setupMistakeTracker(); 
             updateScoreDisplay();
