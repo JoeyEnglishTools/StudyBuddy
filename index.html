@@ -670,12 +670,30 @@
             }
 
             async function saveNotes(notesToSave) {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) {
-                    uploadStatus.textContent = 'You must be logged in to save notes.';
-                    return false;
-                }
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        uploadStatus.textContent = 'You must be logged in to save notes.';
+        return false;
+    }
 
+    const notesWithUser = notesToSave.map(note => ({
+        user_id: user.id,
+        term: note.lang1,
+        definition: note.lang2,
+        term_lang: csvUploadedTargetLanguage,
+        definition_lang: 'en'
+    }));
+
+    const { error } = await supabaseClient.from('notes').insert(notesWithUser);
+
+    if (error) {
+        console.error('Error saving notes:', error); // <--- Add this
+        uploadStatus.textContent = 'Error saving notes to your account: ' + error.message;
+        return false;
+    }
+
+    return true;
+}
                 const notesWithUser = notesToSave.map(note => ({
                     user_id: user.id,
                     term: note.lang1,
@@ -852,6 +870,7 @@
                 reader.onload = async function(event) {
                     try {
                         const parsedNotes = parseCSVToNotes(event.target.result);
+console.log('Parsed notes:', parsedNotes);
                         if (parsedNotes.length > 0) {
                             uploadStatus.textContent = 'Saving notes to your account...';
                             const success = await saveNotes(parsedNotes);
@@ -919,6 +938,16 @@
                     } else if (line.trim().length > 0) { 
                         console.warn(`Skipping line ${lineIndex + 2} due to insufficient columns or empty required fields: "${line}" Parsed:`, parts);
                     }
+                    
+    lines.forEach((line, lineIndex) => {
+        if (line.trim() === '') return;
+        // ... your parsing logic ...
+        if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
+            parsed.push({ lang1: parts[0].trim(), lang2: parts[1].trim() });
+        } else if (line.trim().length > 0) {
+            console.warn(`Skipping line ${lineIndex + 2} due to insufficient columns or empty required fields: "${line}" Parsed:`, parts);
+        }
+
                 });
                 return parsed;
             }
@@ -968,13 +997,13 @@
                     authError.textContent = '';
 
                     if (isSignUp) {
-                        const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                        if (error) {
-                            authError.textContent = error.message;
-                        } else {
-                            alert('Sign up successful! Please check your email to confirm your account.');
-                            authToggleText.querySelector('.toggle-auth-link').click();
-                        }
+                         const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) {
+        authError.textContent = error.message;
+    } else {
+        alert('Sign up successful! Please check your email to confirm your account.');
+        // Optionally, hide the form or switch to login view
+    }
                     } else {
                         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                         if (error) {
@@ -992,10 +1021,15 @@
             }
 
             if (logoutBtn) {
-                logoutBtn.addEventListener('click', async () => {
-                    await supabaseClient.auth.signOut();
-                });
-            }
+    logoutBtn.addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        // Option 1: reload page (simplest)
+        window.location.reload();
+        // Option 2: manually reset UI state
+        // loginSection.classList.remove('hidden');
+        // appContent.classList.add('hidden');
+    });
+}
             
             if (addNotesBtn) {
                 addNotesBtn.addEventListener('click', () => {
