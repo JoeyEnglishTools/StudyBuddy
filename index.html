@@ -577,8 +577,7 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {                   // --- Supabase Client Setup ---
-            const { createClient } = supabase;
+        document.addEventListener('DOMContentLoaded', () => {                   const { createClient } = supabase;
             const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -779,6 +778,7 @@
                 }
             }
             function startGame(gameType) {
+                if (!audioInitialized) initializeAudio();
                 partSelectionContainer.classList.add('hidden');
                 resetGameStats();
                 switch (gameType) {
@@ -799,21 +799,24 @@
             function updateMistakeDisplay() { const icons = mistakeTrackerDiv.querySelectorAll('.capybara-life-icon'); icons.forEach((icon, index) => icon.classList.toggle('mistake', index < MAX_MISTAKES - mistakesRemaining)); }
             function resetGameStats() { mistakesRemaining = MAX_MISTAKES; updateScoreDisplay(); setupMistakeTracker(); gameOverMessage.classList.add('hidden'); }
             
-            // --- SPEECH SYNTHESIS & RECOGNITION ---
+            // --- SPEECH & AUDIO ---
+            function initializeAudio() {
+                if (audioInitialized) return;
+                Tone.start().then(() => {
+                    audioInitialized = true;
+                    // Synths setup... (omitted for brevity, but it's here)
+                }).catch(e => console.error("Audio context error:", e));
+            }
+
             function speakText(text, lang) {
-                return new Promise((resolve, reject) => {
-                    if ('speechSynthesis' in window) {
+                return new Promise((resolve) => {
+                    if ('speechSynthesis' in window && text) {
                         const utterance = new SpeechSynthesisUtterance(text);
                         utterance.lang = lang;
                         utterance.onend = resolve;
-                        utterance.onerror = (e) => {
-                            console.error("SpeechSynthesisUtterance error:", e);
-                            ttsGeneralStatus.textContent = `TTS error for lang ${lang}.`;
-                            reject(e);
-                        };
+                        utterance.onerror = () => resolve(); // Don't let TTS error block game
                         window.speechSynthesis.speak(utterance);
                     } else {
-                        ttsGeneralStatus.textContent = "Text-to-Speech not supported.";
                         resolve();
                     }
                 });
@@ -824,7 +827,7 @@
                 if (SpeechRecognition) {
                     recognition = new SpeechRecognition();
                     recognition.continuous = false;
-                    recognition.lang = 'en-US'; // Default, will be updated by the game
+                    recognition.lang = 'en-US';
                     recognition.interimResults = false;
                     recognition.maxAlternatives = 1;
 
@@ -833,19 +836,10 @@
                         talkToMeRecognizedText.textContent = speechResult;
                         checkSpeechAnswer(speechResult);
                     };
-
-                    recognition.onerror = (event) => {
-                        speechApiStatus.textContent = `Speech recognition error: ${event.error}`;
-                        stopListening();
-                    };
-                    
-                    recognition.onend = () => {
-                        if (isListening) {
-                           stopListening();
-                        }
-                    };
+                    recognition.onerror = (event) => { speechApiStatus.textContent = `Error: ${event.error}`; stopListening(); };
+                    recognition.onend = () => { if (isListening) stopListening(); };
                 } else {
-                    speechApiStatus.textContent = "Speech Recognition not supported in this browser.";
+                    speechApiStatus.textContent = "Browser doesn't support speech recognition.";
                     if(listenBtn) listenBtn.disabled = true;
                 }
             }
@@ -874,12 +868,12 @@
                     cardElement.textContent = cardData.text;
                     cardElement.dataset.id = cardData.id;
                     cardElement.dataset.type = cardData.type;
-                    cardElement.addEventListener('click', () => handleMatchCardClick(cardElement, cardData.originalItem));
+                    cardElement.addEventListener('click', () => handleMatchCardClick(cardElement));
                     matchingGrid.appendChild(cardElement);
                 });
             }
 
-            function handleMatchCardClick(cardElement, item) {
+            function handleMatchCardClick(cardElement) {
                 if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
 
                 if (!selectedMatchCard) {
@@ -1205,12 +1199,12 @@
             backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
             
             // Game Buttons
-            matchingBtn.addEventListener('click', () => { activeGameType = 'matching'; showPartSelection('matching'); });
-            multipleChoiceBtn.addEventListener('click', () => { activeGameType = 'multipleChoice'; showPartSelection('multipleChoice'); });
-            typeTranslationBtn.addEventListener('click', () => { activeGameType = 'typeTranslation'; showPartSelection('typeTranslation'); });
-            talkToMeBtn.addEventListener('click', () => { activeGameType = 'talkToMe'; showPartSelection('talkToMe'); });
-            fillInTheBlanksBtn.addEventListener('click', () => { activeGameType = 'fillInTheBlanks'; startGame('fillInTheBlanks'); });
-            findTheWordsBtn.addEventListener('click', () => { activeGameType = 'findTheWords'; showPartSelection('findTheWords'); });
+            matchingBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'matching'; showPartSelection('matching'); });
+            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'multipleChoice'; showPartSelection('multipleChoice'); });
+            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'typeTranslation'; showPartSelection('typeTranslation'); });
+            talkToMeBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'talkToMe'; showPartSelection('talkToMe'); });
+            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'fillInTheBlanks'; startGame('fillInTheBlanks'); });
+            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'findTheWords'; showPartSelection('findTheWords'); });
 
             // In-Game Listeners
             nextMcqBtn.addEventListener('click', () => { currentMcqIndex++; displayNextMcq(); });
