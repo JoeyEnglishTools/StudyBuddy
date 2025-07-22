@@ -673,46 +673,56 @@
                 });
             }
 
-         async function handleFileUpload(droppedFile = null) {
-    const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
-    if (!file) {
-        uploadStatus.textContent = 'Please select or drop a CSV file.';
-        return;
+            async function saveNotes(notesToSave) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        uploadStatus.textContent = 'You must be logged in to save notes.';
+        return false;
     }
-    csvUploadedTargetLanguage = targetLanguageSelector.value;
-    const reader = new FileReader();
-    reader.onload = async function(event) {
-        try {
-            parseCSV(event.target.result);
-            if (vocabulary.length > 0) {
-                // Check if user is logged in
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) {
-                    uploadStatus.textContent = "Please log in to save your vocabulary.";
+    const notesWithUser = notesToSave.map(note => ({
+        user_id: user.id,
+        term: note.lang1,
+        definition: note.lang2,
+        term_lang: targetLanguageSelector.value || "en-US",
+        definition_lang: 'en'
+    }));
+    const { error } = await supabaseClient.from('notes').insert(notesWithUser);
+    if (error) {
+        console.error('Error saving notes:', error);
+        uploadStatus.textContent = 'Error saving notes to your account: ' + error.message;
+        return false;
+    }
+    return true;
+}
+
+            async function handleFileUpload(droppedFile = null) {
+                const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
+                if (!file) {
+                    uploadStatus.textContent = 'Please select or drop a CSV file.';
                     return;
                 }
-                uploadStatus.textContent = 'Saving notes to your account...';
-                const success = await saveNotes(vocabulary);
-                if (success) {
-                    await fetchNotes();
-                    uploadStatus.textContent = `Successfully saved ${vocabulary.length} new notes!`;
-                    setTimeout(() => {
-                        uploadSection.classList.add('hidden');
-                        showGameSelection();
-                    }, 1500);
-                } else {
-                    uploadStatus.textContent = 'Error saving notes to your account.';
-                }
-            } else {
-                uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                csvUploadedTargetLanguage = targetLanguageSelector.value;
+                const reader = new FileReader();
+                reader.onload = async function(event) {
+                    try {
+                        parseCSV(event.target.result);
+                        if (vocabulary.length > 0) {
+                            uploadStatus.textContent = `Successfully loaded ${vocabulary.length} pairs! Ready to play.`;
+                            isEssentialsMode = false;
+                            setTimeout(() => {
+                                uploadSection.classList.add('hidden');
+                                showGameSelection();
+                            }, 1500);
+                        } else {
+                            uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                        }
+                    } catch (error) {
+                        uploadStatus.textContent = 'Error parsing CSV file.';
+                        console.error("Error parsing CSV:", error);
+                    }
+                };
+                reader.readAsText(file);
             }
-        } catch (error) {
-            uploadStatus.textContent = 'Error parsing CSV file.';
-            console.error("Error parsing CSV:", error);
-        }
-    };
-    reader.readAsText(file);
-}
 
             // --- UI & NAVIGATION ---
             function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
@@ -776,6 +786,233 @@
                     case 'findTheWords': initFindTheWordsGame(); break;
                 }
             }
+
+            
+            function initMatchingGame(isBonus) {
+                matchingGameContainer.classList.remove('hidden');
+                matchingGrid.innerHTML = '';
+                matchingFeedback.textContent = '';
+                selectedMatchCard = null;
+                matchedPairs = 0;
+                
+                let gameVocab = shuffleArray(currentVocabularyPart).slice(0, ITEMS_PER_SUB_ROUND);
+                pairsToMatch = gameVocab.length;
+                matchingGameActiveVocab = gameVocab;
+
+                let cards = [];
+                gameVocab.forEach((item, index) => {
+                    cards.push({ id: index, type: 'lang1', text: item.lang1, originalItem: item });
+                    cards.push({ id: index, type: 'lang2', text: item.lang2, originalItem: item });
+                });
+
+                shuffleArray(cards).forEach(cardData => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'game-card card p-2';
+                    cardElement.textContent = cardData.text;
+                    cardElement.dataset.id = cardData.id;
+                    cardElement.dataset.type = cardData.type;
+                    cardElement.addEventListener('click', () => handleMatchCardClick(cardElement, cardData.originalItem));
+                    matchingGrid.appendChild(cardElement);
+                });
+            }
+
+            function handleMatchCardClick(cardElement, item) {
+                if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
+
+                if (!selectedMatchCard) {
+                    selectedMatchCard = cardElement;
+                    cardElement.classList.add('selected-match');
+                } else {
+                    if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
+                        // Correct Match
+                        selectedMatchCard.classList.add('matched');
+                        cardElement.classList.add('matched');
+                        selectedMatchCard.classList.remove('selected-match');
+                        matchingFeedback.textContent = "Matched!";
+                        matchedPairs++;
+                        if (matchedPairs === pairsToMatch) {
+                            matchingFeedback.textContent = "Part Complete!";
+                            // You can add logic here to proceed to the next part or show a summary
+                        }
+                        selectedMatchCard = null;
+                    } else {
+                        // Incorrect Match
+                        cardElement.classList.add('incorrect-match-animation');
+                        selectedMatchCard.classList.add('incorrect-match-animation');
+                        matchingFeedback.textContent = "Not a match!";
+                        setTimeout(() => {
+                            cardElement.classList.remove('incorrect-match-animation');
+                            selectedMatchCard.classList.remove('incorrect-match-animation');
+                            selectedMatchCard.classList.remove('selected-match');
+                            selectedMatchCard = null;
+                        }, 400);
+                    }
+                }
+            }
+
+            function initMultipleChoiceGame(isBonus) {
+                multipleChoiceGameContainer.classList.remove('hidden');
+                mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentMcqIndex = 0;
+                displayNextMcq();
+            }
+
+            function displayNextMcq() {
+                if (currentMcqIndex >= mcqGameActiveVocab.length) {
+                    mcqQuestion.textContent = "Part Complete!";
+                    mcqOptions.innerHTML = '';
+                    return;
+                }
+                mcqAnswered = false;
+                nextMcqBtn.classList.add('hidden');
+                mcqFeedback.textContent = '';
+                const currentItem = mcqGameActiveVocab[currentMcqIndex];
+                mcqQuestion.textContent = currentItem.lang1;
+
+                let options = [currentItem.lang2];
+                let distractors = shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3);
+                distractors.forEach(d => options.push(d.lang2));
+                
+                mcqOptions.innerHTML = '';
+                shuffleArray(options).forEach(optionText => {
+                    const button = document.createElement('button');
+                    button.className = 'btn mcq-option-btn';
+                    button.textContent = optionText;
+                    button.onclick = () => checkMcqAnswer(button, optionText === currentItem.lang2, currentItem);
+                    mcqOptions.appendChild(button);
+                });
+            }
+
+            function checkMcqAnswer(button, isCorrect, item) {
+                if (mcqAnswered) return;
+                mcqAnswered = true;
+                
+                if (isCorrect) {
+                    button.classList.add('correct-answer');
+                    mcqFeedback.textContent = "Correct!";
+                } else {
+                    button.classList.add('incorrect-answer');
+                    mcqFeedback.textContent = `Incorrect. The answer is: ${item.lang2}`;
+                    // Highlight the correct answer
+                    mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
+                        if (btn.textContent === item.lang2) {
+                            btn.classList.add('correct-answer');
+                        }
+                    });
+                }
+                nextMcqBtn.classList.remove('hidden');
+            }
+            
+            nextMcqBtn.addEventListener('click', () => {
+                currentMcqIndex++;
+                displayNextMcq();
+            });
+
+            function initTypeTranslationGame(isBonus) {
+                typeTranslationGameContainer.classList.remove('hidden');
+                typeTransGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTypeTranslationIndex = 0;
+                displayNextTypeTranslation();
+            }
+
+            function displayNextTypeTranslation() {
+                if (currentTypeTranslationIndex >= typeTransGameActiveVocab.length) {
+                    typeTranslationPhrase.textContent = "Part Complete!";
+                    typeTranslationInput.classList.add('hidden');
+                    checkTypeTranslationBtn.classList.add('hidden');
+                    return;
+                }
+                typeTranslationAnswered = false;
+                nextTypeTranslationBtn.classList.add('hidden');
+                typeTranslationInput.value = '';
+                typeTranslationInput.disabled = false;
+                typeTranslationFeedback.textContent = '';
+                typeTranslationHintDisplay.textContent = '';
+                checkTypeTranslationBtn.disabled = false;
+                
+                const item = typeTransGameActiveVocab[currentTypeTranslationIndex];
+                typeTranslationPhrase.textContent = item.lang2; // Show native language, ask for target
+                typeTranslationCounter.textContent = `${currentTypeTranslationIndex + 1} / ${typeTransGameActiveVocab.length}`;
+            }
+
+            function checkTypeTranslation() {
+                if (typeTranslationAnswered) return;
+                typeTranslationAnswered = true;
+
+                const item = typeTransGameActiveVocab[currentTypeTranslationIndex];
+                const userAnswer = typeTranslationInput.value.trim().toLowerCase();
+                const correctAnswer = item.lang1.toLowerCase();
+
+                if (userAnswer === correctAnswer) {
+                    typeTranslationFeedback.textContent = "Correct!";
+                    typeTranslationInput.classList.add('correct-answer');
+                } else {
+                    typeTranslationFeedback.textContent = `Incorrect. The correct answer is: ${item.lang1}`;
+                    typeTranslationInput.classList.add('incorrect-answer');
+                }
+                
+                typeTranslationInput.disabled = true;
+                checkTypeTranslationBtn.disabled = true;
+                nextTypeTranslationBtn.classList.remove('hidden');
+            }
+
+            nextTypeTranslationBtn.addEventListener('click', () => {
+                currentTypeTranslationIndex++;
+                displayNextTypeTranslation();
+            });
+            checkTypeTranslationBtn.addEventListener('click', checkTypeTranslation);
+            typeTranslationInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') checkTypeTranslation();
+            });
+
+            function initTalkToMeGame(isBonus) {
+                talkToMeGameContainer.classList.remove('hidden');
+                talkToMeActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTalkToMeIndex = 0;
+                displayNextTalkToMe();
+            }
+
+            function displayNextTalkToMe() {
+                 if (currentTalkToMeIndex >= talkToMeActiveVocab.length) {
+                    talkToMePhraseText.textContent = "Part Complete!";
+                    listenBtn.classList.add('hidden');
+                    return;
+                }
+                const item = talkToMeActiveVocab[currentTalkToMeIndex];
+                talkToMePhraseText.textContent = item.lang1;
+                talkToMeRecognizedText.textContent = "...";
+                talkToMeFeedback.textContent = "";
+                talkToMeReferenceContainer.classList.add('hidden');
+                nextTalkToMeBtn.classList.add('hidden');
+                listenBtn.classList.remove('hidden');
+                listenBtn.disabled = false;
+                talkToMeCounter.textContent = `${currentTalkToMeIndex + 1} / ${talkToMeActiveVocab.length}`;
+            }
+
+            // Placeholder for speech recognition logic
+            listenBtn.addEventListener('click', () => {
+                talkToMeFeedback.textContent = "Speech recognition not implemented in this demo.";
+                nextTalkToMeBtn.classList.remove('hidden');
+                listenBtn.classList.add('hidden');
+            });
+
+            nextTalkToMeBtn.addEventListener('click', () => {
+                currentTalkToMeIndex++;
+                displayNextTalkToMe();
+            });
+
+            function initFillInTheBlanksGame(isBonus) {
+                // This is a placeholder, as the game is complex
+                fillInTheBlanksGameContainer.classList.remove('hidden');
+                fillInTheBlanksSentence.textContent = "Fill in the blanks is not yet implemented.";
+            }
+
+            function initFindTheWordsGame() {
+                // This is a placeholder
+                findTheWordsGameContainer.classList.remove('hidden');
+                findTheWordsInstructions.textContent = "Find the words is not yet implemented.";
+            }
+
 
             // --- HELPER & CORE GAME MECHANICS ---
             function shuffleArray(array) { const newArray = [...array]; for (let i = newArray.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[newArray[i], newArray[j]] = [newArray[j], newArray[i]]; } return newArray; }
