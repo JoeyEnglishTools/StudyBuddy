@@ -1172,6 +1172,29 @@ async function startFindTheWordsRound(pool) {
     await speakFindTheWordsTargets(findWordsTargetWords, activeTargetStudyLanguage);
 }
 
+            async function nextFindTheWordsRound(pool) {
+                if (currentFindWordsRound >= MAX_FIND_WORDS_ROUNDS || pool.length < WORDS_PER_FIND_WORDS_TARGET) {
+                    findTheWordsInstructions.textContent = "Game Complete!";
+                    findTheWordsGrid.innerHTML = '';
+                    return;
+                }
+                currentFindWordsRound++;
+                findWordsTargetWords = pool.splice(0, WORDS_PER_FIND_WORDS_TARGET);
+                let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.includes(v))).slice(0, WORDS_PER_FIND_WORDS_DISPLAY - WORDS_PER_FIND_WORDS_TARGET);
+                let findWordsCurrentChoices = shuffleArray([...findWordsTargetWords, ...distractors]);
+                findTheWordsGrid.innerHTML = '';
+                findWordsCurrentChoices.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'game-card card p-2';
+                    card.textContent = item.lang1;
+                    card.onclick = () => toggleFindWordSelection(card, item);
+                    findTheWordsGrid.appendChild(card);
+                });
+                for (const word of findWordsTargetWords) {
+                    await speakText(word.lang1, activeTargetStudyLanguage);
+                }
+            }
+            
             function toggleFindWordSelection(card, item) {
                 card.classList.toggle('selected-find-word');
                 const index = findWordsSelectedWords.findIndex(i => i.lang1 === item.lang1);
