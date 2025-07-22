@@ -579,7 +579,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {     
           
-  // --- Supabase Client Setup ---
+            // --- Supabase Client Setup ---
             const { createClient } = supabase;
             const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
@@ -644,39 +644,44 @@
             
             function parseCSV(csvData) {
                 const parsed = [];
-                const lines = csvData.split(/\r\n|\n/).slice(1); 
+                const lines = csvData.split(/\r\n|\n/);
+                
+                // Skip header row if it exists
+                const startIndex = lines.length > 0 && lines[0].toLowerCase().includes('word') ? 1 : 0;
 
-                lines.forEach((line) => {
-                    if (line.trim() === '') return;
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line === '') continue;
+                    
                     const parts = [];
                     let currentField = '';
                     let inQuotedField = false;
-                    for (let i = 0; i < line.length; i++) {
-                        const char = line[i];
+                    
+                    for (let j = 0; j < line.length; j++) {
+                        const char = line[j];
                         if (char === '"') {
-                            if (inQuotedField && i + 1 < line.length && line[i + 1] === '"') {
+                            if (inQuotedField && j + 1 < line.length && line[j + 1] === '"') {
                                 currentField += '"';
-                                i++; 
+                                j++; 
                             } else {
                                 inQuotedField = !inQuotedField;
                             }
                         } else if (char === ',' && !inQuotedField) {
-                            parts.push(currentField);
+                            parts.push(currentField.trim());
                             currentField = '';
                         } else {
                             currentField += char;
                         }
                     }
-                    parts.push(currentField); 
+                    parts.push(currentField.trim()); 
 
-                    if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
-                        const lang1Text = parts[0].trim();
-                        const lang2Text = parts[1].trim();
+                    if (parts.length >= 2 && parts[0] && parts[1]) {
                         parsed.push({
-                            lang1: lang1Text, lang2: lang2Text
+                            lang1: parts[0],
+                            lang2: parts[1]
                         });
                     }
-                });
+                }
                 return parsed;
             }
 
@@ -684,19 +689,23 @@
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (!user) {
                     uploadStatus.textContent = 'You must be logged in to save notes.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                     return false;
                 }
+                
                 const notesWithUser = notesToSave.map(note => ({
                     user_id: user.id,
                     term: note.lang1,
                     definition: note.lang2,
-                    term_lang: targetLanguageSelector.value || "en-US",
+                    term_lang: csvUploadedTargetLanguage,
                     definition_lang: 'en'
                 }));
+                
                 const { error } = await supabaseClient.from('notes').insert(notesWithUser);
                 if (error) {
                     console.error('Error saving notes:', error);
                     uploadStatus.textContent = 'Error saving notes: ' + error.message;
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                     return false;
                 }
                 return true;
@@ -706,19 +715,32 @@
                 const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
                 if (!file) {
                     uploadStatus.textContent = 'Please select or drop a CSV file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                     return;
                 }
+                
+                if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
+                    uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                    return;
+                }
+                
                 csvUploadedTargetLanguage = targetLanguageSelector.value;
+                uploadStatus.textContent = 'Processing CSV file...';
+                uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
+                
                 const reader = new FileReader();
                 reader.onload = async function(event) {
                     try {
                         const parsedNotes = parseCSV(event.target.result);
                         if (parsedNotes.length > 0) {
                             uploadStatus.textContent = 'Saving notes to your account...';
+                            uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
                             const success = await saveNotes(parsedNotes);
                             if (success) {
                                 await fetchNotes();
                                 uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
+                                uploadStatus.className = 'text-sm text-green-600 mt-2 h-5';
                                 isEssentialsMode = false;
                                 setTimeout(() => {
                                     uploadSection.classList.add('hidden');
@@ -727,11 +749,17 @@
                             }
                         } else {
                             uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                         }
                     } catch (error) {
                         uploadStatus.textContent = 'Error processing CSV file.';
+                        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                         console.error("Error processing CSV:", error);
                     }
+                };
+                reader.onerror = () => {
+                    uploadStatus.textContent = 'Error reading file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                 };
                 reader.readAsText(file);
             }
@@ -739,27 +767,66 @@
             // --- UI & NAVIGATION ---
             function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
             function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
-            function showMainSelection() { mainSelectionSection.classList.remove('hidden'); [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => el && el.classList.add('hidden')); isEssentialsMode = false; }
+            function showMainSelection() { 
+                mainSelectionSection.classList.remove('hidden'); 
+                [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => el && el.classList.add('hidden')); 
+                isEssentialsMode = false; 
+            }
             function showGameSelection() {
                 if (!isEssentialsMode) {
                     activeTargetStudyLanguage = csvUploadedTargetLanguage; 
-                    selectedSpeechLangInGame = csvUploadedTargetLanguage;
-                } else {
-                    selectedSpeechLangInGame = activeTargetStudyLanguage; 
-                }
+                } 
                 [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea].forEach(el => el.classList.add('hidden'));
                 hideAllGames();
                 gameSelectionSection.classList.remove('hidden');
                 fillInTheBlanksBtn.classList.toggle('hidden', !isEssentialsMode); 
                 findTheWordsBtn.classList.remove('hidden'); 
                 const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
-                if (activeVocab.length === 0) { noVocabularyMessage.classList.remove('hidden'); gameButtonsContainer.classList.add('hidden'); }
-                else { noVocabularyMessage.classList.add('hidden'); gameButtonsContainer.classList.remove('hidden'); }
+                if (activeVocab.length === 0) { 
+                    noVocabularyMessage.classList.remove('hidden'); 
+                    gameButtonsContainer.classList.add('hidden'); 
+                } else { 
+                    noVocabularyMessage.classList.add('hidden'); 
+                    gameButtonsContainer.classList.remove('hidden'); 
+                }
             }
-            function populateEssentialsCategoryButtons() { essentialsCategoryButtonsContainer.innerHTML = ''; Object.keys(essentialsVocabularyData).forEach(categoryKey => { const button = document.createElement('button'); button.className = 'btn essentials-category-btn p-3 sm:p-4 text-sm sm:text-md'; button.textContent = categoryKey; button.addEventListener('click', () => { currentEssentialsCategoryName = categoryKey; isEssentialsMode = true; if (categoryKey.toLowerCase().includes("(en-es)")) { activeTargetStudyLanguage = 'es-ES'; } else if (categoryKey.toLowerCase().includes("(en-fr)")) { activeTargetStudyLanguage = 'fr-FR'; } else { activeTargetStudyLanguage = 'en-US'; } selectedSpeechLangInGame = activeTargetStudyLanguage; currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({...item, lang1: item.english, lang2: item.spanish, originalIndex: index, correctCount: item.correctCount || 0 })); essentialsOptionsTitle.textContent = `Category: ${categoryKey}`; essentialsCategorySelectionSection.classList.add('hidden'); essentialsCategoryOptionsSection.classList.remove('hidden'); }); essentialsCategoryButtonsContainer.appendChild(button); }); }
+            function populateEssentialsCategoryButtons() { 
+                essentialsCategoryButtonsContainer.innerHTML = ''; 
+                Object.keys(essentialsVocabularyData).forEach(categoryKey => { 
+                    const button = document.createElement('button'); 
+                    button.className = 'btn essentials-category-btn p-3 sm:p-4 text-sm sm:text-md'; 
+                    button.textContent = categoryKey; 
+                    button.addEventListener('click', () => { 
+                        currentEssentialsCategoryName = categoryKey; 
+                        isEssentialsMode = true; 
+                        if (categoryKey.toLowerCase().includes("(en-es)")) { 
+                            activeTargetStudyLanguage = 'es-ES'; 
+                        } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
+                            activeTargetStudyLanguage = 'fr-FR'; 
+                        } else { 
+                            activeTargetStudyLanguage = 'en-US'; 
+                        } 
+                        currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({
+                            ...item, 
+                            originalIndex: index, 
+                            correctCount: item.correctCount || 0 
+                        })); 
+                        essentialsOptionsTitle.textContent = `Category: ${categoryKey}`; 
+                        essentialsCategorySelectionSection.classList.add('hidden'); 
+                        essentialsCategoryOptionsSection.classList.remove('hidden'); 
+                    }); 
+                    essentialsCategoryButtonsContainer.appendChild(button); 
+                }); 
+            }
+            
             function showPartSelection(gameType) {
                 const sourceForParts = isEssentialsMode ? currentVocabularyPart : vocabulary;
-                if (sourceForParts.length === 0) { noVocabularyMessage.classList.remove('hidden'); gameArea.classList.remove('hidden'); [partSelectionContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, languageSelectionInGameContainer].forEach(el => el.classList.add('hidden')); return; }
+                if (sourceForParts.length === 0) { 
+                    noVocabularyMessage.classList.remove('hidden'); 
+                    gameArea.classList.remove('hidden'); 
+                    [partSelectionContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage].forEach(el => el.classList.add('hidden')); 
+                    return; 
+                }
                 gameTitle.textContent = gameType.charAt(0).toUpperCase() + gameType.slice(1).replace(/([A-Z])/g, ' $1');
                 [uploadSection, gameSelectionSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, mainSelectionSection].forEach(el => el.classList.add('hidden'));
                 gameArea.classList.remove('hidden');
@@ -770,7 +837,11 @@
                 const fullMixButton = document.createElement('button');
                 fullMixButton.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
                 fullMixButton.textContent = `Full Mix (${sourceForParts.length} items)`;
-                fullMixButton.addEventListener('click', () => { currentVocabularyPart = [...sourceForParts]; currentPartName = "Full Mix"; currentPartIndexGlobal = -1; startGame(gameType); });
+                fullMixButton.addEventListener('click', () => { 
+                    currentVocabularyPart = [...sourceForParts]; 
+                    currentPartName = "Full Mix"; 
+                    startGame(gameType); 
+                });
                 partButtonsContainer.appendChild(fullMixButton);
                 if (!isEssentialsMode && numParts > 1 && sourceForParts.length > ITEMS_PER_PART) {
                     for (let i = 0; i < numParts; i++) {
@@ -781,11 +852,16 @@
                         const button = document.createElement('button');
                         button.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
                         button.textContent = `Part ${i + 1} (Items ${start + 1}-${Math.min(end, sourceForParts.length)})`;
-                        button.addEventListener('click', () => { currentVocabularyPart = partVocab; currentPartName = `Part ${i + 1}`; currentPartIndexGlobal = i; startGame(gameType); });
+                        button.addEventListener('click', () => { 
+                            currentVocabularyPart = partVocab; 
+                            currentPartName = `Part ${i + 1}`; 
+                            startGame(gameType); 
+                        });
                         partButtonsContainer.appendChild(button);
                     }
                 }
             }
+            
             function startGame(gameType) {
                 if (!audioInitialized) initializeAudio();
                 partSelectionContainer.classList.add('hidden');
@@ -801,20 +877,48 @@
             }
 
             // --- HELPER & CORE GAME MECHANICS ---
-            function shuffleArray(array) { const newArray = [...array]; for (let i = newArray.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[newArray[i], newArray[j]] = [newArray[j], newArray[i]]; } return newArray; }
-            function normalizeText(text) { return text.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,""); }
-            function updateScoreDisplay() { currentScoreDisplay.textContent = `Score: ${currentScore}`; maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; }
-            function setupMistakeTracker() { mistakeTrackerDiv.innerHTML = ''; for (let i = 0; i < MAX_MISTAKES; i++) { const capybaraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); capybaraSvg.setAttribute("viewBox", "0 0 60 60"); capybaraSvg.setAttribute("fill", "currentColor"); capybaraSvg.classList.add("capybara-life-icon"); capybaraSvg.innerHTML = ` <path d="M30,15 C18,15 10,23 10,33 C10,43 15,50 22,52 C20,48 20,42 23,40 C25,38 28,38 30,39 C32,38 35,38 37,40 C40,42 40,48 38,52 C45,50 50,43 50,33 C50,23 42,15 30,15 Z M22,28 A2,2 0 0,1 24,30 A2,2 0 0,1 22,32 A2,2 0 0,1 20,30 A2,2 0 0,1 22,28 Z M38,28 A2,2 0 0,1 40,30 A2,2 0 0,1 38,32 A2,2 0 0,1 36,30 A2,2 0 0,1 38,28 Z M30,42 C28,42 27,41 27,40 C27,39 28,38 30,38 C32,38 33,39 33,40 C33,41 32,42 30,42 Z"></path> <ellipse cx="23" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <ellipse cx="37" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <path d="M28,33 Q30,35 32,33" stroke="#4a2c2a" stroke-width="1.5" fill="none" /> `; mistakeTrackerDiv.appendChild(capybaraSvg); } }
-            function updateMistakeDisplay() { const icons = mistakeTrackerDiv.querySelectorAll('.capybara-life-icon'); icons.forEach((icon, index) => icon.classList.toggle('mistake', index < MAX_MISTAKES - mistakesRemaining)); }
-            function resetGameStats() { mistakesRemaining = MAX_MISTAKES; updateScoreDisplay(); setupMistakeTracker(); gameOverMessage.classList.add('hidden'); }
+            function shuffleArray(array) { 
+                const newArray = [...array]; 
+                for (let i = newArray.length - 1; i > 0; i--) { 
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; 
+                } 
+                return newArray; 
+            }
+            function normalizeText(text) { 
+                return text.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,""); 
+            }
+            function updateScoreDisplay() { 
+                currentScoreDisplay.textContent = `Score: ${currentScore}`; 
+                maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; 
+            }
+            function setupMistakeTracker() { 
+                mistakeTrackerDiv.innerHTML = ''; 
+                for (let i = 0; i < MAX_MISTAKES; i++) { 
+                    const capybaraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); 
+                    capybaraSvg.setAttribute("viewBox", "0 0 60 60"); 
+                    capybaraSvg.setAttribute("fill", "currentColor"); 
+                    capybaraSvg.classList.add("capybara-life-icon"); 
+                    capybaraSvg.innerHTML = ` <path d="M30,15 C18,15 10,23 10,33 C10,43 15,50 22,52 C20,48 20,42 23,40 C25,38 28,38 30,39 C32,38 35,38 37,40 C40,42 40,48 38,52 C45,50 50,43 50,33 C50,23 42,15 30,15 Z M22,28 A2,2 0 0,1 24,30 A2,2 0 0,1 22,32 A2,2 0 0,1 20,30 A2,2 0 0,1 22,28 Z M38,28 A2,2 0 0,1 40,30 A2,2 0 0,1 38,32 A2,2 0 0,1 36,30 A2,2 0 0,1 38,28 Z M30,42 C28,42 27,41 27,40 C27,39 28,38 30,38 C32,38 33,39 33,40 C33,41 32,42 30,42 Z"></path> <ellipse cx="23" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <ellipse cx="37" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <path d="M28,33 Q30,35 32,33" stroke="#4a2c2a" stroke-width="1.5" fill="none" /> `; 
+                    mistakeTrackerDiv.appendChild(capybaraSvg); 
+                } 
+            }
+            function updateMistakeDisplay() { 
+                const icons = mistakeTrackerDiv.querySelectorAll('.capybara-life-icon'); 
+                icons.forEach((icon, index) => icon.classList.toggle('mistake', index < MAX_MISTAKES - mistakesRemaining)); 
+            }
+            function resetGameStats() { 
+                mistakesRemaining = MAX_MISTAKES; 
+                updateScoreDisplay(); 
+                setupMistakeTracker(); 
+                gameOverMessage.classList.add('hidden'); 
+            }
             
             // --- SPEECH & AUDIO ---
             function initializeAudio() {
                 if (audioInitialized) return;
-                Tone.start().then(() => {
-                    audioInitialized = true;
-                    // Synths setup...
-                }).catch(e => console.error("Audio context error:", e));
+                audioInitialized = true;
+                console.log("Audio initialized");
             }
 
             function speakText(text, lang) {
@@ -845,8 +949,13 @@
                         talkToMeRecognizedText.textContent = speechResult;
                         checkSpeechAnswer(speechResult);
                     };
-                    recognition.onerror = (event) => { speechApiStatus.textContent = `Error: ${event.error}`; stopListening(); };
-                    recognition.onend = () => { if (isListening) stopListening(); };
+                    recognition.onerror = (event) => { 
+                        speechApiStatus.textContent = `Error: ${event.error}`; 
+                        stopListening(); 
+                    };
+                    recognition.onend = () => { 
+                        if (isListening) stopListening(); 
+                    };
                 } else {
                     speechApiStatus.textContent = "Browser doesn't support speech recognition.";
                     if(listenBtn) listenBtn.disabled = true;
@@ -1057,9 +1166,46 @@
 
             // --- EVENT LISTENERS ---
             authToggleText.addEventListener('click', (e) => { if (e.target.matches('.toggle-auth-link')) { e.preventDefault(); toggleAuthMode(); } });
-            authForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = document.getElementById('emailInput').value.trim(); const password = document.getElementById('passwordInput').value.trim(); authError.textContent = ''; try { if (isSignUp) { const { error } = await supabaseClient.auth.signUp({ email, password }); if (error) { authError.textContent = error.message; } else { alert('Sign up successful! Please check your email to confirm your account.'); toggleAuthMode(); } } else { const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); if (error) { authError.textContent = error.message; } } } catch (err) { authError.textContent = 'Unexpected error. Try again.'; console.error(err); } });
-            googleLoginBtn.addEventListener('click', async () => { const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' }); if (error) { authError.textContent = error.message; } });
-            logoutBtn.addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
+            authForm.addEventListener('submit', async (e) => { 
+                e.preventDefault(); 
+                const email = document.getElementById('emailInput').value.trim(); 
+                const password = document.getElementById('passwordInput').value.trim(); 
+                authError.textContent = ''; 
+                try { 
+                    if (isSignUp) { 
+                        const { error } = await supabaseClient.auth.signUp({ email, password }); 
+                        if (error) { 
+                            authError.textContent = error.message; 
+                        } else { 
+                            alert('Sign up successful! Please check your email to confirm your account.'); 
+                            toggleAuthMode(); 
+                        } 
+                    } else { 
+                        const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); 
+                        if (error) { 
+                            authError.textContent = error.message; 
+                        } 
+                    } 
+                } catch (err) { 
+                    authError.textContent = 'Unexpected error. Try again.'; 
+                    console.error(err); 
+                } 
+            });
+            googleLoginBtn.addEventListener('click', async () => { 
+                const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' }); 
+                if (error) { authError.textContent = error.message; } 
+            });
+            logoutBtn.addEventListener('click', async () => { 
+                try {
+                    await supabaseClient.auth.signOut(); 
+                    window.location.reload(); 
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // Force reload anyway
+                    window.location.reload();
+                }
+            });
+            
             addNotesBtn.addEventListener('click', showMainSelection);
             showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
             backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
@@ -1070,17 +1216,39 @@
             playGamesWithEssentialsBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); showGameSelection(); });
             backToGameSelectionBtn.addEventListener('click', showGameSelection);
             backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
-            matchingBtn.addEventListener('click', () => { initializeAudio(); startGame('matching'); });
-            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); startGame('multipleChoice'); });
-            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); startGame('typeTranslation'); });
-            talkToMeBtn.addEventListener('click', () => { initializeAudio(); startGame('talkToMe'); });
-            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); startGame('fillInTheBlanks'); });
-            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); startGame('findTheWords'); });
+            matchingBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('matching'); });
+            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('multipleChoice'); });
+            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('typeTranslation'); });
+            talkToMeBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('talkToMe'); });
+            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('fillInTheBlanks'); });
+            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('findTheWords'); });
             uploadBtn.addEventListener('click', () => handleFileUpload());
             csvFileInput.addEventListener('change', () => handleFileUpload());
             dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover-active'); });
             dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); });
             dropZone.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); if (e.dataTransfer.files && e.dataTransfer.files.length > 0) { handleFileUpload(e.dataTransfer.files[0]); } });
+
+            // Game specific event listeners
+            if (checkTypeTranslationBtn) checkTypeTranslationBtn.addEventListener('click', checkTypeTranslation);
+            if (listenBtn) listenBtn.addEventListener('click', startListening);
+            if (sendFindTheWordsBtn) sendFindTheWordsBtn.addEventListener('click', checkFindTheWordsAnswer);
+            if (nextMcqBtn) nextMcqBtn.addEventListener('click', () => { 
+                mcqAnswered = false; 
+                currentMcqIndex++; 
+                displayNextMcq(currentVocabularyPart); 
+                nextMcqBtn.classList.add('hidden'); 
+            });
+            if (nextTypeTranslationBtn) nextTypeTranslationBtn.addEventListener('click', () => { 
+                typeTranslationAnswered = false; 
+                currentTypeTranslationIndex++; 
+                displayNextTypeTranslation(currentVocabularyPart); 
+                nextTypeTranslationBtn.classList.add('hidden'); 
+            });
+            if (nextTalkToMeBtn) nextTalkToMeBtn.addEventListener('click', () => { 
+                currentTalkToMeIndex++; 
+                displayNextTalkToMe(currentVocabularyPart); 
+                nextTalkToMeBtn.classList.add('hidden'); 
+            });
 
             // --- INITIALIZATION ---
             supabaseClient.auth.onAuthStateChange(async (event, session) => {
