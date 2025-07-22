@@ -685,32 +685,36 @@
                 return parsed;
             }
 
-            async function saveNotes(notesToSave) {
-                  console.log('saveNotes called with:', notesToSave); // <--- add
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) {
-                    uploadStatus.textContent = 'You must be logged in to save notes.';
-                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                    return false;
-                }
-                
-                const notesWithUser = notesToSave.map(note => ({
-                    user_id: user.id,
-                    term: note.lang1,
-                    definition: note.lang2,
-                    term_lang: csvUploadedTargetLanguage,
-                    definition_lang: 'en'
-                }));
-                     console.log('Inserting into supabase:', notesWithUser); // <--- add
-                const { error } = await supabaseClient.from('notes').insert(notesWithUser);
-                if (error) {
-                    console.error('Error saving notes:', error);
-                    uploadStatus.textContent = 'Error saving notes: ' + error.message;
-                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                    return false;
-                }
-                return true;
-            }
+async function saveNotes(notesToSave) {
+    console.log('saveNotes called with:', notesToSave); // <--- add
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        uploadStatus.textContent = 'You must be logged in to save notes.';
+        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        return false;
+    }
+
+    const notesWithUser = notesToSave.map(note => ({
+        user_id: user.id,
+        term: note.lang1,
+        definition: note.lang2,
+        term_lang: csvUploadedTargetLanguage,
+        definition_lang: 'en'
+    }));
+    console.log('Inserting into supabase:', notesWithUser);
+
+    const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
+    console.log('Supabase insert result:', data, error);
+
+    if (error) {
+        console.error('Error saving notes:', error);
+        uploadStatus.textContent = 'Error saving notes: ' + error.message;
+        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        return false;
+    }
+    return true;
+}
 
             async function handleFileUpload(droppedFile = null) {
                 console.log('handleFileUpload called'); // <--- add
