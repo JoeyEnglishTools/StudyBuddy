@@ -579,17 +579,22 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {     
           
-const { createClient } = supabase;
+  // --- Supabase Client Setup ---
+            const { createClient } = supabase;
             const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
             const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
             // --- STATE & CONSTANTS ---
             const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
-            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = !1, isSignUp = false;
+            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false;
             let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
-            let isEssentialsMode = !1, currentEssentialsCategoryName = "";
+            let isEssentialsMode = false, currentEssentialsCategoryName = "";
             let audioInitialized = false;
+            let mcqAnswered = false, typeTranslationAnswered = false, fillBlanksAnswered = false;
+            let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0;
+            let findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [];
+            let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
 
             // --- ELEMENT SELECTORS ---
             const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn');
@@ -786,11 +791,11 @@ const { createClient } = supabase;
                 partSelectionContainer.classList.add('hidden');
                 resetGameStats();
                 switch (gameType) {
-                    case 'matching': initMatchingGame(false); break;
-                    case 'multipleChoice': initMultipleChoiceGame(false); break;
-                    case 'typeTranslation': initTypeTranslationGame(false); break;
-                    case 'talkToMe': initTalkToMeGame(false); break;
-                    case 'fillInTheBlanks': initFillInTheBlanksGame(false); break;
+                    case 'matching': initMatchingGame(); break;
+                    case 'multipleChoice': initMultipleChoiceGame(); break;
+                    case 'typeTranslation': initTypeTranslationGame(); break;
+                    case 'talkToMe': initTalkToMeGame(); break;
+                    case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
                     case 'findTheWords': initFindTheWordsGame(); break;
                 }
             }
@@ -808,7 +813,7 @@ const { createClient } = supabase;
                 if (audioInitialized) return;
                 Tone.start().then(() => {
                     audioInitialized = true;
-                    // Synths setup... (omitted for brevity, but it's here)
+                    // Synths setup...
                 }).catch(e => console.error("Audio context error:", e));
             }
 
@@ -818,7 +823,7 @@ const { createClient } = supabase;
                         const utterance = new SpeechSynthesisUtterance(text);
                         utterance.lang = lang;
                         utterance.onend = resolve;
-                        utterance.onerror = () => resolve(); // Don't let TTS error block game
+                        utterance.onerror = () => resolve();
                         window.speechSynthesis.speak(utterance);
                     } else {
                         resolve();
@@ -849,29 +854,22 @@ const { createClient } = supabase;
             }
 
             // --- GAME LOGIC FUNCTIONS ---
-            function initMatchingGame(isBonus) {
-                matchingGameContainer.classList.remove('hidden');
-                matchingGrid.innerHTML = '';
-                matchingFeedback.textContent = '';
-                selectedMatchCard = null;
-                matchedPairs = 0;
-                
+            function initMatchingGame() {
                 let gameVocab = shuffleArray(currentVocabularyPart).slice(0, ITEMS_PER_SUB_ROUND);
                 pairsToMatch = gameVocab.length;
-                let matchingGameActiveVocab = gameVocab;
-
                 let cards = [];
                 gameVocab.forEach((item, index) => {
-                    cards.push({ id: index, type: 'lang1', text: item.lang1, originalItem: item });
-                    cards.push({ id: index, type: 'lang2', text: item.lang2, originalItem: item });
+                    cards.push({ id: index, type: 'lang1', text: item.lang1 });
+                    cards.push({ id: index, type: 'lang2', text: item.lang2 });
                 });
 
+                matchingGameContainer.classList.remove('hidden');
+                matchingGrid.innerHTML = '';
                 shuffleArray(cards).forEach(cardData => {
                     const cardElement = document.createElement('div');
                     cardElement.className = 'game-card card p-2';
                     cardElement.textContent = cardData.text;
                     cardElement.dataset.id = cardData.id;
-                    cardElement.dataset.type = cardData.type;
                     cardElement.addEventListener('click', () => handleMatchCardClick(cardElement));
                     matchingGrid.appendChild(cardElement);
                 });
@@ -879,366 +877,205 @@ const { createClient } = supabase;
 
             function handleMatchCardClick(cardElement) {
                 if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
-
                 if (!selectedMatchCard) {
                     selectedMatchCard = cardElement;
                     cardElement.classList.add('selected-match');
                 } else {
                     if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
-                        selectedMatchCard.classList.add('matched');
-                        cardElement.classList.add('matched');
-                        selectedMatchCard.classList.remove('selected-match');
-                        matchingFeedback.textContent = "Matched!";
+                        [selectedMatchCard, cardElement].forEach(el => {
+                            el.classList.add('matched');
+                            el.classList.remove('selected-match');
+                        });
                         matchedPairs++;
-                        if (matchedPairs === pairsToMatch) {
-                            matchingFeedback.textContent = "Part Complete!";
-                        }
-                        selectedMatchCard = null;
+                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
                     } else {
-                        cardElement.classList.add('incorrect-match-animation');
-                        selectedMatchCard.classList.add('incorrect-match-animation');
-                        matchingFeedback.textContent = "Not a match!";
+                        [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
                         setTimeout(() => {
-                            cardElement.classList.remove('incorrect-match-animation');
-                            selectedMatchCard.classList.remove('incorrect-match-animation');
-                            selectedMatchCard.classList.remove('selected-match');
+                            [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
                             selectedMatchCard = null;
                         }, 400);
                     }
+                    if (selectedMatchCard) selectedMatchCard = null;
                 }
             }
 
-            function initMultipleChoiceGame(isBonus) {
-                multipleChoiceGameContainer.classList.remove('hidden');
+            function initMultipleChoiceGame() {
                 let mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
-                let currentMcqIndex = 0;
-                displayNextMcq();
+                currentMcqIndex = 0;
+                multipleChoiceGameContainer.classList.remove('hidden');
+                displayNextMcq(mcqGameActiveVocab);
+            }
 
-                function displayNextMcq() {
-                    if (currentMcqIndex >= mcqGameActiveVocab.length) {
-                        mcqQuestion.textContent = "Part Complete!";
-                        mcqOptions.innerHTML = '';
-                        return;
-                    }
-                    let mcqAnswered = false;
-                    nextMcqBtn.classList.add('hidden');
-                    mcqFeedback.textContent = '';
-                    const currentItem = mcqGameActiveVocab[currentMcqIndex];
-                    mcqQuestion.textContent = currentItem.lang1;
-
-                    let options = [currentItem.lang2];
-                    let distractors = shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3);
-                    distractors.forEach(d => options.push(d.lang2));
-                    
+            function displayNextMcq(gameVocab) {
+                if (currentMcqIndex >= gameVocab.length) {
+                    mcqQuestion.textContent = "Part Complete!";
                     mcqOptions.innerHTML = '';
-                    shuffleArray(options).forEach(optionText => {
-                        const button = document.createElement('button');
-                        button.className = 'btn mcq-option-btn';
-                        button.textContent = optionText;
-                        button.onclick = () => checkMcqAnswer(button, optionText === currentItem.lang2, currentItem);
-                        mcqOptions.appendChild(button);
+                    return;
+                }
+                const currentItem = gameVocab[currentMcqIndex];
+                mcqQuestion.textContent = currentItem.lang1;
+                let options = [currentItem.lang2, ...shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3).map(v => v.lang2)];
+                mcqOptions.innerHTML = '';
+                shuffleArray(options).forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn mcq-option-btn';
+                    btn.textContent = opt;
+                    btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
+                    mcqOptions.appendChild(btn);
+                });
+            }
+
+            function checkMcqAnswer(button, isCorrect, item) {
+                if (mcqAnswered) return;
+                mcqAnswered = true;
+                button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
+                if (!isCorrect) {
+                    mcqFeedback.textContent = `Correct: ${item.lang2}`;
+                    mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
+                        if (btn.textContent === item.lang2) btn.classList.add('correct-answer');
                     });
                 }
-
-                function checkMcqAnswer(button, isCorrect, item) {
-                    if (mcqAnswered) return;
-                    mcqAnswered = true;
-                    
-                    if (isCorrect) {
-                        button.classList.add('correct-answer');
-                        mcqFeedback.textContent = "Correct!";
-                    } else {
-                        button.classList.add('incorrect-answer');
-                        mcqFeedback.textContent = `Incorrect. The answer is: ${item.lang2}`;
-                        mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
-                            if (btn.textContent === item.lang2) {
-                                btn.classList.add('correct-answer');
-                            }
-                        });
-                    }
-                    nextMcqBtn.classList.remove('hidden');
-                }
-
-                nextMcqBtn.onclick = () => {
-                    currentMcqIndex++;
-                    displayNextMcq();
-                };
+                nextMcqBtn.classList.remove('hidden');
             }
 
-            function initTypeTranslationGame(isBonus) {
-                typeTranslationGameContainer.classList.remove('hidden');
+            function initTypeTranslationGame() {
                 let typeTransGameActiveVocab = shuffleArray(currentVocabularyPart);
-                let currentTypeTranslationIndex = 0;
-                displayNextTypeTranslation();
-
-                function displayNextTypeTranslation() {
-                    if (currentTypeTranslationIndex >= typeTransGameActiveVocab.length) {
-                        typeTranslationPhrase.textContent = "Part Complete!";
-                        typeTranslationInput.classList.add('hidden');
-                        checkTypeTranslationBtn.classList.add('hidden');
-                        return;
-                    }
-                    let typeTranslationAnswered = false;
-                    nextTypeTranslationBtn.classList.add('hidden');
-                    typeTranslationInput.value = '';
-                    typeTranslationInput.disabled = false;
-                    typeTranslationFeedback.textContent = '';
-                    typeTranslationHintDisplay.textContent = '';
-                    checkTypeTranslationBtn.disabled = false;
-                    
-                    const item = typeTransGameActiveVocab[currentTypeTranslationIndex];
-                    typeTranslationPhrase.textContent = item.lang2;
-                    typeTranslationCounter.textContent = `${currentTypeTranslationIndex + 1} / ${typeTransGameActiveVocab.length}`;
-                }
-
-                function checkTypeTranslation() {
-                    if (typeTranslationAnswered) return;
-                    typeTranslationAnswered = true;
-
-                    const item = typeTransGameActiveVocab[currentTypeTranslationIndex];
-                    const userAnswer = typeTranslationInput.value.trim().toLowerCase();
-                    const correctAnswer = item.lang1.toLowerCase();
-
-                    if (userAnswer === correctAnswer) {
-                        typeTranslationFeedback.textContent = "Correct!";
-                        typeTranslationInput.classList.add('correct-answer');
-                    } else {
-                        typeTranslationFeedback.textContent = `Incorrect. The correct answer is: ${item.lang1}`;
-                        typeTranslationInput.classList.add('incorrect-answer');
-                    }
-                    
-                    typeTranslationInput.disabled = true;
-                    checkTypeTranslationBtn.disabled = true;
-                    nextTypeTranslationBtn.classList.remove('hidden');
-                }
-
-                checkTypeTranslationBtn.onclick = checkTypeTranslation;
-                nextTypeTranslationBtn.onclick = () => {
-                    currentTypeTranslationIndex++;
-                    displayNextTypeTranslation();
-                };
-                typeTranslationInput.onkeydown = (e) => { if (e.key === 'Enter') checkTypeTranslation(); };
+                currentTypeTranslationIndex = 0;
+                typeTranslationGameContainer.classList.remove('hidden');
+                displayNextTypeTranslation(typeTransGameActiveVocab);
             }
-            
-            function initFillInTheBlanksGame(isBonus) {
+
+            function displayNextTypeTranslation(gameVocab) {
+                if (currentTypeTranslationIndex >= gameVocab.length) {
+                    typeTranslationPhrase.textContent = "Part Complete!";
+                    typeTranslationInput.style.display = 'none';
+                    return;
+                }
+                const item = gameVocab[currentTypeTranslationIndex];
+                typeTranslationPhrase.textContent = item.lang2;
+                typeTranslationInput.value = '';
+                typeTranslationFeedback.textContent = '';
+                nextTypeTranslationBtn.classList.add('hidden');
+            }
+
+            function checkTypeTranslation() {
+                const item = currentVocabularyPart[currentTypeTranslationIndex];
+                const isCorrect = typeTranslationInput.value.trim().toLowerCase() === item.lang1.toLowerCase();
+                typeTranslationFeedback.textContent = isCorrect ? "Correct!" : `Correct: ${item.lang1}`;
+                nextTypeTranslationBtn.classList.remove('hidden');
+            }
+
+            function initFillInTheBlanksGame() {
                 fillInTheBlanksGameContainer.classList.remove('hidden');
                 fillInTheBlanksSentence.textContent = "Fill in the blanks is not yet implemented.";
             }
 
-            function initTalkToMeGame(isBonus) {
+            function initTalkToMeGame() {
                 talkToMeGameContainer.classList.remove('hidden');
                 let talkToMeActiveVocab = shuffleArray(currentVocabularyPart);
-                let currentTalkToMeIndex = 0;
-                displayNextTalkToMe();
+                currentTalkToMeIndex = 0;
+                displayNextTalkToMe(talkToMeActiveVocab);
+            }
 
-                function displayNextTalkToMe() {
-                    if (currentTalkToMeIndex >= talkToMeActiveVocab.length) {
-                        talkToMePhraseText.textContent = "Part Complete!";
-                        listenBtn.classList.add('hidden');
-                        nextTalkToMeBtn.classList.add('hidden');
-                        return;
-                    }
-                    const item = talkToMeActiveVocab[currentTalkToMeIndex];
-                    talkToMePhraseText.textContent = item.lang1;
-                    talkToMeRecognizedText.textContent = "...";
-                    talkToMeFeedback.textContent = "";
-                    talkToMeReferenceContainer.classList.add('hidden');
-                    nextTalkToMeBtn.classList.add('hidden');
-                    listenBtn.classList.remove('hidden');
-                    listenBtn.disabled = false;
-                    talkToMeCounter.textContent = `${currentTalkToMeIndex + 1} / ${talkToMeActiveVocab.length}`;
+            function displayNextTalkToMe(gameVocab) {
+                if (currentTalkToMeIndex >= gameVocab.length) {
+                    talkToMePhraseText.textContent = "Part Complete!";
+                    return;
                 }
+                const item = gameVocab[currentTalkToMeIndex];
+                talkToMePhraseText.textContent = item.lang1;
+                talkToMeRecognizedText.textContent = "...";
+                talkToMeFeedback.textContent = "";
+                nextTalkToMeBtn.classList.add('hidden');
+            }
 
-                function startListening() {
-                    if (!recognition || isListening) return;
-                    recognition.lang = activeTargetStudyLanguage;
-                    recognition.start();
-                    isListening = true;
-                    listenBtn.classList.add('listening');
-                    listenBtnText.textContent = 'Listening...';
-                    speechApiStatus.textContent = '';
-                }
+            function startListening() {
+                if (!recognition || isListening) return;
+                recognition.lang = activeTargetStudyLanguage;
+                recognition.start();
+                isListening = true;
+                listenBtnText.textContent = 'Listening...';
+            }
 
-                function stopListening() {
-                    if (!recognition || !isListening) return;
-                    recognition.stop();
-                    isListening = false;
-                    listenBtn.classList.remove('listening');
-                    listenBtnText.textContent = 'Start Listening';
-                }
+            function stopListening() {
+                if (!recognition || !isListening) return;
+                recognition.stop();
+                isListening = false;
+                listenBtnText.textContent = 'Start Listening';
+            }
 
-                function checkSpeechAnswer(spokenText) {
-                    const item = talkToMeActiveVocab[currentTalkToMeIndex];
-                    const normalizedSpoken = normalizeText(spokenText);
-                    const normalizedTarget = normalizeText(item.lang1);
-
-                    if (normalizedSpoken === normalizedTarget) {
-                        talkToMeFeedback.textContent = "Correct!";
-                        talkToMeFeedback.className = 'text-center font-medium mt-3 sm:mt-4 h-5 sm:h-6 text-sm sm:text-base text-green-600';
-                    } else {
-                        talkToMeFeedback.textContent = "Not quite. Try again or move on.";
-                        talkToMeFeedback.className = 'text-center font-medium mt-3 sm:mt-4 h-5 sm:h-6 text-sm sm:text-base text-amber-600';
-                    }
-                    
-                    talkToMeReferenceDisplay.textContent = item.lang2;
-                    talkToMeReferenceContainer.classList.remove('hidden');
-                    listenBtn.classList.add('hidden');
-                    nextTalkToMeBtn.classList.remove('hidden');
-                }
-
-                listenBtn.onclick = () => { if (isListening) stopListening(); else startListening(); };
-                nextTalkToMeBtn.onclick = () => { currentTalkToMeIndex++; displayNextTalkToMe(); };
-                speakPhraseBtn.onclick = () => {
-                    if (talkToMeActiveVocab.length > 0) {
-                        speakText(talkToMeActiveVocab[currentTalkToMeIndex].lang1, activeTargetStudyLanguage);
-                    }
-                };
+            function checkSpeechAnswer(spokenText) {
+                const item = currentVocabularyPart[currentTalkToMeIndex];
+                const isCorrect = normalizeText(spokenText) === normalizeText(item.lang1);
+                talkToMeFeedback.textContent = isCorrect ? "Correct!" : "Not quite, try again.";
+                nextTalkToMeBtn.classList.remove('hidden');
             }
 
             function initFindTheWordsGame() {
                 findTheWordsGameContainer.classList.remove('hidden');
                 let findWordsSessionPool = shuffleArray(currentVocabularyPart);
-                let currentFindWordsRound = 0;
-                nextFindTheWordsRound();
-
-                async function nextFindTheWordsRound() {
-                    if (currentFindWordsRound >= MAX_FIND_WORDS_ROUNDS || findWordsSessionPool.length < WORDS_PER_FIND_WORDS_TARGET) {
-                        findTheWordsInstructions.textContent = "Game Complete!";
-                        findTheWordsGrid.innerHTML = '';
-                        replayFindTheWordsAudioBtn.classList.add('hidden');
-                        sendFindTheWordsBtn.classList.add('hidden');
-                        return;
-                    }
-                    currentFindWordsRound++;
-                    findTheWordsRoundCounter.textContent = `Round: ${currentFindWordsRound}/${MAX_FIND_WORDS_ROUNDS}`;
-                    findTheWordsFeedback.textContent = '';
-                    let findWordsSelectedWords = [];
-                    sendFindTheWordsBtn.disabled = true;
-                    nextFindTheWordsRoundBtn.classList.add('hidden');
-
-                    let findWordsTargetWords = findWordsSessionPool.splice(0, WORDS_PER_FIND_WORDS_TARGET);
-                    let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.find(t => t.lang1 === v.lang1)))
-                                      .slice(0, WORDS_PER_FIND_WORDS_DISPLAY - WORDS_PER_FIND_WORDS_TARGET);
-                    
-                    let findWordsCurrentChoices = shuffleArray([...findWordsTargetWords, ...distractors]);
-
-                    findTheWordsGrid.innerHTML = '';
-                    findWordsCurrentChoices.forEach(item => {
-                        const card = document.createElement('div');
-                        card.className = 'game-card card p-2';
-                        card.textContent = item.lang1;
-                        card.dataset.word = item.lang1;
-                        card.onclick = () => toggleFindWordSelection(card, item);
-                        findTheWordsGrid.appendChild(card);
-                    });
-
-                    replayFindTheWordsAudioBtn.disabled = true;
-                    for (const word of findWordsTargetWords) {
-                        await speakText(word.lang1, activeTargetStudyLanguage);
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                    }
-                    replayFindTheWordsAudioBtn.disabled = false;
-
-                    function toggleFindWordSelection(card, item) {
-                        const index = findWordsSelectedWords.findIndex(selected => selected.lang1 === item.lang1);
-                        if (index > -1) {
-                            findWordsSelectedWords.splice(index, 1);
-                            card.classList.remove('selected-find-word');
-                        } else {
-                            findWordsSelectedWords.push(item);
-                            card.classList.add('selected-find-word');
-                        }
-                        sendFindTheWordsBtn.disabled = findWordsSelectedWords.length === 0;
-                    }
-
-                    function checkFindTheWordsAnswer() {
-                        const correctSelections = findWordsSelectedWords.filter(selected => findWordsTargetWords.find(t => t.lang1 === selected.lang1));
-                        const incorrectSelections = findWordsSelectedWords.filter(selected => !findWordsTargetWords.find(t => t.lang1 === selected.lang1));
-
-                        if (correctSelections.length === findWordsTargetWords.length && incorrectSelections.length === 0) {
-                            findTheWordsFeedback.textContent = "Perfect!";
-                        } else {
-                            findTheWordsFeedback.textContent = `You found ${correctSelections.length} out of ${findWordsTargetWords.length}.`;
-                        }
-
-                        const allCards = findTheWordsGrid.querySelectorAll('.game-card');
-                        allCards.forEach(card => {
-                            const word = card.dataset.word;
-                            const isTarget = findWordsTargetWords.some(t => t.lang1 === word);
-                            const isSelected = findWordsSelectedWords.some(s => s.lang1 === word);
-
-                            if (isTarget) card.classList.add('correct-answer');
-                            if (isSelected && !isTarget) card.classList.add('incorrect-answer');
-                            card.style.pointerEvents = 'none';
-                        });
-
-                        sendFindTheWordsBtn.classList.add('hidden');
-                        replayFindTheWordsAudioBtn.disabled = true;
-                        nextFindTheWordsRoundBtn.classList.remove('hidden');
-                    }
-                    sendFindTheWordsBtn.onclick = checkFindTheWordsAnswer;
-                }
-                replayFindTheWordsAudioBtn.onclick = async () => {
-                    replayFindTheWordsAudioBtn.disabled = true;
-                    for (const word of findWordsTargetWords) {
-                        await speakText(word.lang1, activeTargetStudyLanguage);
-                    }
-                    replayFindTheWordsAudioBtn.disabled = false;
-                };
-                nextFindTheWordsRoundBtn.onclick = nextFindTheWordsRound;
+                currentFindWordsRound = 0;
+                nextFindTheWordsRound(findWordsSessionPool);
             }
 
+            async function nextFindTheWordsRound(pool) {
+                if (currentFindWordsRound >= MAX_FIND_WORDS_ROUNDS || pool.length < WORDS_PER_FIND_WORDS_TARGET) {
+                    findTheWordsInstructions.textContent = "Game Complete!";
+                    findTheWordsGrid.innerHTML = '';
+                    return;
+                }
+                currentFindWordsRound++;
+                findWordsTargetWords = pool.splice(0, WORDS_PER_FIND_WORDS_TARGET);
+                let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.includes(v))).slice(0, WORDS_PER_FIND_WORDS_DISPLAY - WORDS_PER_FIND_WORDS_TARGET);
+                let findWordsCurrentChoices = shuffleArray([...findWordsTargetWords, ...distractors]);
+                findTheWordsGrid.innerHTML = '';
+                findWordsCurrentChoices.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'game-card card p-2';
+                    card.textContent = item.lang1;
+                    card.onclick = () => toggleFindWordSelection(card, item);
+                    findTheWordsGrid.appendChild(card);
+                });
+                for (const word of findWordsTargetWords) {
+                    await speakText(word.lang1, activeTargetStudyLanguage);
+                }
+            }
+            
+            function toggleFindWordSelection(card, item) {
+                card.classList.toggle('selected-find-word');
+                const index = findWordsSelectedWords.findIndex(i => i.lang1 === item.lang1);
+                if (index > -1) findWordsSelectedWords.splice(index, 1);
+                else findWordsSelectedWords.push(item);
+                sendFindTheWordsBtn.disabled = findWordsSelectedWords.length === 0;
+            }
+
+            function checkFindTheWordsAnswer() {
+                const correctCount = findWordsSelectedWords.filter(s => findWordsTargetWords.includes(s)).length;
+                findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length}.`;
+                nextFindTheWordsRoundBtn.classList.remove('hidden');
+            }
 
             // --- EVENT LISTENERS ---
-            
-            // Authentication
             authToggleText.addEventListener('click', (e) => { if (e.target.matches('.toggle-auth-link')) { e.preventDefault(); toggleAuthMode(); } });
-            authForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('emailInput').value.trim();
-                const password = document.getElementById('passwordInput').value.trim();
-                authError.textContent = '';
-                try {
-                    if (isSignUp) {
-                        const { error } = await supabaseClient.auth.signUp({ email, password });
-                        if (error) { authError.textContent = error.message; } 
-                        else { alert('Sign up successful! Please check your email to confirm your account.'); toggleAuthMode(); }
-                    } else {
-                        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                        if (error) { authError.textContent = error.message; }
-                    }
-                } catch (err) { authError.textContent = 'Unexpected error. Try again.'; console.error(err); }
-            });
+            authForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = document.getElementById('emailInput').value.trim(); const password = document.getElementById('passwordInput').value.trim(); authError.textContent = ''; try { if (isSignUp) { const { error } = await supabaseClient.auth.signUp({ email, password }); if (error) { authError.textContent = error.message; } else { alert('Sign up successful! Please check your email to confirm your account.'); toggleAuthMode(); } } else { const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); if (error) { authError.textContent = error.message; } } } catch (err) { authError.textContent = 'Unexpected error. Try again.'; console.error(err); } });
             googleLoginBtn.addEventListener('click', async () => { const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' }); if (error) { authError.textContent = error.message; } });
-            logoutBtn.addEventListener('click', async () => { 
-                const { error } = await supabaseClient.auth.signOut();
-                if (error) {
-                    console.error("Error signing out:", error);
-                }
-                window.location.reload(); 
-            });
-
-            // App Navigation & Setup
+            logoutBtn.addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
             addNotesBtn.addEventListener('click', showMainSelection);
             showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
             backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
             showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
             backToMainSelectionFromEssentialsBtn.addEventListener('click', showMainSelection);
             backToEssentialsCategoriesBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); });
-            reviewEssentialsCategoryBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); gameArea.classList.remove('hidden'); activeGameType = 'matching'; initMatchingGame(false); });
+            reviewEssentialsCategoryBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); gameArea.classList.remove('hidden'); startGame('matching'); });
             playGamesWithEssentialsBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); showGameSelection(); });
             backToGameSelectionBtn.addEventListener('click', showGameSelection);
             backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
-            
-            // Game Buttons
-            matchingBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'matching'; showPartSelection('matching'); });
-            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'multipleChoice'; showPartSelection('multipleChoice'); });
-            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'typeTranslation'; showPartSelection('typeTranslation'); });
-            talkToMeBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'talkToMe'; showPartSelection('talkToMe'); });
-            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'fillInTheBlanks'; startGame('fillInTheBlanks'); });
-            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); activeGameType = 'findTheWords'; showPartSelection('findTheWords'); });
-
-            // File Upload & Drag/Drop
+            matchingBtn.addEventListener('click', () => { initializeAudio(); startGame('matching'); });
+            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); startGame('multipleChoice'); });
+            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); startGame('typeTranslation'); });
+            talkToMeBtn.addEventListener('click', () => { initializeAudio(); startGame('talkToMe'); });
+            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); startGame('fillInTheBlanks'); });
+            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); startGame('findTheWords'); });
             uploadBtn.addEventListener('click', () => handleFileUpload());
             csvFileInput.addEventListener('change', () => handleFileUpload());
             dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover-active'); });
@@ -1263,7 +1100,6 @@ const { createClient } = supabase;
                 }
             });
 
-            // Initial UI setup on page load
             showMainSelection(); 
             setupMistakeTracker(); 
             updateScoreDisplay();
