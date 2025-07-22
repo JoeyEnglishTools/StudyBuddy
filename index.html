@@ -861,7 +861,139 @@
             }
 
             // --- GAME LOGIC FUNCTIONS ---
-            function initMatchingGame(isBonus) { /* ... (existing code) ... */ }
+            function initMatchingGame(isBonus=false) { 
+            showGameInfoBar();
+            hearItOutLoudToggleBtn.classList.remove('hidden'); 
+            updateHearItOutLoudButton();
+
+            if (!isBonus) {
+                isBonusRound = false;
+                // Use currentVocabularyPart which is set by either CSV loading or Essentials selection
+                let sourceVocab = shuffleArray([...currentVocabularyPart]);
+                matchingGameActiveVocab = sourceVocab.filter(item => !correctlyAnsweredItemsInPart.has(item.originalIndex) || isEssentialsMode) // In essentials mode, include all
+                                                .slice(0, MAX_GAME_ITEMS_MATCHING);
+                
+                if (matchingGameActiveVocab.length < MAX_GAME_ITEMS_MATCHING && !isEssentialsMode && matchingGameActiveVocab.length > 0 && matchingGameActiveVocab.length < sourceVocab.length) { 
+                    const needed = MAX_GAME_ITEMS_MATCHING - matchingGameActiveVocab.length;
+                    const filler = sourceVocab 
+                                    .filter(item => correctlyAnsweredItemsInPart.has(item.originalIndex) && !matchingGameActiveVocab.find(m => m.originalIndex === item.originalIndex))
+                                    .slice(0, needed);
+                    matchingGameActiveVocab.push(...filler);
+                } else if (matchingGameActiveVocab.length === 0 && sourceVocab.length > 0) { 
+                     matchingGameActiveVocab = sourceVocab.slice(0, MAX_GAME_ITEMS_MATCHING);
+                }
+                 matchingGameActiveVocab = shuffleArray(matchingGameActiveVocab).slice(0, MAX_GAME_ITEMS_MATCHING);
+            } else { // Bonus round logic (only for non-Essentials)
+                isBonusRound = true;
+                matchingGameActiveVocab = shuffleArray([...mistakeItems]); 
+                gameTitle.textContent = `Matching - Bonus Round!`;
+            }
+            
+            resetGameStats(); 
+            setupMistakeTracker(); 
+            matchingGrid.innerHTML = ''; matchingFeedback.textContent = '';
+            selectedMatchCard = null; matchedPairs = 0;
+
+            if (matchingGameActiveVocab.length === 0) {
+                matchingInstructions.textContent = isBonus ? 'No mistakes to practice!' : (isEssentialsMode ? `All items in ${currentEssentialsCategoryName} learned!` : 'All items in this part learned or no items available!');
+                if (!isBonus && !isEssentialsMode) proceedToNextPartOrEnd('matching', currentPartIndexGlobal); 
+                else if (isEssentialsMode && !isBonus) handleRoundComplete('matching'); // End of Essentials category
+                return;
+            }
+            
+            pairsToMatch = matchingGameActiveVocab.length;
+            const partInfo = isEssentialsMode ? currentEssentialsCategoryName : (currentPartName || "Selection");
+            matchingInstructions.textContent = `${isBonus ? 'Bonus Round:' : `Part: ${partInfo}`} Match English to Spanish. (${pairsToMatch} pairs)`;
+
+
+            const englishCards = matchingGameActiveVocab.map((pair) => ({ id: `eng-${pair.originalIndex}`, text: pair.english, type: 'english', pairId: pair.originalIndex, item: pair }));
+            const spanishCards = matchingGameActiveVocab.map((pair) => ({ id: `spa-${pair.originalIndex}`, text: pair.spanish, type: 'spanish', pairId: pair.originalIndex, item: pair }));
+
+            const allCards = shuffleArray([...englishCards, ...spanishCards]);
+            allCards.forEach(cardData => { 
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card', 'game-card', 'p-2', 'sm:p-4', 'text-sm', 'sm:text-base', 'h-24', 'sm:h-28');
+                cardElement.textContent = truncateText(cardData.text);
+                cardElement.title = cardData.text; 
+                cardElement.dataset.id = cardData.id;
+                cardElement.dataset.type = cardData.type;
+                cardElement.dataset.pairId = cardData.pairId;
+                cardElement.addEventListener('click', handleMatchCardClick);
+                matchingGrid.appendChild(cardElement);
+            });
+            startQuestionTimer(); 
+        }
+
+        function handleMatchCardClick(event) {
+            const clickedCard = event.currentTarget; 
+
+            if (hearItOutLoudEnabled && clickedCard.dataset.type === 'english' && !clickedCard.classList.contains('matched')) {
+                speakText(clickedCard.title, 'en-US'); 
+            }
+
+            if (mistakesRemaining === 0 && !isBonusRound) return; 
+            if (clickedCard.classList.contains('matched')) return; 
+
+            if (!selectedMatchCard) {
+                 if (clickedCard.classList.contains('selected-match')) { 
+                    clickedCard.classList.remove('selected-match'); selectedMatchCard = null; 
+                } else {
+                    clickedCard.classList.add('selected-match'); selectedMatchCard = clickedCard;
+                }
+                matchingFeedback.textContent = '';
+            } else { 
+                if (selectedMatchCard === clickedCard) { 
+                     selectedMatchCard.classList.remove('selected-match');
+                     selectedMatchCard = null;
+                     return;
+                }
+                if (selectedMatchCard.dataset.type === clickedCard.dataset.type) { 
+                    selectedMatchCard.classList.remove('selected-match');
+                    clickedCard.classList.add('selected-match');
+                    selectedMatchCard = clickedCard;
+                    matchingFeedback.textContent = 'Select one English and one Spanish item.';
+                    matchingFeedback.className = 'text-center font-medium mt-4 h-6 text-orange-500';
+                    return; 
+                }
+                
+                const duration = getAnswerDuration(); 
+                const originalPairItem = currentVocabularyPart.find(v => v.originalIndex === parseInt(selectedMatchCard.dataset.pairId)); 
+
+                if (selectedMatchCard.dataset.pairId === clickedCard.dataset.pairId) { 
+                    handleCorrectAnswer(duration <= FAST_ANSWER_THRESHOLD, originalPairItem);
+                    selectedMatchCard.classList.add('matched'); clickedCard.classList.add('matched');
+                    selectedMatchCard.classList.remove('selected-match'); 
+                    matchingFeedback.textContent = 'Correct Match!';
+                    matchingFeedback.className = 'text-center font-medium mt-4 h-6 text-emerald-600';
+                    selectedMatchCard = null; matchedPairs++;
+                    if (matchedPairs === pairsToMatch) {
+                        if (isBonusRound) {
+                            roundCompleteMessageDiv.innerHTML = `Bonus Round Complete! <br> Score for ${currentPartName || currentEssentialsCategoryName}: ${currentScore}`;
+                            roundCompleteMessageDiv.classList.remove('hidden');
+                            setTimeout(() => {
+                                roundCompleteMessageDiv.classList.add('hidden');
+                                isBonusRound = false; mistakeItems = []; 
+                                if (!isEssentialsMode) proceedToNextPartOrEnd('matching', currentPartIndexGlobalForBonusReturn);
+                                else showGameSelection(); // Back to game selection for essentials
+                            }, 3000);
+                        } else {
+                            handleRoundComplete('matching');
+                        }
+                    } else { startQuestionTimer(); }
+                } else { 
+                    const gameOver = handleIncorrectAnswer(originalPairItem);
+                    matchingFeedback.textContent = 'Incorrect. Try again.';
+                    matchingFeedback.className = 'text-center font-medium mt-4 h-6 text-red-500';
+                    selectedMatchCard.classList.add('incorrect-match-animation'); clickedCard.classList.add('incorrect-match-animation');
+                     setTimeout(() => {
+                        selectedMatchCard.classList.remove('incorrect-match-animation', 'selected-match');
+                        clickedCard.classList.remove('incorrect-match-animation'); 
+                        selectedMatchCard = null; 
+                        if (gameOver && !isBonusRound) { /* Game over handled by recordMistake */ } 
+                        else startQuestionTimer(); 
+                    }, 500);
+                }
+            } }
             function handleMatchCardClick(cardElement, item) { /* ... (existing code) ... */ }
             function initMultipleChoiceGame(isBonus) { /* ... (existing code) ... */ }
             function displayNextMcq() { /* ... (existing code) ... */ }
