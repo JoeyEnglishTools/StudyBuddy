@@ -761,7 +761,15 @@
                 }
                 
                 try {
-                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    console.log('fetchNotes: Getting user authentication...');
+                    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+                    
+                    if (userError) {
+                        console.error('fetchNotes: Error getting user:', userError);
+                        vocabulary = [];
+                        return false;
+                    }
+                    
                     if (!user) {
                         console.log('fetchNotes: No user found');
                         vocabulary = [];
@@ -769,26 +777,47 @@
                     }
                     console.log('fetchNotes: User found, fetching notes for user:', user.id);
                     
+                    console.log('fetchNotes: Executing database query...');
                     const { data, error } = await supabaseClient
                         .from('notes')
                         .select('term, definition, term_lang')
                         .eq('user_id', user.id);
                         
+                    console.log('fetchNotes: Database query completed. Error:', error, 'Data count:', data ? data.length : 0);
+                        
                     if (error) {
                         console.error('fetchNotes: Error fetching notes:', error);
                         vocabulary = [];
                         return false;
-                    } else {
-                        vocabulary = data.map((note, index) => ({
-                            lang1: note.term,
-                            lang2: note.definition,
-                            originalIndex: index,
-                        }));
-                        console.log('fetchNotes: Successfully loaded', vocabulary.length, 'notes');
-                        return vocabulary.length > 0;
                     }
+                    
+                    if (!data || data.length === 0) {
+                        console.log('fetchNotes: No notes found in database');
+                        vocabulary = [];
+                        return false;
+                    }
+                    
+                    console.log('fetchNotes: Processing', data.length, 'notes from database...');
+                    
+                    // Get the target language from the first note (assuming all notes use same language)
+                    const targetLanguage = data[0]?.term_lang || 'en-US';
+                    console.log('fetchNotes: Setting target language to:', targetLanguage);
+                    csvUploadedTargetLanguage = targetLanguage;
+                    
+                    vocabulary = data.map((note, index) => ({
+                        lang1: note.term,
+                        lang2: note.definition,
+                        originalIndex: index,
+                    }));
+                    
+                    console.log('fetchNotes: Successfully loaded', vocabulary.length, 'notes with target language:', targetLanguage);
+                    console.log('fetchNotes: Sample vocabulary:', vocabulary.slice(0, 2));
+                    
+                    return vocabulary.length > 0;
+                    
                 } catch (err) {
                     console.error('fetchNotes: Unexpected error:', err);
+                    console.error('fetchNotes: Error stack:', err.stack);
                     vocabulary = [];
                     return false;
                 }
@@ -1655,8 +1684,10 @@ if (languageSelectorInGame) {
                         appContent.classList.remove('hidden');
                         
                         try {
+                            console.log('Starting fetchNotes() call...');
                             const hasNotes = await fetchNotes();
                             console.log('fetchNotes completed, hasNotes:', hasNotes, 'vocabulary.length:', vocabulary.length);
+                            console.log('csvUploadedTargetLanguage is now:', csvUploadedTargetLanguage);
                             
                             if (hasNotes && vocabulary.length > 0) {
                                 console.log('User has existing notes, showing game selection');
@@ -1667,7 +1698,9 @@ if (languageSelectorInGame) {
                             }
                         } catch (error) {
                             console.error('Error during app initialization:', error);
+                            console.error('Error stack:', error.stack);
                             // Fallback to main selection on error
+                            console.log('Falling back to main selection due to error');
                             showMainSelection();
                         }
                     } else {
