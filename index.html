@@ -603,7 +603,8 @@
     <script>
         // Comprehensive Cache-Busting Script
         (function() {
-            // Generate unique timestamp for this session
+            // Static build version - update this when making changes
+            const BUILD_VERSION = '2025-01-24-v1.2.0';
             const timestamp = Date.now();
             const randomId = Math.random().toString(36).substr(2, 9);
             console.log('Cache-busting applied with timestamp:', timestamp, 'randomId:', randomId);
@@ -643,10 +644,10 @@
                 }
             };
             
-            // Add meta tag with current timestamp
+            // Add meta tag with build version
             const meta = document.createElement('meta');
             meta.setAttribute('name', 'app-version');
-            meta.setAttribute('content', timestamp.toString());
+            meta.setAttribute('content', BUILD_VERSION);
             document.head.appendChild(meta);
             
             // Show cache warning after page loads
@@ -674,11 +675,10 @@
             const initializeCacheStatus = () => {
                 const versionDisplay = document.getElementById('appVersionDisplay');
                 const refreshButton = document.getElementById('forceCacheRefresh');
-                const timestamp = document.querySelector('meta[name="app-version"]')?.content || Date.now();
-                const versionDate = new Date(parseInt(timestamp));
+                const buildVersion = document.querySelector('meta[name="app-version"]')?.content || 'Unknown';
                 
                 if (versionDisplay) {
-                    versionDisplay.textContent = versionDate.toLocaleString();
+                    versionDisplay.textContent = buildVersion;
                 }
                 
                 if (refreshButton) {
@@ -717,7 +717,7 @@
 
             // --- STATE & CONSTANTS ---
             const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
-            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false;
+            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
             let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
             let isEssentialsMode = false, currentEssentialsCategoryName = "";
             let audioInitialized = false;
@@ -900,7 +900,14 @@ async function saveNotes(notesToSave) {
     return true;
 }
             async function handleFileUpload(droppedFile = null) {
-                console.log('handleFileUpload called'); // <--- add
+                console.log('handleFileUpload called');
+                
+                // Prevent file upload during authentication process
+                if (isAuthenticating) {
+                    console.log('handleFileUpload: Blocked during authentication process');
+                    return;
+                }
+                
                 const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
                 if (!file) {
                     uploadStatus.textContent = 'Please select or drop a CSV file.';
@@ -960,6 +967,7 @@ async function saveNotes(notesToSave) {
             function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
             function showMainSelection() { 
                 console.log('showMainSelection: Showing main selection interface');
+                console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
                 mainSelectionSection.classList.remove('hidden'); 
                 [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
                     if (el) el.classList.add('hidden');
@@ -968,6 +976,7 @@ async function saveNotes(notesToSave) {
             }
             function showGameSelection() {
                 console.log('showGameSelection: Showing game selection interface');
+                console.log('showGameSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
                 if (!isEssentialsMode) {
                     activeTargetStudyLanguage = csvUploadedTargetLanguage; 
                 } 
@@ -1544,7 +1553,16 @@ async function startFindTheWordsRound(pool) {
             fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('fillInTheBlanks'); });
             findTheWordsBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('findTheWords'); });
             uploadBtn.addEventListener('click', () => handleFileUpload());
-            csvFileInput.addEventListener('change', () => handleFileUpload());
+            csvFileInput.addEventListener('change', (e) => {
+                // Only process file changes if user is not in the middle of authentication
+                // and if there's actually a file selected
+                if (!isAuthenticating && e.target.files.length > 0) {
+                    console.log('csvFileInput change event: Processing file upload');
+                    handleFileUpload();
+                } else {
+                    console.log('csvFileInput change event: Ignored (isAuthenticating:', isAuthenticating, 'files.length:', e.target.files.length, ')');
+                }
+            });
             dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover-active'); });
             dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); });
             dropZone.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); if (e.dataTransfer.files && e.dataTransfer.files.length > 0) { handleFileUpload(e.dataTransfer.files[0]); } });
@@ -1680,6 +1698,13 @@ if (languageSelectorInGame) {
                     
                     if (session) {
                         console.log('User session found, setting up app...');
+                        isAuthenticating = true; // Prevent file upload during auth
+                        
+                        // Clear any existing file input to prevent unwanted triggers
+                        if (csvFileInput) {
+                            csvFileInput.value = '';
+                        }
+                        
                         loginSection.classList.add('hidden');
                         appContent.classList.remove('hidden');
                         
@@ -1702,12 +1727,22 @@ if (languageSelectorInGame) {
                             // Fallback to main selection on error
                             console.log('Falling back to main selection due to error');
                             showMainSelection();
+                        } finally {
+                            // Re-enable file upload after authentication is complete
+                            isAuthenticating = false;
+                            console.log('Authentication process completed, file upload re-enabled');
                         }
                     } else {
                         console.log('No user session, showing login');
+                        isAuthenticating = false; // Reset flag on logout
                         loginSection.classList.remove('hidden');
                         appContent.classList.add('hidden');
                         vocabulary = [];
+                        
+                        // Clear file input on logout to prevent issues
+                        if (csvFileInput) {
+                            csvFileInput.value = '';
+                        }
                     }
                 });
                 
