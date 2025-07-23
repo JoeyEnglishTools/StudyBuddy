@@ -3,9 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <!-- Comprehensive Cache-Busting Headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Last-Modified" content="0">
+    <meta http-equiv="If-Modified-Since" content="0">
+    <meta name="cache-control" content="no-cache">
+    <meta name="expires" content="0">
+    <meta name="pragma" content="no-cache">
     <title>StudyBuddy</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -305,6 +311,21 @@
             <p class="text-lg sm:text-xl text-teal-600 mt-1">Your fun way to master vocabulary!</p>
         </header>
 
+        <!-- Cache Status Indicator -->
+        <div id="cacheStatusBar" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-center text-sm">
+            <div class="flex items-center justify-center gap-4 flex-wrap">
+                <span class="text-yellow-800">
+                    <strong>App Version:</strong> <span id="appVersionDisplay">Loading...</span>
+                </span>
+                <button id="forceCacheRefresh" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
+                    🔄 Force Refresh
+                </button>
+                <span class="text-yellow-700 text-xs">
+                    Seeing old content? Press Ctrl+Shift+R (PC) or Cmd+Shift+R (Mac)
+                </span>
+            </div>
+        </div>
+
         <!-- Login Section -->
         <section id="loginSection" class="card mb-8">
             <h2 id="authTitle" class="text-2xl font-semibold text-teal-700 mb-4 text-center">Login to Your Account</h2>
@@ -580,7 +601,103 @@
     </div>
 
     <script>
+        // Comprehensive Cache-Busting Script
+        (function() {
+            // Generate unique timestamp for this session
+            const timestamp = Date.now();
+            const randomId = Math.random().toString(36).substr(2, 9);
+            console.log('Cache-busting applied with timestamp:', timestamp, 'randomId:', randomId);
+            
+            // Clear all types of browser cache
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                        console.log('Unregistered service worker');
+                    }
+                });
+            }
+            
+            // Clear application cache (deprecated but still used by some browsers)
+            if ('applicationCache' in window) {
+                try {
+                    window.applicationCache.swapCache();
+                    console.log('Application cache swapped');
+                } catch(e) {
+                    console.log('Application cache not available');
+                }
+            }
+            
+            // Add cache-busting to current URL if not already present
+            if (!window.location.search.includes('cb=')) {
+                const separator = window.location.search ? '&' : '?';
+                const newUrl = window.location.href + separator + 'cb=' + timestamp + '_' + randomId;
+                history.replaceState(null, '', newUrl);
+            }
+            
+            // Force hard reload with specific key combination hint
+            const showCacheWarning = () => {
+                if (sessionStorage.getItem('cacheWarningShown') !== 'true') {
+                    console.warn('🔄 CACHE NOTICE: If you see old content, press Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac) to force refresh');
+                    sessionStorage.setItem('cacheWarningShown', 'true');
+                }
+            };
+            
+            // Add meta tag with current timestamp
+            const meta = document.createElement('meta');
+            meta.setAttribute('name', 'app-version');
+            meta.setAttribute('content', timestamp.toString());
+            document.head.appendChild(meta);
+            
+            // Show cache warning after page loads
+            window.addEventListener('load', showCacheWarning);
+            
+            // Clear localStorage cache indicators on unload
+            window.addEventListener('beforeunload', () => {
+                try {
+                    // Clear any cached flags
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('sb_cache_') || key.startsWith('studybuddy_cache_')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                } catch(e) {
+                    console.log('LocalStorage cleanup skipped');
+                }
+            });
+            
+        })();
+        
         document.addEventListener('DOMContentLoaded', () => {     
+          
+            // Initialize cache status display
+            const initializeCacheStatus = () => {
+                const versionDisplay = document.getElementById('appVersionDisplay');
+                const refreshButton = document.getElementById('forceCacheRefresh');
+                const timestamp = document.querySelector('meta[name="app-version"]')?.content || Date.now();
+                const versionDate = new Date(parseInt(timestamp));
+                
+                if (versionDisplay) {
+                    versionDisplay.textContent = versionDate.toLocaleString();
+                }
+                
+                if (refreshButton) {
+                    refreshButton.addEventListener('click', () => {
+                        console.log('Force refresh requested by user');
+                        // Clear all storage
+                        try {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                        } catch(e) {
+                            console.log('Storage clear failed:', e);
+                        }
+                        // Force hard reload
+                        window.location.reload(true);
+                    });
+                }
+            };
+            
+            initializeCacheStatus();
           
             // --- Supabase Client Setup ---
             let supabaseClient = null;
