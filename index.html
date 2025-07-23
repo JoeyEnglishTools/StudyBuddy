@@ -580,10 +580,20 @@
         document.addEventListener('DOMContentLoaded', () => {     
           
             // --- Supabase Client Setup ---
-            const { createClient } = supabase;
-            const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
-            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            let supabaseClient = null;
+            try {
+                if (typeof supabase !== 'undefined') {
+                    const { createClient } = supabase;
+                    const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
+                    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
+                    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('Supabase client initialized successfully');
+                } else {
+                    console.error('Supabase library not available');
+                }
+            } catch (error) {
+                console.error('Error initializing Supabase client:', error);
+            }
 
             // --- STATE & CONSTANTS ---
             const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
@@ -621,24 +631,46 @@
             }
 
             async function fetchNotes() {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) {
+                console.log('fetchNotes: Starting to fetch notes...');
+                
+                // Check if Supabase client is available
+                if (!supabaseClient) {
+                    console.error('fetchNotes: Supabase client not available');
                     vocabulary = [];
-                    return;
+                    return false;
                 }
-                const { data, error } = await supabaseClient
-                    .from('notes')
-                    .select('term, definition, term_lang')
-                    .eq('user_id', user.id);
-                if (error) {
-                    console.error('Error fetching notes:', error);
+                
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (!user) {
+                        console.log('fetchNotes: No user found');
+                        vocabulary = [];
+                        return false;
+                    }
+                    console.log('fetchNotes: User found, fetching notes for user:', user.id);
+                    
+                    const { data, error } = await supabaseClient
+                        .from('notes')
+                        .select('term, definition, term_lang')
+                        .eq('user_id', user.id);
+                        
+                    if (error) {
+                        console.error('fetchNotes: Error fetching notes:', error);
+                        vocabulary = [];
+                        return false;
+                    } else {
+                        vocabulary = data.map((note, index) => ({
+                            lang1: note.term,
+                            lang2: note.definition,
+                            originalIndex: index,
+                        }));
+                        console.log('fetchNotes: Successfully loaded', vocabulary.length, 'notes');
+                        return vocabulary.length > 0;
+                    }
+                } catch (err) {
+                    console.error('fetchNotes: Unexpected error:', err);
                     vocabulary = [];
-                } else {
-                    vocabulary = data.map((note, index) => ({
-                        lang1: note.term,
-                        lang2: note.definition,
-                        originalIndex: index,
-                    }));
+                    return false;
                 }
             }
             
@@ -778,24 +810,39 @@ async function saveNotes(notesToSave) {
             function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
             function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
             function showMainSelection() { 
+                console.log('showMainSelection: Showing main selection interface');
                 mainSelectionSection.classList.remove('hidden'); 
-                [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => el && el.classList.add('hidden')); 
+                [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
+                    if (el) el.classList.add('hidden');
+                }); 
                 isEssentialsMode = false; 
             }
             function showGameSelection() {
+                console.log('showGameSelection: Showing game selection interface');
                 if (!isEssentialsMode) {
                     activeTargetStudyLanguage = csvUploadedTargetLanguage; 
                 } 
-                [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea].forEach(el => el.classList.add('hidden'));
+                
+                // Hide all other sections
+                [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea].forEach(el => {
+                    if (el) el.classList.add('hidden');
+                });
                 hideAllGames();
+                
+                // Show game selection
                 gameSelectionSection.classList.remove('hidden');
                 fillInTheBlanksBtn.classList.toggle('hidden', !isEssentialsMode); 
                 findTheWordsBtn.classList.remove('hidden'); 
+                
                 const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
+                console.log('showGameSelection: Active vocabulary count:', activeVocab.length);
+                
                 if (activeVocab.length === 0) { 
+                    console.log('showGameSelection: No vocabulary found, showing no vocabulary message');
                     noVocabularyMessage.classList.remove('hidden'); 
                     gameButtonsContainer.classList.add('hidden'); 
                 } else { 
+                    console.log('showGameSelection: Vocabulary found, showing game buttons');
                     noVocabularyMessage.classList.add('hidden'); 
                     gameButtonsContainer.classList.remove('hidden'); 
                 }
@@ -1193,40 +1240,74 @@ async function startFindTheWordsRound(pool) {
                 const email = document.getElementById('emailInput').value.trim(); 
                 const password = document.getElementById('passwordInput').value.trim(); 
                 authError.textContent = ''; 
+                
+                console.log('Auth form submitted:', isSignUp ? 'Sign Up' : 'Login', 'Email:', email);
+                
                 try { 
                     if (isSignUp) { 
+                        console.log('Attempting sign up...');
                         const { error } = await supabaseClient.auth.signUp({ email, password }); 
                         if (error) { 
+                            console.error('Sign up error:', error);
                             authError.textContent = error.message; 
                         } else { 
+                            console.log('Sign up successful');
                             alert('Sign up successful! Please check your email to confirm your account.'); 
                             toggleAuthMode(); 
                         } 
                     } else { 
-                        const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); 
+                        console.log('Attempting login...');
+                        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password }); 
                         if (error) { 
+                            console.error('Login error:', error);
                             authError.textContent = error.message; 
-                        } 
+                        } else {
+                            console.log('Login successful, user:', data.user?.id);
+                        }
                     } 
                 } catch (err) { 
+                    console.error('Unexpected auth error:', err);
                     authError.textContent = 'Unexpected error. Try again.'; 
-                    console.error(err); 
                 } 
             });
             googleLoginBtn.addEventListener('click', async () => { 
                 const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' }); 
                 if (error) { authError.textContent = error.message; } 
             });
-            logoutBtn.addEventListener('click', async () => { 
-                try {
-                    await supabaseClient.auth.signOut(); 
-                    window.location.reload(); 
-                } catch (error) {
-                    console.error('Logout error:', error);
-                    // Force reload anyway
-                    window.location.reload();
-                }
-            });
+            // Ensure logout button is properly initialized with error handling
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async (e) => { 
+                    e.preventDefault();
+                    console.log('Logout button clicked');
+                    
+                    try {
+                        console.log('Attempting to sign out...');
+                        const { error } = await supabaseClient.auth.signOut(); 
+                        
+                        if (error) {
+                            console.error('Logout error from Supabase:', error);
+                        } else {
+                            console.log('Successfully signed out from Supabase');
+                        }
+                        
+                        // Clear local state regardless of Supabase response
+                        vocabulary = [];
+                        isEssentialsMode = false;
+                        currentVocabularyPart = [];
+                        
+                        // Force reload to ensure clean state
+                        console.log('Reloading page to ensure clean state');
+                        window.location.reload(); 
+                    } catch (error) {
+                        console.error('Unexpected logout error:', error);
+                        // Force reload anyway to ensure clean state
+                        vocabulary = [];
+                        window.location.reload();
+                    }
+                });
+            } else {
+                console.error('Logout button not found in DOM');
+            }
             
             addNotesBtn.addEventListener('click', showMainSelection);
             showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
@@ -1448,24 +1529,74 @@ if (languageSelectorInGame) {
 
 
             // --- INITIALIZATION ---
-            supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                if (session) {
-                    loginSection.classList.add('hidden');
-                    appContent.classList.remove('hidden');
-                    await fetchNotes();
-                    if (vocabulary.length > 0) {
-                        showGameSelection();
+            // Check if Supabase is available before setting up auth
+            if (supabaseClient) {
+                console.log('Supabase client available, setting up authentication...');
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    console.log('Auth state changed:', event, session ? 'user logged in' : 'user logged out');
+                    
+                    if (session) {
+                        console.log('User session found, setting up app...');
+                        loginSection.classList.add('hidden');
+                        appContent.classList.remove('hidden');
+                        
+                        try {
+                            const hasNotes = await fetchNotes();
+                            console.log('fetchNotes completed, hasNotes:', hasNotes, 'vocabulary.length:', vocabulary.length);
+                            
+                            if (hasNotes && vocabulary.length > 0) {
+                                console.log('User has existing notes, showing game selection');
+                                showGameSelection();
+                            } else {
+                                console.log('User has no notes, showing main selection (upload section)');
+                                showMainSelection();
+                            }
+                        } catch (error) {
+                            console.error('Error during app initialization:', error);
+                            // Fallback to main selection on error
+                            showMainSelection();
+                        }
                     } else {
-                        showMainSelection();
+                        console.log('No user session, showing login');
+                        loginSection.classList.remove('hidden');
+                        appContent.classList.add('hidden');
+                        vocabulary = [];
                     }
-                } else {
+                });
+                
+                // Check current session on page load
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    if (!session) {
+                        console.log('No active session found, showing login');
+                        loginSection.classList.remove('hidden');
+                        appContent.classList.add('hidden');
+                    }
+                }).catch(error => {
+                    console.error('Error checking session:', error);
                     loginSection.classList.remove('hidden');
                     appContent.classList.add('hidden');
-                    vocabulary = [];
+                });
+            } else {
+                console.error('Supabase not available - authentication will not work');
+                // Fallback: ensure login is shown when Supabase is not available
+                loginSection.classList.remove('hidden');
+                appContent.classList.add('hidden');
+                // Disable login functionality
+                if (authForm) {
+                    authForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        authError.textContent = 'Authentication service is currently unavailable.';
+                    });
                 }
-            });
+                if (googleLoginBtn) {
+                    googleLoginBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        authError.textContent = 'Google login is currently unavailable.';
+                    });
+                }
+            }
 
-            showMainSelection(); 
+            // Initialize other components
             setupMistakeTracker(); 
             updateScoreDisplay();
             initSpeechRecognition();
