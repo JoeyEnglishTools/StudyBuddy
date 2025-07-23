@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>StudyBuddy</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1025,17 +1028,20 @@ async function saveNotes(notesToSave) {
                 pairsToMatch = gameVocab.length;
                 let cards = [];
                 gameVocab.forEach((item, index) => {
-                    cards.push({ id: index, type: 'lang1', text: item.lang1 });
-                    cards.push({ id: index, type: 'lang2', text: item.lang2 });
+                    cards.push({ id: index, type: 'lang1', text: item.lang1, isTargetLang: true });
+                    cards.push({ id: index, type: 'lang2', text: item.lang2, isTargetLang: false });
                 });
 
                 matchingGameContainer.classList.remove('hidden');
                 matchingGrid.innerHTML = '';
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
                 shuffleArray(cards).forEach(cardData => {
                     const cardElement = document.createElement('div');
                     cardElement.className = 'game-card card p-2';
                     cardElement.textContent = cardData.text;
                     cardElement.dataset.id = cardData.id;
+                    cardElement.dataset.isTargetLang = cardData.isTargetLang;
                     cardElement.addEventListener('click', () => handleMatchCardClick(cardElement));
                     matchingGrid.appendChild(cardElement);
                 });
@@ -1043,6 +1049,12 @@ async function saveNotes(notesToSave) {
 
             function handleMatchCardClick(cardElement) {
                 if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
+                
+                // Speak target language words when clicked (if enabled and is target language)
+                if (hearItOutLoudEnabled && cardElement.dataset.isTargetLang === 'true') {
+                    speakText(cardElement.textContent, activeTargetStudyLanguage);
+                }
+                
                 if (!selectedMatchCard) {
                     selectedMatchCard = cardElement;
                     cardElement.classList.add('selected-match');
@@ -1052,10 +1064,12 @@ async function saveNotes(notesToSave) {
                             el.classList.add('matched');
                             el.classList.remove('selected-match');
                         });
+                        playCorrectMatchSound();
                         matchedPairs++;
                         if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
                     } else {
                         [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
+                        playIncorrectSound();
                         setTimeout(() => {
                             [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
                             selectedMatchCard = null;
@@ -1069,6 +1083,8 @@ async function saveNotes(notesToSave) {
                 let mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
                 currentMcqIndex = 0;
                 multipleChoiceGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
                 displayNextMcq(mcqGameActiveVocab);
             }
 
@@ -1080,6 +1096,13 @@ async function saveNotes(notesToSave) {
                 }
                 const currentItem = gameVocab[currentMcqIndex];
                 mcqQuestion.textContent = currentItem.lang1;
+                
+                // Add click-to-speak functionality to the question
+                mcqQuestion.onclick = () => {
+                    if (hearItOutLoudEnabled) speakText(currentItem.lang1, activeTargetStudyLanguage);
+                };
+                mcqQuestion.classList.add('speakable-question');
+                
                 let options = [currentItem.lang2, ...shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3).map(v => v.lang2)];
                 mcqOptions.innerHTML = '';
                 shuffleArray(options).forEach(opt => {
@@ -1087,6 +1110,10 @@ async function saveNotes(notesToSave) {
                     btn.className = 'btn mcq-option-btn';
                     btn.textContent = opt;
                     btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
+                    // Add TTS for options when double-clicked or right-clicked
+                    btn.ondblclick = () => {
+                        if (hearItOutLoudEnabled) speakText(opt, 'en-US'); // Options are in user's language
+                    };
                     mcqOptions.appendChild(btn);
                 });
             }
@@ -1108,6 +1135,8 @@ async function saveNotes(notesToSave) {
                 let typeTransGameActiveVocab = shuffleArray(currentVocabularyPart);
                 currentTypeTranslationIndex = 0;
                 typeTranslationGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
                 displayNextTypeTranslation(typeTransGameActiveVocab);
             }
 
@@ -1119,6 +1148,13 @@ async function saveNotes(notesToSave) {
                 }
                 const item = gameVocab[currentTypeTranslationIndex];
                 typeTranslationPhrase.textContent = item.lang2;
+                
+                // Add click-to-speak functionality to the phrase (user's language)
+                typeTranslationPhrase.onclick = () => {
+                    if (hearItOutLoudEnabled) speakText(item.lang2, 'en-US');
+                };
+                typeTranslationPhrase.classList.add('speakable-question');
+                
                 typeTranslationInput.value = '';
                 typeTranslationFeedback.textContent = '';
                 nextTypeTranslationBtn.classList.add('hidden');
@@ -1133,11 +1169,15 @@ async function saveNotes(notesToSave) {
 
             function initFillInTheBlanksGame() {
                 fillInTheBlanksGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
                 fillInTheBlanksSentence.textContent = "Fill in the blanks is not yet implemented.";
             }
 
             function initTalkToMeGame() {
                 talkToMeGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
                 let talkToMeActiveVocab = shuffleArray(currentVocabularyPart);
                 currentTalkToMeIndex = 0;
                 displayNextTalkToMe(talkToMeActiveVocab);
@@ -1153,6 +1193,20 @@ async function saveNotes(notesToSave) {
                 talkToMeRecognizedText.textContent = "...";
                 talkToMeFeedback.textContent = "";
                 nextTalkToMeBtn.classList.add('hidden');
+                
+                // Show translation reference
+                talkToMeReferenceContainer.classList.remove('hidden');
+                talkToMeReferenceDisplay.textContent = item.lang2;
+                
+                // Add click-to-speak functionality to the phrase
+                talkToMePhraseToRead.onclick = () => {
+                    speakText(item.lang1, activeTargetStudyLanguage);
+                };
+                
+                // Automatically speak the word when displayed
+                setTimeout(() => {
+                    speakText(item.lang1, activeTargetStudyLanguage);
+                }, 300);
             }
 
             function startListening() {
@@ -1173,16 +1227,34 @@ async function saveNotes(notesToSave) {
             function checkSpeechAnswer(spokenText) {
                 const item = currentVocabularyPart[currentTalkToMeIndex];
                 const isCorrect = normalizeText(spokenText) === normalizeText(item.lang1);
-                talkToMeFeedback.textContent = isCorrect ? "Correct!" : "Not quite, try again.";
+                
+                if (isCorrect) {
+                    talkToMeFeedback.textContent = "Correct! Well done!";
+                    talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
+                    playCorrectMatchSound();
+                    
+                    // Auto-advance after a short delay
+                    setTimeout(() => {
+                        currentTalkToMeIndex++;
+                        displayNextTalkToMe(currentVocabularyPart);
+                    }, 1500);
+                } else {
+                    talkToMeFeedback.textContent = "Not quite, try again or click the word to hear it again.";
+                    talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                    playIncorrectSound();
+                }
+                
                 nextTalkToMeBtn.classList.remove('hidden');
             }
 
             function initFindTheWordsGame() {
-    findTheWordsGameContainer.classList.remove('hidden');
-    findWordsSessionPool = shuffleArray(currentVocabularyPart);
-    currentFindWordsRound = 0;
-    startFindTheWordsRound(findWordsSessionPool);
-}
+                findTheWordsGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                findWordsSessionPool = shuffleArray(currentVocabularyPart);
+                currentFindWordsRound = 0;
+                startFindTheWordsRound(findWordsSessionPool);
+            }
 
             // Helper: Speak the three target words, respecting current language
 async function speakFindTheWordsTargets(words, lang) {
@@ -1434,98 +1506,23 @@ if (languageSelectorInGame) {
                 });
             }
 
-            // --- PATCH: TTS on click for games ---
-            // (You can further expand this to other games as needed)
-            // Example: In Matching Game, speak on click
-            function handleMatchCardClick(cardElement) {
-                if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
-                // Speak if enabled and this is a target language card
-                if (hearItOutLoudEnabled && cardElement.classList.contains('game-card')) {
-                    speakText(cardElement.textContent, activeTargetStudyLanguage);
-                }
-                if (!selectedMatchCard) {
-                    selectedMatchCard = cardElement;
-                    cardElement.classList.add('selected-match');
-                } else {
-                    if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
-                        [selectedMatchCard, cardElement].forEach(el => {
-                            el.classList.add('matched');
-                            el.classList.remove('selected-match');
-                        });
-                        playCorrectMatchSound();
-                        matchedPairs++;
-                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
-                    } else {
-                        [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
-                        playIncorrectSound();
-                        setTimeout(() => {
-                            [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
-                            selectedMatchCard = null;
-                        }, 400);
-                    }
-                    if (selectedMatchCard) selectedMatchCard = null;
-                }
-            }
-
-            // --- PATCH: TTS in MCQ ---
-            function displayNextMcq(gameVocab) {
-                if (currentMcqIndex >= gameVocab.length) {
-                    mcqQuestion.textContent = "Part Complete!";
-                    mcqOptions.innerHTML = '';
-                    return;
-                }
-                const currentItem = gameVocab[currentMcqIndex];
-                mcqQuestion.textContent = currentItem.lang1;
-                mcqQuestion.onclick = () => {
-                    if (hearItOutLoudEnabled) speakText(currentItem.lang1, activeTargetStudyLanguage);
-                };
-                let options = [currentItem.lang2, ...shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3).map(v => v.lang2)];
-                mcqOptions.innerHTML = '';
-                shuffleArray(options).forEach(opt => {
-                    const btn = document.createElement('button');
-                    btn.className = 'btn mcq-option-btn';
-                    btn.textContent = opt;
-                    btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
-                    btn.onauxclick = btn.ondblclick = () => { // right click or double click
-                        if (hearItOutLoudEnabled) speakText(opt, activeTargetStudyLanguage);
-                    };
-                    mcqOptions.appendChild(btn);
-                });
-            }
-
-            // --- PATCH: TTS in Type Translation ---
-            function displayNextTypeTranslation(gameVocab) {
-                if (currentTypeTranslationIndex >= gameVocab.length) {
-                    typeTranslationPhrase.textContent = "Part Complete!";
-                    typeTranslationInput.style.display = 'none';
-                    return;
-                }
-                const item = gameVocab[currentTypeTranslationIndex];
-                typeTranslationPhrase.textContent = item.lang2;
-                typeTranslationPhrase.onclick = () => {
-                    if (hearItOutLoudEnabled) speakText(item.lang2, 'en-US');
-                };
-                typeTranslationInput.value = '';
-                typeTranslationFeedback.textContent = '';
-                nextTypeTranslationBtn.classList.add('hidden');
-            }
-
-            // --- PATCH: Music button ---
+            // --- PATCH: Also call initializeAudio() on all game buttons (already present in your code, leave as is) ---
+            
+            // Music toggle functionality
             musicToggleBtn.addEventListener('click', toggleMusic);
 
-            // --- PATCH: Hear it out loud toggle ---
+            // Hear it out loud toggle functionality  
             hearItOutLoudToggleBtn.addEventListener('click', () => {
                 hearItOutLoudEnabled = !hearItOutLoudEnabled;
                 updateHearItOutLoudButton();
             });
+            
             function updateHearItOutLoudButton() {
                 if (hearItOutLoudToggleBtn && hearItOutLoudBtnText) {
                     hearItOutLoudBtnText.textContent = `Hear: ${hearItOutLoudEnabled ? 'ON' : 'OFF'}`;
                     hearItOutLoudToggleBtn.classList.toggle('active', hearItOutLoudEnabled); 
                 }
             }
-
-            // --- PATCH: Also call initializeAudio() on all game buttons (already present in your code, leave as is) ---
 
 
             // --- INITIALIZATION ---
