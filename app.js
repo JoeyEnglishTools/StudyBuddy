@@ -1,1201 +1,1157 @@
-        // Comprehensive Cache-Busting Script
-        (function() {
-            // Static build version - update this when making changes
-            const BUILD_VERSION = '2025-01-24-v1.2.0';
-            const timestamp = Date.now();
-            const randomId = Math.random().toString(36).substr(2, 9);
-            console.log('Cache-busting applied with timestamp:', timestamp, 'randomId:', randomId);
+// Comprehensive Cache-Busting Script
+(function() {
+    // Static build version - update this when making changes
+    const BUILD_VERSION = '2025-07-25-v1.2.1';
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substr(2, 9);
+    console.log('Cache-busting applied with timestamp:', timestamp, 'randomId:', randomId);
 
-            // Clear all types of browser cache
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                    for(let registration of registrations) {
-                        registration.unregister();
-                        console.log('Unregistered service worker');
-                    }
-                });
+    // Clear all types of browser cache
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                registration.unregister();
+                console.log('Unregistered service worker');
             }
+        });
+    }
 
-            // Clear application cache (deprecated but still used by some browsers)
-            if ('applicationCache' in window) {
-                try {
-                    window.applicationCache.swapCache();
-                    console.log('Application cache swapped');
-                } catch(e) {
-                    console.log('Application cache not available');
-                }
-            }
+    // Clear application cache (deprecated but still used by some browsers)
+    if ('applicationCache' in window) {
+        try {
+            window.applicationCache.swapCache();
+            console.log('Application cache swapped');
+        } catch(e) {
+            console.log('Application cache not available');
+        }
+    }
 
-            // Add cache-busting to current URL if not already present
-            if (!window.location.search.includes('cb=')) {
-                const separator = window.location.search ? '&' : '?';
-                const newUrl = window.location.href + separator + 'cb=' + timestamp + '_' + randomId;
-                history.replaceState(null, '', newUrl);
-            }
+    // Add cache-busting to current URL if not already present
+    if (!window.location.search.includes('cb=')) {
+        const separator = window.location.search ? '&' : '?';
+        const newUrl = window.location.href + separator + 'cb=' + timestamp + '_' + randomId;
+        history.replaceState(null, '', newUrl);
+    }
 
-            // Force hard reload with specific key combination hint
-            const showCacheWarning = () => {
-                if (sessionStorage.getItem('cacheWarningShown') !== 'true') {
-                    console.warn('🔄 CACHE NOTICE: If you see old content, press Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac) to force refresh');
-                    sessionStorage.setItem('cacheWarningShown', 'true');
-                }
-            };
+    // Force hard reload with specific key combination hint
+    const showCacheWarning = () => {
+        if (sessionStorage.getItem('cacheWarningShown') !== 'true') {
+            console.warn('🔄 CACHE NOTICE: If you see old content, press Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac) to force refresh');
+            sessionStorage.setItem('cacheWarningShown', 'true');
+        }
+    };
 
-            // Add meta tag with build version
-            const meta = document.createElement('meta');
-            meta.setAttribute('name', 'app-version');
-            meta.setAttribute('content', BUILD_VERSION);
-            document.head.appendChild(meta);
+    // Add meta tag with build version
+    const meta = document.createElement('meta');
+    meta.setAttribute('name', 'app-version');
+    meta.setAttribute('content', BUILD_VERSION);
+    document.head.appendChild(meta);
 
-            // Show cache warning after page loads
-            window.addEventListener('load', showCacheWarning);
+    // Show cache warning after page loads
+    window.addEventListener('load', showCacheWarning);
 
-            // Clear localStorage cache indicators on unload
-            window.addEventListener('beforeunload', () => {
-                try {
-                    // Clear any cached flags
-                    Object.keys(localStorage).forEach(key => {
-                        if (key.startsWith('sb_cache_') || key.startsWith('studybuddy_cache_')) {
-                            localStorage.removeItem(key);
-                        }
-                    });
-                } catch(e) {
-                    console.log('LocalStorage cleanup skipped');
+    // Clear localStorage cache indicators on unload
+    window.addEventListener('beforeunload', () => {
+        try {
+            // Clear any cached flags
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb_cache_') || key.startsWith('studybuddy_cache_')) {
+                    localStorage.removeItem(key);
                 }
             });
-
-        })();
-
-        document.addEventListener('DOMContentLoaded', () => {     
-
-            // Initialize cache status display
-            const initializeCacheStatus = () => {
-                const versionDisplay = document.getElementById('appVersionDisplay');
-                const refreshButton = document.getElementById('forceCacheRefresh');
-                const buildVersion = document.querySelector('meta[name="app-version"]')?.content || 'Unknown';
-
-
-                if (versionDisplay) {
-                    versionDisplay.textContent = buildVersion;
-                }
-
-                if (refreshButton) {
-                    refreshButton.addEventListener('click', () => {
-                        console.log('Force refresh requested by user');
-                        // Clear all storage
-                        try {
-                            localStorage.clear();
-                            sessionStorage.clear();
-                        } catch(e) {
-                            console.log('Storage clear failed:', e);
-                        }
-                        // Force hard reload
-                        window.location.reload(true);
-                    });
-                }
-            };
-
-            initializeCacheStatus();
-
-            // --- Supabase Client Setup ---
-            let supabaseClient = null;
-            try {
-                if (typeof supabase !== 'undefined') {
-                    const { createClient } = supabase;
-                    const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
-                    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
-                    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    console.log('Supabase client initialized successfully');
-                } else {
-                    console.error('Supabase library not available');
-                }
-            } catch (error) {
-                console.error('Error initializing Supabase client:', error);
-            }
-
-            // --- STATE & CONSTANTS ---
-            const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
-            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
-            let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
-            let isEssentialsMode = false, currentEssentialsCategoryName = "";
-            let audioInitialized = false;
-            let mcqAnswered = false, typeTranslationAnswered = false, fillBlanksAnswered = false;
-            let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0;
-            let findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [];
-            let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
-            
-            // Live Notes state
-            let liveNotesData = [], notepadContent = '', autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
-
-            // --- ELEMENT SELECTORS ---
-            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
-            
-            // Live Notes elements
-            const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
-            const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
-            const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
-            const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
-            const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
-            const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
-
-            // --- DATA ---
-            const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
-            Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
-
-            // --- AUTHENTICATION & DATA FUNCTIONS ---
-            function toggleAuthMode() {
-                isSignUp = !isSignUp;
-                authError.textContent = '';
-                authForm.reset();
-                authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
-                authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
-                authToggleText.innerHTML = isSignUp
-                    ? `Already have an account? <span class="toggle-auth-link">Login</span>`
-                    : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
-            }
-
-            async function fetchNotes(retryCount = 0) {
-                console.log('🔍 fetchNotes: Starting to fetch notes... (attempt', retryCount + 1, ')');
-
-                // Check if Supabase client is available
-                if (!supabaseClient) {
-                    console.error('❌ fetchNotes: Supabase client not available');
-                    vocabulary = [];
-                    return false;
-                }
-
-                try {
-                    // Wait a short time for auth to stabilize
-                    if (retryCount === 0) {
-                        console.log('⏳ fetchNotes: Waiting 500ms for auth to stabilize...');
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                    }
-
-                    console.log('🔐 fetchNotes: Getting user authentication...');
-                    console.log('🔐 fetchNotes: Supabase client status:', { 
-                        hasClient: !!supabaseClient, 
-                        hasAuth: !!supabaseClient?.auth, 
-                        hasGetUser: !!supabaseClient?.auth?.getUser 
-                    });
-                    
-                    const authResult = await supabaseClient.auth.getUser();
-                    
-                    const { data: { user }, error: userError } = authResult;
-                    console.log('🔐 fetchNotes: Auth result:', { 
-                        hasUser: !!user, 
-                        userId: user?.id, 
-                        userEmail: user?.email,
-                        userError: userError
-                    });
-
-                    if (userError) {
-                        console.error('❌ fetchNotes: Error getting user:', userError);
-                        console.error('❌ fetchNotes: User error details:', JSON.stringify(userError, null, 2));
-                        // Retry once if we get an auth error
-                        if (retryCount === 0) {
-                            console.log('🔄 fetchNotes: Retrying due to auth error...');
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            return await fetchNotes(retryCount + 1);
-                        }
-                        vocabulary = [];
-                        return false;
-                    }
-
-                    if (!user) {
-                        console.log('❌ fetchNotes: No user found - user is null or undefined');
-                        vocabulary = [];
-                        return false;
-                    }
-                    console.log('✅ fetchNotes: User found, fetching notes for user:', user.id, 'email:', user.email);
-
-                    console.log('📊 fetchNotes: Executing database query...');
-                    console.log('📊 fetchNotes: Query details - table: notes, user_id:', user.id);
-                    
-                    const queryStartTime = Date.now();
-                    const { data, error } = await supabaseClient
-                        .from('notes')
-                        .select('term, definition, term_lang')
-                        .eq('user_id', user.id);
-                    const queryDuration = Date.now() - queryStartTime;
-
-                    console.log('📊 fetchNotes: Database query completed in', queryDuration, 'ms');
-                    console.log('📊 fetchNotes: Query result - Error:', error, 'Data count:', data ? data.length : 0);
-                    
-                    if (error) {
-                        console.error('❌ fetchNotes: Database error details:', JSON.stringify(error, null, 2));
-                    }
-                    
-                    if (data && data.length > 0) {
-                        console.log('✅ fetchNotes: Found', data.length, 'notes! Sample entries:', data.slice(0, 3));
-                    } else {
-                        console.log('⚠️ fetchNotes: Data is empty or null:', { data, dataLength: data?.length });
-                    }
-
-                    if (error) {
-                        console.error('❌ fetchNotes: Error fetching notes:', error);
-                        // Retry once if we get a database error
-                        if (retryCount === 0) {
-                            console.log('🔄 fetchNotes: Retrying due to database error...');
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            return await fetchNotes(retryCount + 1);
-                        }
-                        vocabulary = [];
-                        return false;
-                    }
-
-                    if (!data || data.length === 0) {
-                        console.log('⚠️ fetchNotes: No notes found in database for user', user.id);
-                        console.log('⚠️ fetchNotes: This could mean:');
-                        console.log('   - User has no notes in database');
-                        console.log('   - Database permissions issue');
-                        console.log('   - Wrong table or column names');
-                        console.log('   - User ID mismatch');
-                        vocabulary = [];
-                        return false;
-                    }
-
-                    console.log('🔄 fetchNotes: Processing', data.length, 'notes from database...');
-
-                    // Get the target language from the first note (assuming all notes use same language)
-                    const targetLanguage = data[0]?.term_lang || 'en-US';
-                    console.log('🌐 fetchNotes: Setting target language to:', targetLanguage);
-                    csvUploadedTargetLanguage = targetLanguage;
-
-                    vocabulary = data.map((note, index) => ({
-                        lang1: note.term,
-                        lang2: note.definition,
-                        originalIndex: index,
-                        correctCount: 0
-                    }));
-
-                    console.log('✅ fetchNotes: Successfully loaded', vocabulary.length, 'notes with target language:', targetLanguage);
-                    console.log('✅ fetchNotes: Sample vocabulary:', vocabulary.slice(0, 2));
-                    console.log('✅ fetchNotes: Global vocabulary array now has', vocabulary.length, 'items');
-
-                    return vocabulary.length > 0;
-
-                } catch (err) {
-                    console.error('💥 fetchNotes: Unexpected error:', err);
-                    console.error('💥 fetchNotes: Error message:', err.message);
-                    console.error('💥 fetchNotes: Error stack:', err.stack);
-                    
-                    // Retry once if we get an unexpected error
-                    if (retryCount === 0) {
-                        console.log('🔄 fetchNotes: Retrying due to unexpected error...');
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        return await fetchNotes(retryCount + 1);
-                    }
-                    
-                    vocabulary = [];
-                    return false;
-                }
-            }
-
-            function parseCSV(csvData) {
-                const parsed = [];
-                const lines = csvData.split(/\r\n|\n/);
-
-                // Skip header row if it exists
-                const startIndex = lines.length > 0 && lines[0].toLowerCase().includes('word') ? 1 : 0;
-
-                for (let i = startIndex; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (line === '') continue;
-
-                    const parts = [];
-                    let currentField = '';
-                    let inQuotedField = false;
-
-                    for (let j = 0; j < line.length; j++) {
-                        const char = line[j];
-                        if (char === '"') {
-                            if (inQuotedField && j + 1 < line.length && line[j + 1] === '"') {
-                                currentField += '"';
-                                j++; 
-                            } else {
-                                inQuotedField = !inQuotedField;
-                            }
-                        } else if (char === ',' && !inQuotedField) {
-                            parts.push(currentField.trim());
-                            currentField = '';
-                        } else {
-                            currentField += char;
-                        }
-                    }
-                    parts.push(currentField.trim()); 
-
-                    if (parts.length >= 2 && parts[0] && parts[1]) {
-                        parsed.push({
-                            lang1: parts[0],
-                            lang2: parts[1]
-                        });
-                    }
-                }
-                return parsed;
-            }
-
-async function saveNotes(notesToSave) {
-    console.log('💾 saveNotes: Called with', notesToSave.length, 'notes:', notesToSave);
-
-    if (!supabaseClient) {
-        console.error('❌ saveNotes: Supabase client not available');
-        if (uploadStatus) {
-            uploadStatus.textContent = 'Database connection not available.';
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        } catch(e) {
+            console.log('LocalStorage cleanup skipped');
         }
-        return false;
-    }
-
-    console.log('🔐 saveNotes: Getting user authentication...');
-    
-    const userResult = await supabaseClient.auth.getUser();
-    
-    console.log('🔐 saveNotes: User result:', { 
-        userId: userResult?.data?.user?.id, 
-        email: userResult?.data?.user?.email, 
-        error: userResult?.error 
     });
 
-    const user = userResult?.data?.user;
-    if (!user) {
-        console.error('❌ saveNotes: User not authenticated');
-        if (uploadStatus) {
-            uploadStatus.textContent = 'You must be logged in to save notes.';
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+})();
+
+document.addEventListener('DOMContentLoaded', () => {     
+
+    // Initialize cache status display
+    const initializeCacheStatus = () => {
+        const versionDisplay = document.getElementById('appVersionDisplay');
+        const refreshButton = document.getElementById('forceCacheRefresh');
+        const buildVersion = document.querySelector('meta[name="app-version"]')?.content || 'Unknown';
+
+        if (versionDisplay) {
+            versionDisplay.textContent = buildVersion;
         }
-        return false;
-    }
+
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => {
+                console.log('Force refresh requested by user');
+                // Clear all storage
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                } catch(e) {
+                    console.log('Storage clear failed:', e);
+                }
+                // Force hard reload
+                window.location.reload(true);
+            });
+        }
+    };
+
+    initializeCacheStatus();
+
+    // --- REPLACEMENT: Supabase Client Setup ---
+    let supabaseClient = null;
 
     try {
-        const notesWithUser = notesToSave.map(note => ({
-            user_id: user.id,
-            term: note.lang1,
-            definition: note.lang2,
-            term_lang: csvUploadedTargetLanguage || 'en-US',
-            definition_lang: 'en'
-        }));
-        console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
-        console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
-
-        console.log('💾 saveNotes: Executing INSERT query...');
-        const insertStartTime = Date.now();
-        const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
-        const insertDuration = Date.now() - insertStartTime;
+        const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
         
-        console.log('💾 saveNotes: INSERT completed in', insertDuration, 'ms');
-        console.log('💾 saveNotes: Supabase insert result:', { data, error });
+        // Create client directly
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Test client immediately
+        console.log('Supabase client initialized:', !!supabaseClient);
+    } catch (error) {
+        console.error('Failed to initialize Supabase client:', error);
+    }
+    
+    // --- REPLACEMENT: Database Testing and Fetch Notes Functions ---
+    async function testDatabaseConnection() {
+        console.log('🧪 Testing database connection...');
+        
+        try {
+            // 1. Verify Supabase client
+            if (!supabaseClient) {
+                console.error('❌ Supabase client not available');
+                return false;
+            }
+            
+            // 2. Get authenticated user
+            const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+            if (userError || !user) {
+                console.error('❌ Authentication error:', userError || 'No user found');
+                return false;
+            }
+            console.log('✅ Authenticated as:', user.email);
+            
+            // 3. Test a simple query
+            console.log('📡 Testing direct database query...');
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .select('count')
+                .limit(1);
+                
+            if (error) {
+                console.error('❌ Database error:', error);
+                return false;
+            }
+            
+            console.log('✅ Database connection successful:', data);
+            return true;
+        } catch (err) {
+            console.error('💥 Unexpected error during test:', err);
+            return false;
+        }
+    }
 
-        if (error) {
-            console.error('❌ saveNotes: Error saving notes:', error);
-            console.error('❌ saveNotes: Error details:', JSON.stringify(error, null, 2));
+    // Replace the original fetchNotes function with this simplified version
+    async function fetchNotes() {
+        console.log('🔍 fetchNotes: Starting to fetch notes...');
+        
+        try {
+            // Get user with simpler approach
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                console.log('❌ fetchNotes: No authenticated user found');
+                vocabulary = [];
+                return false;
+            }
+            
+            console.log('✅ fetchNotes: User found, fetching notes for user:', user.id);
+            
+            // Simpler query without all the logging
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .select('term, definition, term_lang')
+                .eq('user_id', user.id);
+                
+            if (error) {
+                console.error('Error fetching notes:', error);
+                vocabulary = [];
+                return false;
+            }
+            
+            if (!data || data.length === 0) {
+                console.log('No notes found for user');
+                vocabulary = [];
+                return false;
+            }
+            
+            // Map data directly like the working version
+            vocabulary = data.map((note, index) => ({
+                lang1: note.term,
+                lang2: note.definition,
+                originalIndex: index,
+                correctCount: 0
+            }));
+            
+            // Set language from first note if available
+            if (data.length > 0 && data[0].term_lang) {
+                csvUploadedTargetLanguage = data[0].term_lang;
+            }
+            
+            console.log(`✅ Loaded ${vocabulary.length} vocabulary items`);
+            return vocabulary.length > 0;
+        } catch (err) {
+            console.error('Error in fetchNotes:', err);
+            vocabulary = [];
+            return false;
+        }
+    }
+
+    // --- STATE & CONSTANTS ---
+    const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
+    let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
+    let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
+    let isEssentialsMode = false, currentEssentialsCategoryName = "";
+    let audioInitialized = false;
+    let mcqAnswered = false, typeTranslationAnswered = false, fillBlanksAnswered = false;
+    let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0;
+    let findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [];
+    let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
+    
+    // Live Notes state
+    let liveNotesData = [], notepadContent = '', autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
+
+    // --- ELEMENT SELECTORS ---
+    const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
+    
+    // Live Notes elements
+    const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
+    const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
+    const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
+    const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
+    const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
+    const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
+
+    // --- DATA ---
+    const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
+    Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
+
+    // --- AUTHENTICATION & DATA FUNCTIONS ---
+    function toggleAuthMode() {
+        isSignUp = !isSignUp;
+        authError.textContent = '';
+        authForm.reset();
+        authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+        authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+        authToggleText.innerHTML = isSignUp
+            ? `Already have an account? <span class="toggle-auth-link">Login</span>`
+            : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+    }
+
+    function parseCSV(csvData) {
+        const parsed = [];
+        const lines = csvData.split(/\r\n|\n/);
+
+        // Skip header row if it exists
+        const startIndex = lines.length > 0 && lines[0].toLowerCase().includes('word') ? 1 : 0;
+
+        for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line === '') continue;
+
+            const parts = [];
+            let currentField = '';
+            let inQuotedField = false;
+
+            for (let j = 0; j < line.length; j++) {
+                const char = line[j];
+                if (char === '"') {
+                    if (inQuotedField && j + 1 < line.length && line[j + 1] === '"') {
+                        currentField += '"';
+                        j++; 
+                    } else {
+                        inQuotedField = !inQuotedField;
+                    }
+                } else if (char === ',' && !inQuotedField) {
+                    parts.push(currentField.trim());
+                    currentField = '';
+                } else {
+                    currentField += char;
+                }
+            }
+            parts.push(currentField.trim()); 
+
+            if (parts.length >= 2 && parts[0] && parts[1]) {
+                parsed.push({
+                    lang1: parts[0],
+                    lang2: parts[1]
+                });
+            }
+        }
+        return parsed;
+    }
+
+    async function saveNotes(notesToSave) {
+        console.log('💾 saveNotes: Called with', notesToSave.length, 'notes:', notesToSave);
+
+        if (!supabaseClient) {
+            console.error('❌ saveNotes: Supabase client not available');
             if (uploadStatus) {
-                uploadStatus.textContent = 'Error saving notes: ' + error.message;
+                uploadStatus.textContent = 'Database connection not available.';
                 uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
             }
             return false;
         }
-        
-        console.log('✅ saveNotes: Notes saved successfully');
-        return true;
-        
-    } catch (err) {
-        console.error('💥 saveNotes: Unexpected error saving notes:', err);
-        console.error('💥 saveNotes: Error message:', err.message);
-        console.error('💥 saveNotes: Error stack:', err.stack);
-        if (uploadStatus) {
-            uploadStatus.textContent = 'Unexpected error saving notes: ' + err.message;
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-        }
-        return false;
-    }
-}
 
-            // --- LIVE NOTES FUNCTIONS ---
-            function initializeLiveNotes() {
-                // Clear existing content
-                notepadContent = '';
-                liveNotesData = [];
-                pendingChanges = false;
-                liveNotesTextarea.value = '';
-                
-                // Add event listeners to notepad
-                liveNotesTextarea.addEventListener('input', handleNotepadInput);
-                liveNotesTextarea.addEventListener('keydown', handleNotepadKeydown);
-                
-                // Initialize display counters and status
-                updateLineAndParsedCounts();
-                updateSaveStatus();
-                
-                // Start auto-save timer
-                startAutoSaveTimer();
-                
-                // Show modal and focus
-                liveNotesModal.classList.remove('hidden');
-                liveNotesTextarea.focus();
+        console.log('🔐 saveNotes: Getting user authentication...');
+        
+        const userResult = await supabaseClient.auth.getUser();
+        
+        console.log('🔐 saveNotes: User result:', { 
+            userId: userResult?.data?.user?.id, 
+            email: userResult?.data?.user?.email, 
+            error: userResult?.error 
+        });
+
+        const user = userResult?.data?.user;
+        if (!user) {
+            console.error('❌ saveNotes: User not authenticated');
+            if (uploadStatus) {
+                uploadStatus.textContent = 'You must be logged in to save notes.';
+                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+            }
+            return false;
+        }
+
+        try {
+            const notesWithUser = notesToSave.map(note => ({
+                user_id: user.id,
+                term: note.lang1,
+                definition: note.lang2,
+                term_lang: csvUploadedTargetLanguage || 'en-US',
+                definition_lang: 'en'
+            }));
+            console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
+            console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
+
+            console.log('💾 saveNotes: Executing INSERT query...');
+            const insertStartTime = Date.now();
+            const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
+            const insertDuration = Date.now() - insertStartTime;
+            
+            console.log('💾 saveNotes: INSERT completed in', insertDuration, 'ms');
+            console.log('💾 saveNotes: Supabase insert result:', { data, error });
+
+            if (error) {
+                console.error('❌ saveNotes: Error saving notes:', error);
+                console.error('❌ saveNotes: Error details:', JSON.stringify(error, null, 2));
+                if (uploadStatus) {
+                    uploadStatus.textContent = 'Error saving notes: ' + error.message;
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                }
+                return false;
             }
             
-            function closeLiveNotes() {
-                // Clear timers first to stop any running processes
-                if (autoSaveTimer) {
-                    clearInterval(autoSaveTimer);
-                    autoSaveTimer = null;
-                }
+            console.log('✅ saveNotes: Notes saved successfully');
+            return true;
+            
+        } catch (err) {
+            console.error('💥 saveNotes: Unexpected error saving notes:', err);
+            console.error('💥 saveNotes: Error message:', err.message);
+            console.error('💥 saveNotes: Error stack:', err.stack);
+            if (uploadStatus) {
+                uploadStatus.textContent = 'Unexpected error saving notes: ' + err.message;
+                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+            }
+            return false;
+        }
+    }
+
+    // --- LIVE NOTES FUNCTIONS ---
+    function initializeLiveNotes() {
+        // Clear existing content
+        notepadContent = '';
+        liveNotesData = [];
+        pendingChanges = false;
+        liveNotesTextarea.value = '';
+        
+        // Add event listeners to notepad
+        liveNotesTextarea.addEventListener('input', handleNotepadInput);
+        liveNotesTextarea.addEventListener('keydown', handleNotepadKeydown);
+        
+        // Initialize display counters and status
+        updateLineAndParsedCounts();
+        updateSaveStatus();
+        
+        // Start auto-save timer
+        startAutoSaveTimer();
+        
+        // Show modal and focus
+        liveNotesModal.classList.remove('hidden');
+        liveNotesTextarea.focus();
+    }
+    
+    function closeLiveNotes() {
+        // Clear timers first to stop any running processes
+        if (autoSaveTimer) {
+            clearInterval(autoSaveTimer);
+            autoSaveTimer = null;
+        }
+        
+        // Save any pending changes before closing
+        if (pendingChanges) {
+            saveLiveNotes();
+        }
+        
+        // Hide modal
+        liveNotesModal.classList.add('hidden');
+    }
+    
+    function handleNotepadInput(event) {
+        notepadContent = event.target.value;
+        pendingChanges = true;
+        
+        // Parse content and update data
+        parseNotepadContent();
+        updateLineAndParsedCounts();
+        updateSaveStatus();
+    }
+    
+    function handleNotepadKeydown(event) {
+        // Handle Enter key to auto-advance
+        if (event.key === 'Enter') {
+            // Natural behavior - just update counts
+            setTimeout(() => {
+                parseNotepadContent();
+                updateLineAndParsedCounts();
+            }, 10);
+        }
+    }
+    
+    function parseNotepadContent() {
+        const lines = notepadContent.split('\n').filter(line => line.trim() !== '');
+        liveNotesData = [];
+        
+        lines.forEach(line => {
+            const trimmedLine = line.trim();
+            if (trimmedLine === '') return;
+            
+            // Look for dash separator (-, –, —)
+            const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+            if (dashMatches) {
+                const word = dashMatches[1].trim();
+                const translation = dashMatches[2].trim();
                 
-                // Save any pending changes before closing
+                if (word && translation) {
+                    liveNotesData.push({
+                        targetLang: word,
+                        translation: translation,
+                        saved: false
+                    });
+                }
+            }
+        });
+    }
+    
+    function updateLineAndParsedCounts() {
+        const totalLines = notepadContent.split('\n').filter(line => line.trim() !== '').length;
+        const parsedLines = liveNotesData.length;
+        
+        lineCount.textContent = `Lines: ${totalLines}`;
+        parsedCount.textContent = `Parsed: ${parsedLines}`;
+    }
+    
+    function addNewNoteLine() {
+        const cursorPos = liveNotesTextarea.selectionStart;
+        const text = liveNotesTextarea.value;
+        const beforeCursor = text.substring(0, cursorPos);
+        const afterCursor = text.substring(cursorPos);
+        
+        // Add new line at cursor position
+        let newText;
+        if (beforeCursor.endsWith('\n') || beforeCursor === '') {
+            newText = beforeCursor + '\n' + afterCursor;
+        } else {
+            newText = beforeCursor + '\n\n' + afterCursor;
+        }
+        
+        liveNotesTextarea.value = newText;
+        
+        // Position cursor at the start of the new line
+        const newCursorPos = beforeCursor.length + (beforeCursor.endsWith('\n') || beforeCursor === '' ? 1 : 2);
+        liveNotesTextarea.setSelectionRange(newCursorPos, newCursorPos);
+        liveNotesTextarea.focus();
+        
+        // Update content and counts
+        notepadContent = newText;
+        parseNotepadContent();
+        updateLineAndParsedCounts();
+    }
+    
+    function goToPreviousLine() {
+        const cursorPos = liveNotesTextarea.selectionStart;
+        const text = liveNotesTextarea.value;
+        const beforeCursor = text.substring(0, cursorPos);
+        
+        // Find the previous line break
+        const lastLineBreak = beforeCursor.lastIndexOf('\n');
+        if (lastLineBreak > 0) {
+            const secondLastLineBreak = beforeCursor.lastIndexOf('\n', lastLineBreak - 1);
+            const previousLineStart = secondLastLineBreak + 1;
+            const previousLineEnd = lastLineBreak;
+            
+            // Move cursor to the end of the previous line
+            liveNotesTextarea.setSelectionRange(previousLineEnd, previousLineEnd);
+            liveNotesTextarea.focus();
+        } else if (lastLineBreak === 0) {
+            // We're on the second line, go to the end of the first line
+            liveNotesTextarea.setSelectionRange(0, 0);
+            liveNotesTextarea.focus();
+        }
+        // If no previous line, stay where we are
+    }
+    
+    function startAutoSaveTimer() {
+        autoSaveCountdown = 300; // 5 minutes in seconds
+        
+        autoSaveTimer = setInterval(() => {
+            autoSaveCountdown--;
+            updateSaveStatus();
+            
+            if (autoSaveCountdown <= 0) {
                 if (pendingChanges) {
                     saveLiveNotes();
                 }
-                
-                // Hide modal
-                liveNotesModal.classList.add('hidden');
+                autoSaveCountdown = 300; // Reset for next cycle
             }
+        }, 1000);
+    }
+    
+    function updateSaveStatus() {
+        if (!saveStatus || !cloudIcon || !uploadArrow) {
+            console.log('Save status elements not found, skipping update');
+            return; // Prevent errors if elements don't exist
+        }
+        
+        if (pendingChanges) {
+            // Show pending state - orange cloud with upload arrow
+            cloudIcon.className = 'w-5 h-5 text-amber-500 pending';
+            uploadArrow.classList.remove('hidden');
+            saveStatus.textContent = 'Changes pending';
+            saveStatus.className = 'text-sm text-amber-600';
+        } else {
+            // Show saved state - light blue cloud, no arrow
+            cloudIcon.className = 'w-5 h-5 text-blue-400 saved';
+            uploadArrow.classList.add('hidden');
+            saveStatus.textContent = 'All saved';
+            saveStatus.className = 'text-sm text-blue-600';
+        }
+    }
+    
+    async function saveLiveNotes() {
+        console.log('💾 saveLiveNotes: Starting live notes save process...');
+        
+        // Parse current content to ensure we have the latest data
+        parseNotepadContent();
+        console.log('💾 saveLiveNotes: Parsed notepad content, found', liveNotesData.length, 'notes');
+        
+        if (liveNotesData.length === 0) {
+            console.log('💾 saveLiveNotes: No notes to save');
+            return;
+        }
+        
+        // Filter and prepare notes for saving
+        const notesToSave = liveNotesData
+            .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
+            .map(note => ({
+                lang1: note.targetLang.trim(),
+                lang2: note.translation.trim()
+            }));
+        
+        console.log('💾 saveLiveNotes: Prepared notes for saving:', {
+            originalCount: liveNotesData.length,
+            validCount: notesToSave.length,
+            sampleNotes: notesToSave.slice(0, 2)
+        });
+        
+        if (notesToSave.length === 0) {
+            console.log('💾 saveLiveNotes: No valid notes to save');
+            return;
+        }
+        
+        // Check for duplicates in existing vocabulary
+        const newNotes = [];
+        const duplicateNotes = [];
+        
+        console.log('🔍 saveLiveNotes: Checking for duplicates against', vocabulary.length, 'existing vocabulary entries...');
+        
+        for (const note of notesToSave) {
+            // Normalize text for comparison - remove spaces and convert to lowercase
+            const normalizeForComparison = (text) => text.toLowerCase().replace(/\s+/g, '').trim();
             
-            function handleNotepadInput(event) {
-                notepadContent = event.target.value;
-                pendingChanges = true;
-                
-                // Parse content and update data
-                parseNotepadContent();
-                updateLineAndParsedCounts();
-                updateSaveStatus();
+            const noteWordNormalized = normalizeForComparison(note.lang1);
+            
+            // Check if this word already exists (ignoring spaces as requested)
+            const exists = vocabulary.some(v => {
+                const vocabWordNormalized = normalizeForComparison(v.lang1);
+                return vocabWordNormalized === noteWordNormalized;
+            });
+            
+            if (!exists) {
+                newNotes.push(note);
+                console.log('✅ saveLiveNotes: New note will be saved:', note.lang1, '-', note.lang2);
+            } else {
+                duplicateNotes.push(note);
+                console.log('❌ saveLiveNotes: Duplicate detected, skipping:', note.lang1, '-', note.lang2);
             }
-            
-            function handleNotepadKeydown(event) {
-                // Handle Enter key to auto-advance
-                if (event.key === 'Enter') {
-                    // Natural behavior - just update counts
-                    setTimeout(() => {
-                        parseNotepadContent();
-                        updateLineAndParsedCounts();
-                    }, 10);
-                }
+        }
+        
+        console.log('📊 saveLiveNotes: Summary:', {
+            totalNotesToProcess: notesToSave.length,
+            newUniqueNotes: newNotes.length,
+            duplicatesFound: duplicateNotes.length
+        });
+        
+        // Show user feedback about duplicates
+        if (duplicateNotes.length > 0) {
+            const duplicateList = duplicateNotes.map(note => `"${note.lang1}"`).join(', ');
+            if (newNotes.length > 0) {
+                alert(`Found ${duplicateNotes.length} duplicate(s) that won't be saved: ${duplicateList}\n\nSaving ${newNotes.length} new word(s).`);
+            } else {
+                alert(`All ${duplicateNotes.length} word(s) already exist in your vocabulary: ${duplicateList}\n\nNothing to save.`);
             }
+        }
+        
+        if (newNotes.length === 0) {
+            console.log('⚠️ saveLiveNotes: All notes already exist in database');
+            pendingChanges = false;
+            updateSaveStatus();
+            return;
+        }
+        
+        // Save to database
+        console.log('💾 saveLiveNotes: Calling saveNotes with', newNotes.length, 'new notes...');
+        const success = await saveNotes(newNotes);
+        
+        if (success) {
+            console.log(`✅ saveLiveNotes: Successfully saved ${newNotes.length} new notes`);
             
-            function parseNotepadContent() {
-                const lines = notepadContent.split('\n').filter(line => line.trim() !== '');
-                liveNotesData = [];
-                
-                lines.forEach(line => {
-                    const trimmedLine = line.trim();
-                    if (trimmedLine === '') return;
-                    
-                    // Look for dash separator (-, –, —)
-                    const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
-                    if (dashMatches) {
-                        const word = dashMatches[1].trim();
-                        const translation = dashMatches[2].trim();
-                        
-                        if (word && translation) {
-                            liveNotesData.push({
-                                targetLang: word,
-                                translation: translation,
-                                saved: false
-                            });
-                        }
+            // Show user feedback
+            alert(`Successfully saved ${newNotes.length} new vocabulary notes!`);
+            
+            // Mark saved notes
+            liveNotesData.forEach(note => {
+                note.saved = true;
+            });
+            
+            pendingChanges = false;
+            updateSaveStatus();
+            updateLineAndParsedCounts();
+            
+            // Refresh vocabulary
+            console.log('🔄 saveLiveNotes: Refreshing vocabulary from database...');
+            await fetchNotes();
+        } else {
+            console.error('❌ saveLiveNotes: Failed to save notes');
+            // Update status to show error
+            if (saveStatus) {
+                saveStatus.textContent = 'Save failed';
+                saveStatus.className = 'text-sm text-red-600';
+            }
+        }
+    }
+    
+    function clearAllLiveNotes() {
+        if (confirm('Are you sure you want to clear all notes? Unsaved changes will be lost.')) {
+            liveNotesData = [];
+            notepadContent = '';
+            liveNotesTextarea.value = '';
+            pendingChanges = false;
+            updateSaveStatus();
+            updateLineAndParsedCounts();
+            liveNotesTextarea.focus();
+        }
+    }
+    async function handleFileUpload(droppedFile = null) {
+        console.log('handleFileUpload called');
+        
+        // Prevent file upload during authentication process
+        if (isAuthenticating) {
+            console.log('handleFileUpload: Blocked during authentication process');
+            return;
+        }
+        
+        const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
+        if (!file) {
+            uploadStatus.textContent = 'Please select or drop a CSV file.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+            return;
+        }
+
+        if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
+            uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+            return;
+        }
+
+        csvUploadedTargetLanguage = targetLanguageSelector.value;
+        uploadStatus.textContent = 'Processing CSV file...';
+        uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
+
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+            try {
+                 console.log('FileReader loaded:', event.target.result.slice(0,100)); // <--- add preview
+                const parsedNotes = parseCSV(event.target.result);
+                   console.log('Parsed notes:', parsedNotes); // <--- add
+                if (parsedNotes.length > 0) {
+                    uploadStatus.textContent = 'Saving notes to your account...';
+                    uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
+                    const success = await saveNotes(parsedNotes);
+                    if (success) {
+                        await fetchNotes();
+                        uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
+                        uploadStatus.className = 'text-sm text-green-600 mt-2 h-5';
+                        isEssentialsMode = false;
+                        setTimeout(() => {
+                            uploadSection.classList.add('hidden');
+                            showGameSelection();
+                        }, 1500);
                     }
-                });
-            }
-            
-            function updateLineAndParsedCounts() {
-                const totalLines = notepadContent.split('\n').filter(line => line.trim() !== '').length;
-                const parsedLines = liveNotesData.length;
-                
-                lineCount.textContent = `Lines: ${totalLines}`;
-                parsedCount.textContent = `Parsed: ${parsedLines}`;
-            }
-            
-            function addNewNoteLine() {
-                const cursorPos = liveNotesTextarea.selectionStart;
-                const text = liveNotesTextarea.value;
-                const beforeCursor = text.substring(0, cursorPos);
-                const afterCursor = text.substring(cursorPos);
-                
-                // Add new line at cursor position
-                let newText;
-                if (beforeCursor.endsWith('\n') || beforeCursor === '') {
-                    newText = beforeCursor + '\n' + afterCursor;
                 } else {
-                    newText = beforeCursor + '\n\n' + afterCursor;
+                    uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
                 }
-                
-                liveNotesTextarea.value = newText;
-                
-                // Position cursor at the start of the new line
-                const newCursorPos = beforeCursor.length + (beforeCursor.endsWith('\n') || beforeCursor === '' ? 1 : 2);
-                liveNotesTextarea.setSelectionRange(newCursorPos, newCursorPos);
-                liveNotesTextarea.focus();
-                
-                // Update content and counts
-                notepadContent = newText;
-                parseNotepadContent();
-                updateLineAndParsedCounts();
+            } catch (error) {
+                uploadStatus.textContent = 'Error processing CSV file.';
+                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                console.error("Error processing CSV:", error);
             }
+        };
+        reader.onerror = () => {
+            uploadStatus.textContent = 'Error reading file.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        };
+        reader.readAsText(file);
+    }
+
+    // --- NOTES MANAGEMENT FUNCTIONS ---
+    function initializeNotesManagement() {
+        console.log('📚 initializeNotesManagement: Opening notes management interface');
+        console.log('📚 initializeNotesManagement: Current vocabulary state:', {
+            vocabularyLength: vocabulary.length,
+            vocabularyType: typeof vocabulary,
+            vocabularyIsArray: Array.isArray(vocabulary),
+            sampleVocab: vocabulary.slice(0, 2)
+        });
+        
+        // Get modal elements
+        const notesManagementModal = document.getElementById('notesManagementModal');
+        const notesCount = document.getElementById('notesCount');
+        const notesList = document.getElementById('notesList');
+        const noNotesMessage = document.getElementById('noNotesMessage');
+        const notesSearchInput = document.getElementById('notesSearchInput');
+        
+        if (!notesManagementModal) {
+            console.error('❌ initializeNotesManagement: Notes management modal not found');
+            return;
+        }
+        
+        console.log('📚 initializeNotesManagement: Modal elements found, setting up interface');
+        
+        // Update notes count
+        if (notesCount) {
+            notesCount.textContent = vocabulary.length;
+            console.log('📚 initializeNotesManagement: Set notes count to:', vocabulary.length);
+        }
+        
+        // Populate notes list
+        console.log('📚 initializeNotesManagement: Calling populateNotesList...');
+        populateNotesList();
+        
+        // Setup search functionality
+        if (notesSearchInput) {
+            notesSearchInput.addEventListener('input', filterNotes);
+            console.log('📚 initializeNotesManagement: Search functionality setup complete');
+        }
+        
+        // Show modal
+        notesManagementModal.classList.remove('hidden');
+        console.log('📚 initializeNotesManagement: Modal shown');
+    }
+    
+    function populateNotesList(searchTerm = '') {
+        console.log('📝 populateNotesList: Starting with searchTerm:', searchTerm);
+        console.log('📝 populateNotesList: Current vocabulary state:', {
+            vocabularyLength: vocabulary.length,
+            vocabularyType: typeof vocabulary,
+            vocabularyIsArray: Array.isArray(vocabulary),
+            sampleVocab: vocabulary.slice(0, 2)
+        });
+        
+        const notesList = document.getElementById('notesList');
+        const noNotesMessage = document.getElementById('noNotesMessage');
+        
+        if (!notesList) {
+            console.error('❌ populateNotesList: notesList element not found');
+            return;
+        }
+        
+        // Clear existing content
+        notesList.innerHTML = '';
+        
+        // Filter vocabulary based on search term
+        const filteredVocab = vocabulary.filter(note => {
+            if (!searchTerm) return true;
+            const term = searchTerm.toLowerCase();
+            return note.lang1.toLowerCase().includes(term) || 
+                   note.lang2.toLowerCase().includes(term);
+        });
+        
+        console.log('📝 populateNotesList: Filtered vocabulary:', {
+            originalCount: vocabulary.length,
+            filteredCount: filteredVocab.length,
+            searchTerm,
+            sampleFiltered: filteredVocab.slice(0, 2)
+        });
+        
+        if (filteredVocab.length === 0) {
+            console.log('📝 populateNotesList: No filtered vocabulary, showing no notes message');
+            if (noNotesMessage) {
+                noNotesMessage.classList.remove('hidden');
+                noNotesMessage.textContent = searchTerm ? 'No notes match your search.' : 'No notes found. Upload a CSV file or use Study Essentials to get started!';
+            }
+            return;
+        }
+        
+        if (noNotesMessage) {
+            noNotesMessage.classList.add('hidden');
+        }
+        
+        console.log('📝 populateNotesList: Creating note items for', filteredVocab.length, 'notes');
+        
+        // Create note items
+        filteredVocab.forEach((note, filteredIndex) => {
+            // Find the original index in the vocabulary array
+            const originalIndex = vocabulary.findIndex(v => v.lang1 === note.lang1 && v.lang2 === note.lang2);
             
-            function goToPreviousLine() {
-                const cursorPos = liveNotesTextarea.selectionStart;
-                const text = liveNotesTextarea.value;
-                const beforeCursor = text.substring(0, cursorPos);
-                
-                // Find the previous line break
-                const lastLineBreak = beforeCursor.lastIndexOf('\n');
-                if (lastLineBreak > 0) {
-                    const secondLastLineBreak = beforeCursor.lastIndexOf('\n', lastLineBreak - 1);
-                    const previousLineStart = secondLastLineBreak + 1;
-                    const previousLineEnd = lastLineBreak;
-                    
-                    // Move cursor to the end of the previous line
-                    liveNotesTextarea.setSelectionRange(previousLineEnd, previousLineEnd);
-                    liveNotesTextarea.focus();
-                } else if (lastLineBreak === 0) {
-                    // We're on the second line, go to the end of the first line
-                    liveNotesTextarea.setSelectionRange(0, 0);
-                    liveNotesTextarea.focus();
+            console.log('📝 populateNotesList: Creating item', filteredIndex, 'originalIndex:', originalIndex, 'note:', note);
+            
+            const noteItem = document.createElement('div');
+            noteItem.className = 'note-item p-3 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100';
+            
+            const noteContent = document.createElement('div');
+            noteContent.className = 'flex-1 cursor-pointer';
+            noteContent.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="flex-1">
+                        <span class="font-medium text-gray-900 click-to-speak" data-text="${note.lang1}" data-lang="${csvUploadedTargetLanguage}">${note.lang1}</span>
+                        <span class="text-gray-600 mx-2">—</span>
+                        <span class="text-gray-700 click-to-speak" data-text="${note.lang2}" data-lang="en">${note.lang2}</span>
+                    </div>
+                </div>
+            `;
+            
+            // Add click-to-speak functionality
+            noteContent.addEventListener('click', (e) => {
+                if (e.target.classList.contains('click-to-speak')) {
+                    const text = e.target.dataset.text;
+                    const lang = e.target.dataset.lang;
+                    console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
+                    speakText(text, lang);
                 }
-                // If no previous line, stay where we are
-            }
+            });
             
-            function startAutoSaveTimer() {
-                autoSaveCountdown = 300; // 5 minutes in seconds
+            // Add delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded';
+            deleteBtn.innerHTML = '✕';
+            deleteBtn.title = 'Delete note';
+            deleteBtn.addEventListener('click', () => {
+                console.log('🗑️ populateNotesList: Delete button clicked for note:', note);
+                deleteNote(originalIndex, note);
+            });
+            
+            noteItem.appendChild(noteContent);
+            noteItem.appendChild(deleteBtn);
+            
+            // Add swipe-to-delete for mobile
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+            
+            noteItem.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                isDragging = true;
+            }, { passive: true });
+            
+            noteItem.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                currentX = e.touches[0].clientX;
+                const diffX = startX - currentX;
                 
-                autoSaveTimer = setInterval(() => {
-                    autoSaveCountdown--;
-                    updateSaveStatus();
-                    
-                    if (autoSaveCountdown <= 0) {
-                        if (pendingChanges) {
-                            saveLiveNotes();
-                        }
-                        autoSaveCountdown = 300; // Reset for next cycle
-                    }
-                }, 1000);
-            }
-            
-            function updateSaveStatus() {
-                if (!saveStatus || !cloudIcon || !uploadArrow) {
-                    console.log('Save status elements not found, skipping update');
-                    return; // Prevent errors if elements don't exist
+                if (diffX > 50) {
+                    noteItem.style.transform = `translateX(-${Math.min(diffX, 100)}px)`;
+                    noteItem.style.backgroundColor = '#fee2e2';
                 }
+            }, { passive: true });
+            
+            noteItem.addEventListener('touchend', () => {
+                if (!isDragging) return;
+                const diffX = startX - currentX;
                 
-                if (pendingChanges) {
-                    // Show pending state - orange cloud with upload arrow
-                    cloudIcon.className = 'w-5 h-5 text-amber-500 pending';
-                    uploadArrow.classList.remove('hidden');
-                    saveStatus.textContent = 'Changes pending';
-                    saveStatus.className = 'text-sm text-amber-600';
+                if (diffX > 100) {
+                    console.log('📱 populateNotesList: Swipe delete triggered for note:', note);
+                    deleteNote(originalIndex, note);
                 } else {
-                    // Show saved state - light blue cloud, no arrow
-                    cloudIcon.className = 'w-5 h-5 text-blue-400 saved';
-                    uploadArrow.classList.add('hidden');
-                    saveStatus.textContent = 'All saved';
-                    saveStatus.className = 'text-sm text-blue-600';
+                    noteItem.style.transform = '';
+                    noteItem.style.backgroundColor = '';
                 }
-            }
+                isDragging = false;
+            }, { passive: true });
             
-            async function saveLiveNotes() {
-                console.log('💾 saveLiveNotes: Starting live notes save process...');
-                
-                // Parse current content to ensure we have the latest data
-                parseNotepadContent();
-                console.log('💾 saveLiveNotes: Parsed notepad content, found', liveNotesData.length, 'notes');
-                
-                if (liveNotesData.length === 0) {
-                    console.log('💾 saveLiveNotes: No notes to save');
-                    return;
-                }
-                
-                // Filter and prepare notes for saving
-                const notesToSave = liveNotesData
-                    .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
-                    .map(note => ({
-                        lang1: note.targetLang.trim(),
-                        lang2: note.translation.trim()
-                    }));
-                
-                console.log('💾 saveLiveNotes: Prepared notes for saving:', {
-                    originalCount: liveNotesData.length,
-                    validCount: notesToSave.length,
-                    sampleNotes: notesToSave.slice(0, 2)
-                });
-                
-                if (notesToSave.length === 0) {
-                    console.log('💾 saveLiveNotes: No valid notes to save');
-                    return;
-                }
-                
-                // Check for duplicates in existing vocabulary
-                const newNotes = [];
-                const duplicateNotes = [];
-                
-                console.log('🔍 saveLiveNotes: Checking for duplicates against', vocabulary.length, 'existing vocabulary entries...');
-                
-                for (const note of notesToSave) {
-                    // Normalize text for comparison - remove spaces and convert to lowercase
-                    const normalizeForComparison = (text) => text.toLowerCase().replace(/\s+/g, '').trim();
+            notesList.appendChild(noteItem);
+        });
+        
+        console.log('📝 populateNotesList: Successfully created', filteredVocab.length, 'note items');
+    }
+    
+    function filterNotes() {
+        const notesSearchInput = document.getElementById('notesSearchInput');
+        const searchTerm = notesSearchInput ? notesSearchInput.value : '';
+        populateNotesList(searchTerm);
+    }
+    
+    async function deleteNote(index, note) {
+        if (!confirm(`Delete "${note.lang1}" - "${note.lang2}"?`)) {
+            return;
+        }
+        
+        try {
+            // Delete from database
+            if (supabaseClient) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (user) {
+                    const { error } = await supabaseClient
+                        .from('notes')
+                        .delete()
+                        .eq('user_id', user.id)
+                        .eq('term', note.lang1)
+                        .eq('definition', note.lang2);
                     
-                    const noteWordNormalized = normalizeForComparison(note.lang1);
-                    
-                    // Check if this word already exists (ignoring spaces as requested)
-                    const exists = vocabulary.some(v => {
-                        const vocabWordNormalized = normalizeForComparison(v.lang1);
-                        return vocabWordNormalized === noteWordNormalized;
-                    });
-                    
-                    if (!exists) {
-                        newNotes.push(note);
-                        console.log('✅ saveLiveNotes: New note will be saved:', note.lang1, '-', note.lang2);
-                    } else {
-                        duplicateNotes.push(note);
-                        console.log('❌ saveLiveNotes: Duplicate detected, skipping:', note.lang1, '-', note.lang2);
-                    }
-                }
-                
-                console.log('📊 saveLiveNotes: Summary:', {
-                    totalNotesToProcess: notesToSave.length,
-                    newUniqueNotes: newNotes.length,
-                    duplicatesFound: duplicateNotes.length
-                });
-                
-                // Show user feedback about duplicates
-                if (duplicateNotes.length > 0) {
-                    const duplicateList = duplicateNotes.map(note => `"${note.lang1}"`).join(', ');
-                    if (newNotes.length > 0) {
-                        alert(`Found ${duplicateNotes.length} duplicate(s) that won't be saved: ${duplicateList}\n\nSaving ${newNotes.length} new word(s).`);
-                    } else {
-                        alert(`All ${duplicateNotes.length} word(s) already exist in your vocabulary: ${duplicateList}\n\nNothing to save.`);
-                    }
-                }
-                
-                if (newNotes.length === 0) {
-                    console.log('⚠️ saveLiveNotes: All notes already exist in database');
-                    pendingChanges = false;
-                    updateSaveStatus();
-                    return;
-                }
-                
-                // Save to database
-                console.log('💾 saveLiveNotes: Calling saveNotes with', newNotes.length, 'new notes...');
-                const success = await saveNotes(newNotes);
-                
-                if (success) {
-                    console.log(`✅ saveLiveNotes: Successfully saved ${newNotes.length} new notes`);
-                    
-                    // Show user feedback
-                    alert(`Successfully saved ${newNotes.length} new vocabulary notes!`);
-                    
-                    // Mark saved notes
-                    liveNotesData.forEach(note => {
-                        note.saved = true;
-                    });
-                    
-                    pendingChanges = false;
-                    updateSaveStatus();
-                    updateLineAndParsedCounts();
-                    
-                    // Refresh vocabulary
-                    console.log('🔄 saveLiveNotes: Refreshing vocabulary from database...');
-                    await fetchNotes();
-                } else {
-                    console.error('❌ saveLiveNotes: Failed to save notes');
-                    // Update status to show error
-                    if (saveStatus) {
-                        saveStatus.textContent = 'Save failed';
-                        saveStatus.className = 'text-sm text-red-600';
+                    if (error) {
+                        console.error('Error deleting note from database:', error);
+                        alert('Error deleting note from database');
+                        return;
                     }
                 }
             }
             
-            function clearAllLiveNotes() {
-                if (confirm('Are you sure you want to clear all notes? Unsaved changes will be lost.')) {
-                    liveNotesData = [];
-                    notepadContent = '';
-                    liveNotesTextarea.value = '';
-                    pendingChanges = false;
-                    updateSaveStatus();
-                    updateLineAndParsedCounts();
-                    liveNotesTextarea.focus();
-                }
-            }
-            async function handleFileUpload(droppedFile = null) {
-                console.log('handleFileUpload called');
-                
-                // Prevent file upload during authentication process
-                if (isAuthenticating) {
-                    console.log('handleFileUpload: Blocked during authentication process');
-                    return;
-                }
-                
-                const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
-                if (!file) {
-                    uploadStatus.textContent = 'Please select or drop a CSV file.';
-                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                    return;
-                }
-
-                if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
-                    uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
-                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                    return;
-                }
-
-                csvUploadedTargetLanguage = targetLanguageSelector.value;
-                uploadStatus.textContent = 'Processing CSV file...';
-                uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
-
-                const reader = new FileReader();
-                reader.onload = async function(event) {
-                    try {
-                         console.log('FileReader loaded:', event.target.result.slice(0,100)); // <--- add preview
-                        const parsedNotes = parseCSV(event.target.result);
-                           console.log('Parsed notes:', parsedNotes); // <--- add
-                        if (parsedNotes.length > 0) {
-                            uploadStatus.textContent = 'Saving notes to your account...';
-                            uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
-                            const success = await saveNotes(parsedNotes);
-                            if (success) {
-                                await fetchNotes();
-                                uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
-                                uploadStatus.className = 'text-sm text-green-600 mt-2 h-5';
-                                isEssentialsMode = false;
-                                setTimeout(() => {
-                                    uploadSection.classList.add('hidden');
-                                    showGameSelection();
-                                }, 1500);
-                            }
-                        } else {
-                            uploadStatus.textContent = 'No vocabulary found. Check file format.';
-                            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                        }
-                    } catch (error) {
-                        uploadStatus.textContent = 'Error processing CSV file.';
-                        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                        console.error("Error processing CSV:", error);
-                    }
-                };
-                reader.onerror = () => {
-                    uploadStatus.textContent = 'Error reading file.';
-                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-                };
-                reader.readAsText(file);
-            }
-
-            // --- NOTES MANAGEMENT FUNCTIONS ---
-            function initializeNotesManagement() {
-                console.log('📚 initializeNotesManagement: Opening notes management interface');
-                console.log('📚 initializeNotesManagement: Current vocabulary state:', {
-                    vocabularyLength: vocabulary.length,
-                    vocabularyType: typeof vocabulary,
-                    vocabularyIsArray: Array.isArray(vocabulary),
-                    sampleVocab: vocabulary.slice(0, 2)
-                });
-                
-                // Get modal elements
-                const notesManagementModal = document.getElementById('notesManagementModal');
-                const notesCount = document.getElementById('notesCount');
-                const notesList = document.getElementById('notesList');
-                const noNotesMessage = document.getElementById('noNotesMessage');
-                const notesSearchInput = document.getElementById('notesSearchInput');
-                
-                if (!notesManagementModal) {
-                    console.error('❌ initializeNotesManagement: Notes management modal not found');
-                    return;
-                }
-                
-                console.log('📚 initializeNotesManagement: Modal elements found, setting up interface');
-                
-                // Update notes count
-                if (notesCount) {
-                    notesCount.textContent = vocabulary.length;
-                    console.log('📚 initializeNotesManagement: Set notes count to:', vocabulary.length);
-                }
-                
-                // Populate notes list
-                console.log('📚 initializeNotesManagement: Calling populateNotesList...');
-                populateNotesList();
-                
-                // Setup search functionality
-                if (notesSearchInput) {
-                    notesSearchInput.addEventListener('input', filterNotes);
-                    console.log('📚 initializeNotesManagement: Search functionality setup complete');
-                }
-                
-                // Show modal
-                notesManagementModal.classList.remove('hidden');
-                console.log('📚 initializeNotesManagement: Modal shown');
+            // Remove from vocabulary array
+            vocabulary.splice(index, 1);
+            
+            // Update UI
+            const notesCount = document.getElementById('notesCount');
+            if (notesCount) {
+                notesCount.textContent = vocabulary.length;
             }
             
-            function populateNotesList(searchTerm = '') {
-                console.log('📝 populateNotesList: Starting with searchTerm:', searchTerm);
-                console.log('📝 populateNotesList: Current vocabulary state:', {
-                    vocabularyLength: vocabulary.length,
-                    vocabularyType: typeof vocabulary,
-                    vocabularyIsArray: Array.isArray(vocabulary),
-                    sampleVocab: vocabulary.slice(0, 2)
-                });
-                
-                const notesList = document.getElementById('notesList');
-                const noNotesMessage = document.getElementById('noNotesMessage');
-                
-                if (!notesList) {
-                    console.error('❌ populateNotesList: notesList element not found');
-                    return;
-                }
-                
-                // Clear existing content
-                notesList.innerHTML = '';
-                
-                // Filter vocabulary based on search term
-                const filteredVocab = vocabulary.filter(note => {
-                    if (!searchTerm) return true;
-                    const term = searchTerm.toLowerCase();
-                    return note.lang1.toLowerCase().includes(term) || 
-                           note.lang2.toLowerCase().includes(term);
-                });
-                
-                console.log('📝 populateNotesList: Filtered vocabulary:', {
-                    originalCount: vocabulary.length,
-                    filteredCount: filteredVocab.length,
-                    searchTerm,
-                    sampleFiltered: filteredVocab.slice(0, 2)
-                });
-                
-                if (filteredVocab.length === 0) {
-                    console.log('📝 populateNotesList: No filtered vocabulary, showing no notes message');
-                    if (noNotesMessage) {
-                        noNotesMessage.classList.remove('hidden');
-                        noNotesMessage.textContent = searchTerm ? 'No notes match your search.' : 'No notes found. Upload a CSV file or use Study Essentials to get started!';
-                    }
-                    return;
-                }
-                
-                if (noNotesMessage) {
-                    noNotesMessage.classList.add('hidden');
-                }
-                
-                console.log('📝 populateNotesList: Creating note items for', filteredVocab.length, 'notes');
-                
-                // Create note items
-                filteredVocab.forEach((note, filteredIndex) => {
-                    // Find the original index in the vocabulary array
-                    const originalIndex = vocabulary.findIndex(v => v.lang1 === note.lang1 && v.lang2 === note.lang2);
-                    
-                    console.log('📝 populateNotesList: Creating item', filteredIndex, 'originalIndex:', originalIndex, 'note:', note);
-                    
-                    const noteItem = document.createElement('div');
-                    noteItem.className = 'note-item p-3 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100';
-                    
-                    const noteContent = document.createElement('div');
-                    noteContent.className = 'flex-1 cursor-pointer';
-                    noteContent.innerHTML = `
-                        <div class="flex items-center space-x-3">
-                            <div class="flex-1">
-                                <span class="font-medium text-gray-900 click-to-speak" data-text="${note.lang1}" data-lang="${csvUploadedTargetLanguage}">${note.lang1}</span>
-                                <span class="text-gray-600 mx-2">—</span>
-                                <span class="text-gray-700 click-to-speak" data-text="${note.lang2}" data-lang="en">${note.lang2}</span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // Add click-to-speak functionality
-                    noteContent.addEventListener('click', (e) => {
-                        if (e.target.classList.contains('click-to-speak')) {
-                            const text = e.target.dataset.text;
-                            const lang = e.target.dataset.lang;
-                            console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
-                            speakText(text, lang);
-                        }
-                    });
-                    
-                    // Add delete button
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded';
-                    deleteBtn.innerHTML = '✕';
-                    deleteBtn.title = 'Delete note';
-                    deleteBtn.addEventListener('click', () => {
-                        console.log('🗑️ populateNotesList: Delete button clicked for note:', note);
-                        deleteNote(originalIndex, note);
-                    });
-                    
-                    noteItem.appendChild(noteContent);
-                    noteItem.appendChild(deleteBtn);
-                    
-                    // Add swipe-to-delete for mobile
-                    let startX = 0;
-                    let currentX = 0;
-                    let isDragging = false;
-                    
-                    noteItem.addEventListener('touchstart', (e) => {
-                        startX = e.touches[0].clientX;
-                        isDragging = true;
-                    }, { passive: true });
-                    
-                    noteItem.addEventListener('touchmove', (e) => {
-                        if (!isDragging) return;
-                        currentX = e.touches[0].clientX;
-                        const diffX = startX - currentX;
-                        
-                        if (diffX > 50) {
-                            noteItem.style.transform = `translateX(-${Math.min(diffX, 100)}px)`;
-                            noteItem.style.backgroundColor = '#fee2e2';
-                        }
-                    }, { passive: true });
-                    
-                    noteItem.addEventListener('touchend', () => {
-                        if (!isDragging) return;
-                        const diffX = startX - currentX;
-                        
-                        if (diffX > 100) {
-                            console.log('📱 populateNotesList: Swipe delete triggered for note:', note);
-                            deleteNote(originalIndex, note);
-                        } else {
-                            noteItem.style.transform = '';
-                            noteItem.style.backgroundColor = '';
-                        }
-                        isDragging = false;
-                    }, { passive: true });
-                    
-                    notesList.appendChild(noteItem);
-                });
-                
-                console.log('📝 populateNotesList: Successfully created', filteredVocab.length, 'note items');
-            }
+            // Refresh the notes list with current search term
+            const notesSearchInput = document.getElementById('notesSearchInput');
+            const currentSearchTerm = notesSearchInput ? notesSearchInput.value : '';
+            populateNotesList(currentSearchTerm);
             
-            function filterNotes() {
-                const notesSearchInput = document.getElementById('notesSearchInput');
-                const searchTerm = notesSearchInput ? notesSearchInput.value : '';
-                populateNotesList(searchTerm);
-            }
+        } catch (error) {
+            console.error('Error deleting note:', error);
+            alert('Error deleting note');
+        }
+    }
+    
+    function speakText(text, lang = 'en-US') {
+        if ('speechSynthesis' in window) {
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
             
-            async function deleteNote(index, note) {
-                if (!confirm(`Delete "${note.lang1}" - "${note.lang2}"?`)) {
-                    return;
-                }
-                
-                try {
-                    // Delete from database
-                    if (supabaseClient) {
-                        const { data: { user } } = await supabaseClient.auth.getUser();
-                        if (user) {
-                            const { error } = await supabaseClient
-                                .from('notes')
-                                .delete()
-                                .eq('user_id', user.id)
-                                .eq('term', note.lang1)
-                                .eq('definition', note.lang2);
-                            
-                            if (error) {
-                                console.error('Error deleting note from database:', error);
-                                alert('Error deleting note from database');
-                                return;
-                            }
-                        }
-                    }
-                    
-                    // Remove from vocabulary array
-                    vocabulary.splice(index, 1);
-                    
-                    // Update UI
-                    const notesCount = document.getElementById('notesCount');
-                    if (notesCount) {
-                        notesCount.textContent = vocabulary.length;
-                    }
-                    
-                    // Refresh the notes list with current search term
-                    const notesSearchInput = document.getElementById('notesSearchInput');
-                    const currentSearchTerm = notesSearchInput ? notesSearchInput.value : '';
-                    populateNotesList(currentSearchTerm);
-                    
-                } catch (error) {
-                    console.error('Error deleting note:', error);
-                    alert('Error deleting note');
-                }
-            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;
+            utterance.rate = 0.8;
+            utterance.pitch = 1;
             
-            function speakText(text, lang = 'en-US') {
-                if ('speechSynthesis' in window) {
-                    // Cancel any ongoing speech
-                    window.speechSynthesis.cancel();
-                    
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = lang;
-                    utterance.rate = 0.8;
-                    utterance.pitch = 1;
-                    
-                    window.speechSynthesis.speak(utterance);
-                }
-            }
-            
-            function closeNotesManagement() {
-                const notesManagementModal = document.getElementById('notesManagementModal');
-                if (notesManagementModal) {
-                    notesManagementModal.classList.add('hidden');
-                }
-            }
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+    
+    function closeNotesManagement() {
+        const notesManagementModal = document.getElementById('notesManagementModal');
+        if (notesManagementModal) {
+            notesManagementModal.classList.add('hidden');
+        }
+    }
 
-            // --- UI & NAVIGATION ---
-            function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
-            function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
-            function showMainSelection() { 
-                // If user has existing vocabulary, skip main selection and go directly to games
-                if (vocabulary && vocabulary.length > 0) {
-                    console.log('showMainSelection: User has existing vocabulary, redirecting to games');
-                    showGameSelection();
-                    return;
-                }
-                
-                console.log('showMainSelection: Showing main selection interface');
-                console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
-                mainSelectionSection.classList.remove('hidden'); 
-                [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
-                    if (el) el.classList.add('hidden');
-                }); 
-                isEssentialsMode = false; 
-            }
-            function showGameSelection() {
-                console.log('🎮 showGameSelection: Showing game selection interface');
-                console.log('🎮 showGameSelection: Current state:', {
-                    isAuthenticating,
-                    vocabularyLength: vocabulary.length,
-                    vocabularyIsArray: Array.isArray(vocabulary),
-                    vocabulary: vocabulary.slice(0, 2) // Show first 2 items for debugging
-                });
-                
-                if (!isEssentialsMode) {
-                    activeTargetStudyLanguage = csvUploadedTargetLanguage; 
-                    console.log('🌐 showGameSelection: Set activeTargetStudyLanguage to:', activeTargetStudyLanguage);
-                } 
+    // --- UI & NAVIGATION ---
+    function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
+    function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
+    function showMainSelection() { 
+        // If user has existing vocabulary, skip main selection and go directly to games
+        if (vocabulary && vocabulary.length > 0) {
+            console.log('showMainSelection: User has existing vocabulary, redirecting to games');
+            showGameSelection();
+            return;
+        }
+        
+        console.log('showMainSelection: Showing main selection interface');
+        console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
+        mainSelectionSection.classList.remove('hidden'); 
+        [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
+            if (el) el.classList.add('hidden');
+        }); 
+        isEssentialsMode = false; 
+    }
+    function showGameSelection() {
+        console.log('🎮 showGameSelection: Showing game selection interface');
+        console.log('🎮 showGameSelection: Current state:', {
+            isAuthenticating,
+            vocabularyLength: vocabulary.length,
+            vocabularyIsArray: Array.isArray(vocabulary),
+            vocabulary: vocabulary.slice(0, 2) // Show first 2 items for debugging
+        });
+        
+        if (!isEssentialsMode) {
+            activeTargetStudyLanguage = csvUploadedTargetLanguage; 
+            console.log('🌐 showGameSelection: Set activeTargetStudyLanguage to:', activeTargetStudyLanguage);
+        } 
 
-                // Hide all other sections
-                [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea].forEach(el => {
-                    if (el) el.classList.add('hidden');
-                });
-                hideAllGames();
+        // Hide all other sections
+        [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea].forEach(el => {
+            if (el) el.classList.add('hidden');
+        });
+        hideAllGames();
 
-                // Show game selection
-                gameSelectionSection.classList.remove('hidden');
-                fillInTheBlanksBtn.classList.toggle('hidden', !isEssentialsMode); 
-                findTheWordsBtn.classList.remove('hidden'); 
+        // Show game selection
+        gameSelectionSection.classList.remove('hidden');
+        fillInTheBlanksBtn.classList.toggle('hidden', !isEssentialsMode); 
+        findTheWordsBtn.classList.remove('hidden'); 
 
-                const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
-                console.log('🎮 showGameSelection: Active vocabulary details:', {
-                    isEssentialsMode,
-                    activeVocabLength: activeVocab.length,
-                    activeVocabType: typeof activeVocab,
-                    activeVocabIsArray: Array.isArray(activeVocab),
-                    activeVocab: activeVocab.slice(0, 2) // Show sample
-                });
+        const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
+        console.log('🎮 showGameSelection: Active vocabulary details:', {
+            isEssentialsMode,
+            activeVocabLength: activeVocab.length,
+            activeVocabType: typeof activeVocab,
+            activeVocabIsArray: Array.isArray(activeVocab),
+            activeVocab: activeVocab.slice(0, 2) // Show sample
+        });
 
-                if (activeVocab.length === 0) { 
-                    console.log('❌ showGameSelection: No vocabulary found, showing no vocabulary message');
-                    noVocabularyMessage.classList.remove('hidden'); 
-                    gameButtonsContainer.classList.add('hidden'); 
+        if (activeVocab.length === 0) { 
+            console.log('❌ showGameSelection: No vocabulary found, showing no vocabulary message');
+            noVocabularyMessage.classList.remove('hidden'); 
+            gameButtonsContainer.classList.add('hidden'); 
+        } else { 
+            console.log('✅ showGameSelection: Vocabulary found, showing game buttons');
+            noVocabularyMessage.classList.add('hidden'); 
+            gameButtonsContainer.classList.remove('hidden'); 
+        }
+    }
+    function populateEssentialsCategoryButtons() { 
+        essentialsCategoryButtonsContainer.innerHTML = ''; 
+        Object.keys(essentialsVocabularyData).forEach(categoryKey => { 
+            const button = document.createElement('button'); 
+            button.className = 'btn essentials-category-btn p-3 sm:p-4 text-sm sm:text-md'; 
+            button.textContent = categoryKey; 
+            button.addEventListener('click', () => { 
+                currentEssentialsCategoryName = categoryKey; 
+                isEssentialsMode = true; 
+                if (categoryKey.toLowerCase().includes("(en-es)")) { 
+                    activeTargetStudyLanguage = 'es-ES'; 
+                } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
+                    activeTargetStudyLanguage = 'fr-FR'; 
                 } else { 
-                    console.log('✅ showGameSelection: Vocabulary found, showing game buttons');
-                    noVocabularyMessage.classList.add('hidden'); 
-                    gameButtonsContainer.classList.remove('hidden'); 
-                }
-            }
-            function populateEssentialsCategoryButtons() { 
-                essentialsCategoryButtonsContainer.innerHTML = ''; 
-                Object.keys(essentialsVocabularyData).forEach(categoryKey => { 
-                    const button = document.createElement('button'); 
-                    button.className = 'btn essentials-category-btn p-3 sm:p-4 text-sm sm:text-md'; 
-                    button.textContent = categoryKey; 
-                    button.addEventListener('click', () => { 
-                        currentEssentialsCategoryName = categoryKey; 
-                        isEssentialsMode = true; 
-                        if (categoryKey.toLowerCase().includes("(en-es)")) { 
-                            activeTargetStudyLanguage = 'es-ES'; 
-                        } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
-                            activeTargetStudyLanguage = 'fr-FR'; 
-                        } else { 
-                            activeTargetStudyLanguage = 'en-US'; 
-                        } 
-                        currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({
-                            ...item, 
-                            originalIndex: index, 
-                            correctCount: item.correctCount || 0 
-                        })); 
-                        essentialsOptionsTitle.textContent = `Category: ${categoryKey}`; 
-                        essentialsCategorySelectionSection.classList.add('hidden'); 
-                        essentialsCategoryOptionsSection.classList.remove('hidden'); 
-                    }); 
-                    essentialsCategoryButtonsContainer.appendChild(button); 
-                }); 
-            }
+                    activeTargetStudyLanguage = 'en-US'; 
+                } 
+                currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({
+                    ...item, 
+                    originalIndex: index, 
+                    correctCount: item.correctCount || 0 
+                })); 
+                essentialsOptionsTitle.textContent = `Category: ${categoryKey}`; 
+                essentialsCategorySelectionSection.classList.add('hidden'); 
+                essentialsCategoryOptionsSection.classList.remove('hidden'); 
+            }); 
+            essentialsCategoryButtonsContainer.appendChild(button); 
+        }); 
+    }
 
-            function showPartSelection(gameType) {
-                const sourceForParts = isEssentialsMode ? currentVocabularyPart : vocabulary;
-                if (sourceForParts.length === 0) { 
-                    noVocabularyMessage.classList.remove('hidden'); 
-                    gameArea.classList.remove('hidden'); 
-                    [partSelectionContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage].forEach(el => el.classList.add('hidden')); 
-                    return; 
-                }
-                gameTitle.textContent = gameType.charAt(0).toUpperCase() + gameType.slice(1).replace(/([A-Z])/g, ' $1');
-                [uploadSection, gameSelectionSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, mainSelectionSection].forEach(el => el.classList.add('hidden'));
-                gameArea.classList.remove('hidden');
-                partSelectionContainer.classList.remove('hidden');
-                hideAllGames();
-                partButtonsContainer.innerHTML = '';
-                const numParts = Math.ceil(sourceForParts.length / ITEMS_PER_PART);
-                const fullMixButton = document.createElement('button');
-                fullMixButton.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
-                fullMixButton.textContent = `Full Mix (${sourceForParts.length} items)`;
-                fullMixButton.addEventListener('click', () => { 
-                    currentVocabularyPart = [...sourceForParts]; 
-                    currentPartName = "Full Mix"; 
+    function showPartSelection(gameType) {
+        const sourceForParts = isEssentialsMode ? currentVocabularyPart : vocabulary;
+        if (sourceForParts.length === 0) { 
+            noVocabularyMessage.classList.remove('hidden'); 
+            gameArea.classList.remove('hidden'); 
+            [partSelectionContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage].forEach(el => el.classList.add('hidden')); 
+            return; 
+        }
+        gameTitle.textContent = gameType.charAt(0).toUpperCase() + gameType.slice(1).replace(/([A-Z])/g, ' $1');
+        [uploadSection, gameSelectionSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, mainSelectionSection].forEach(el => el.classList.add('hidden'));
+        gameArea.classList.remove('hidden');
+        partSelectionContainer.classList.remove('hidden');
+        hideAllGames();
+        partButtonsContainer.innerHTML = '';
+        const numParts = Math.ceil(sourceForParts.length / ITEMS_PER_PART);
+        const fullMixButton = document.createElement('button');
+        fullMixButton.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
+        fullMixButton.textContent = `Full Mix (${sourceForParts.length} items)`;
+        fullMixButton.addEventListener('click', () => { 
+            currentVocabularyPart = [...sourceForParts]; 
+            currentPartName = "Full Mix"; 
+            startGame(gameType); 
+        });
+        partButtonsContainer.appendChild(fullMixButton);
+        if (!isEssentialsMode && numParts > 1 && sourceForParts.length > ITEMS_PER_PART) {
+            for (let i = 0; i < numParts; i++) {
+                const start = i * ITEMS_PER_PART;
+                const end = start + ITEMS_PER_PART;
+                const partVocab = sourceForParts.slice(start, end);
+                if (partVocab.length === 0) continue;
+                const button = document.createElement('button');
+                button.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
+                button.textContent = `Part ${i + 1} (Items ${start + 1}-${Math.min(end, sourceForParts.length)})`;
+                button.addEventListener('click', () => { 
+                    currentVocabularyPart = partVocab; 
+                    currentPartName = `Part ${i + 1}`; 
                     startGame(gameType); 
                 });
-                partButtonsContainer.appendChild(fullMixButton);
-                if (!isEssentialsMode && numParts > 1 && sourceForParts.length > ITEMS_PER_PART) {
-                    for (let i = 0; i < numParts; i++) {
-                        const start = i * ITEMS_PER_PART;
-                        const end = start + ITEMS_PER_PART;
-                        const partVocab = sourceForParts.slice(start, end);
-                        if (partVocab.length === 0) continue;
-                        const button = document.createElement('button');
-                        button.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
-                        button.textContent = `Part ${i + 1} (Items ${start + 1}-${Math.min(end, sourceForParts.length)})`;
-                        button.addEventListener('click', () => { 
-                            currentVocabularyPart = partVocab; 
-                            currentPartName = `Part ${i + 1}`; 
-                            startGame(gameType); 
-                        });
-                        partButtonsContainer.appendChild(button);
-                    }
-                }
+                partButtonsContainer.appendChild(button);
             }
+        }
+    }
 
-            function startGame(gameType) {
-                if (!audioInitialized) initializeAudio();
-                partSelectionContainer.classList.add('hidden');
-                resetGameStats();
-                switch (gameType) {
-                    case 'matching': initMatchingGame(); break;
-                    case 'multipleChoice': initMultipleChoiceGame(); break;
-                    case 'typeTranslation': initTypeTranslationGame(); break;
-                    case 'talkToMe': initTalkToMeGame(); break;
-                    case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
-                    case 'findTheWords': initFindTheWordsGame(); break;
-                }
-            }
+    function startGame(gameType) {
+        if (!audioInitialized) initializeAudio();
+        partSelectionContainer.classList.add('hidden');
+        resetGameStats();
+        switch (gameType) {
+            case 'matching': initMatchingGame(); break;
+            case 'multipleChoice': initMultipleChoiceGame(); break;
+            case 'typeTranslation': initTypeTranslationGame(); break;
+            case 'talkToMe': initTalkToMeGame(); break;
+            case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
+            case 'findTheWords': initFindTheWordsGame(); break;
+        }
+    }
 
-            // --- HELPER & CORE GAME MECHANICS ---
-            function shuffleArray(array) { 
-                const newArray = [...array]; 
-                for (let i = newArray.length - 1; i > 0; i--) { 
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; 
-                } 
-                return newArray; 
-            }
-            function normalizeText(text) { 
-                return text.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,""); 
-            }
-            function updateScoreDisplay() { 
-                currentScoreDisplay.textContent = `Score: ${currentScore}`; 
-                maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; 
-            }
+    // --- HELPER & CORE GAME MECHANICS ---
+    function shuffleArray(array) { 
+        const newArray = [...array]; 
+        for (let i = newArray.length - 1; i > 0; i--) { 
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; 
+        } 
+        return newArray; 
+    }
+    function normalizeText(text) { 
+        return text.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,""); 
+    }
+    function updateScoreDisplay() { 
+        currentScoreDisplay.textContent = `Score: ${currentScore}`; 
+        maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; 
+    }
             function setupMistakeTracker() { 
                 mistakeTrackerDiv.innerHTML = ''; 
                 for (let i = 0; i < MAX_MISTAKES; i++) { 
