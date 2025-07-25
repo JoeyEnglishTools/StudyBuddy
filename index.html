@@ -300,6 +300,140 @@
             }
         }
 
+        /* Notes Management Modal Styles */
+        #notesManagementModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #notesManagementContainer {
+            width: 95%;
+            max-width: 900px;
+            height: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .note-item {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            padding: 12px 16px;
+            background-color: white;
+            transition: background-color 0.2s;
+        }
+
+        .note-item:hover {
+            background-color: #f8fafc;
+        }
+
+        .note-content {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .note-word {
+            font-weight: 600;
+            color: #0d9488;
+            cursor: pointer;
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+
+        .note-word:hover {
+            color: #0f766e;
+            text-decoration: underline;
+        }
+
+        .note-separator {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .note-definition {
+            color: #374151;
+            flex-grow: 1;
+            min-width: 0;
+            word-wrap: break-word;
+        }
+
+        .note-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .note-delete-btn {
+            color: #ef4444;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .note-delete-btn:hover {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .note-speak-btn {
+            color: #0d9488;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .note-speak-btn:hover {
+            background-color: #f0fdfa;
+            color: #0f766e;
+        }
+
+        /* Swipe to delete styles for mobile */
+        @media (max-width: 768px) {
+            .note-item {
+                position: relative;
+                transform: translateX(0);
+                transition: transform 0.3s ease;
+            }
+
+            .note-item.swiping {
+                transform: translateX(-80px);
+            }
+
+            .note-item.swiping::after {
+                content: "Delete";
+                position: absolute;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 80px;
+                background-color: #ef4444;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                font-weight: 600;
+            }
+        }
+
         /* Live Notes Modal Styles */
         #liveNotesModal {
             position: fixed;
@@ -330,9 +464,10 @@
             border-radius: 0.5rem;
             padding: 1rem;
             width: 100%;
-            height: calc(100% - 120px); /* Leave space for header and controls */
+            height: calc(100% - 80px); /* Reduced top space to give more room to textarea */
             font-size: 1.2rem;
             resize: none;
+            min-height: 70vh; /* Ensure minimum height takes most of the screen */
         }
 
         #liveNotesTextarea:focus {
@@ -701,6 +836,50 @@
                 <p id="gameOverMessage" class="text-center text-xl sm:text-2xl font-bold text-red-600 my-4 sm:my-6 hidden"></p>
                 <p id="noVocabularyMessage" class="text-center text-red-500 hidden">Please upload a vocabulary list first.</p>
             </section>
+
+            <!-- Notes Management Modal -->
+            <div id="notesManagementModal" class="hidden">
+                <div id="notesManagementContainer" class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-teal-700">📚 Add / Manage Notes</h2>
+                        <button id="closeNotesManagementBtn" class="btn btn-secondary text-sm py-1 px-3">✕ Close</button>
+                    </div>
+                    
+                    <!-- Upload Options Section -->
+                    <div id="notesManagementUploadSection" class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Add New Notes</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button id="notesUploadCsvBtn" class="btn btn-primary p-3 text-sm">📄 Upload CSV File</button>
+                            <button id="notesStudyEssentialsBtn" class="btn btn-primary p-3 text-sm">📖 Study Essentials</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Existing Notes Section -->
+                    <div id="notesManagementExistingSection" class="mb-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-lg font-semibold text-gray-700">Your Notes (<span id="notesCount">0</span>)</h3>
+                            <div class="relative">
+                                <input type="text" id="notesSearchInput" placeholder="Search notes..." 
+                                       class="form-input text-sm py-2 pl-8 pr-3 w-64">
+                                <svg class="w-4 h-4 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" 
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <div id="notesListContainer" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
+                            <div id="notesList" class="divide-y divide-gray-100">
+                                <!-- Notes will be populated here -->
+                            </div>
+                            <div id="noNotesMessage" class="p-8 text-center text-gray-500 hidden">
+                                No notes found. Upload a CSV file or use Study Essentials to get started!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Live Notes Modal -->
             <div id="liveNotesModal" class="hidden">
