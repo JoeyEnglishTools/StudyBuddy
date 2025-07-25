@@ -312,10 +312,10 @@
         }
 
         #liveNotesContainer {
-            width: 90%;
-            max-width: 800px;
-            height: 90%;
-            max-height: 90vh;
+            width: 95%;
+            max-width: 1000px;
+            height: 95%;
+            max-height: 95vh;
         }
 
         #liveNotesTextarea {
@@ -327,7 +327,7 @@
             border-radius: 0.5rem;
             padding: 1rem;
             width: 100%;
-            height: calc(100% - 60px); /* Leave space for buttons */
+            height: calc(100% - 140px); /* Leave more space for buttons and controls */
             font-size: 1.1rem;
             resize: none;
         }
@@ -362,6 +362,11 @@
             select, textarea, input[type="text"], input[type="email"] {
                 font-size: 16px;
             }
+        }
+        
+        /* Helper class used by JS to hide/show elements */
+        .hidden {
+            display: none !important;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
