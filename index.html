@@ -610,6 +610,29 @@
                     <button id="logoutBtn" class="btn btn-danger text-sm py-2 px-3">Logout</button>
                 </div>
             </div>
+            <!-- Add this right after your logout button in the HTML -->
+<button id="debugBtn" class="btn btn-outline text-sm py-2 px-3">🔍 Debug</button>
+
+<script>
+  // Add this to your event listeners section
+  document.getElementById('debugBtn').addEventListener('click', async function() {
+    console.log('--- DEBUG INFO ---');
+    console.log('Supabase client:', !!supabaseClient);
+    
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      console.log('Active session:', !!session);
+      console.log('User ID:', session?.user?.id);
+      
+      // Test database connection
+      const testResult = await testDatabaseConnection();
+      alert(`Database test result: ${testResult ? 'SUCCESS' : 'FAILED'}\nCheck console for details`);
+    } catch (e) {
+      console.error('Debug error:', e);
+      alert('Debug error: ' + e.message);
+    }
+  });
+</script>
             <section id="mainSelectionSection" class="card non-interactive-card mb-6 sm:mb-8">
                 <h2 class="text-xl sm:text-2xl font-semibold text-teal-700 mb-4">Get Started</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
