@@ -1,0 +1,1493 @@
+        // Comprehensive Cache-Busting Script
+        (function() {
+            // Static build version - update this when making changes
+            const BUILD_VERSION = '2025-01-24-v1.2.0';
+            const timestamp = Date.now();
+            const randomId = Math.random().toString(36).substr(2, 9);
+            console.log('Cache-busting applied with timestamp:', timestamp, 'randomId:', randomId);
+
+            // Clear all types of browser cache
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                        console.log('Unregistered service worker');
+                    }
+                });
+            }
+
+            // Clear application cache (deprecated but still used by some browsers)
+            if ('applicationCache' in window) {
+                try {
+                    window.applicationCache.swapCache();
+                    console.log('Application cache swapped');
+                } catch(e) {
+                    console.log('Application cache not available');
+                }
+            }
+
+            // Add cache-busting to current URL if not already present
+            if (!window.location.search.includes('cb=')) {
+                const separator = window.location.search ? '&' : '?';
+                const newUrl = window.location.href + separator + 'cb=' + timestamp + '_' + randomId;
+                history.replaceState(null, '', newUrl);
+            }
+
+            // Force hard reload with specific key combination hint
+            const showCacheWarning = () => {
+                if (sessionStorage.getItem('cacheWarningShown') !== 'true') {
+                    console.warn('🔄 CACHE NOTICE: If you see old content, press Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac) to force refresh');
+                    sessionStorage.setItem('cacheWarningShown', 'true');
+                }
+            };
+
+            // Add meta tag with build version
+            const meta = document.createElement('meta');
+            meta.setAttribute('name', 'app-version');
+            meta.setAttribute('content', BUILD_VERSION);
+            document.head.appendChild(meta);
+
+            // Show cache warning after page loads
+            window.addEventListener('load', showCacheWarning);
+
+            // Clear localStorage cache indicators on unload
+            window.addEventListener('beforeunload', () => {
+                try {
+                    // Clear any cached flags
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('sb_cache_') || key.startsWith('studybuddy_cache_')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                } catch(e) {
+                    console.log('LocalStorage cleanup skipped');
+                }
+            });
+
+        })();
+
+        document.addEventListener('DOMContentLoaded', () => {     
+
+            // Initialize cache status display
+            const initializeCacheStatus = () => {
+                const versionDisplay = document.getElementById('appVersionDisplay');
+                const refreshButton = document.getElementById('forceCacheRefresh');
+                const buildVersion = document.querySelector('meta[name="app-version"]')?.content || 'Unknown';
+
+
+                if (versionDisplay) {
+                    versionDisplay.textContent = buildVersion;
+                }
+
+                if (refreshButton) {
+                    refreshButton.addEventListener('click', () => {
+                        console.log('Force refresh requested by user');
+                        // Clear all storage
+                        try {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                        } catch(e) {
+                            console.log('Storage clear failed:', e);
+                        }
+                        // Force hard reload
+                        window.location.reload(true);
+                    });
+                }
+            };
+
+            initializeCacheStatus();
+
+            // --- Supabase Client Setup ---
+            let supabaseClient = null;
+            try {
+                if (typeof supabase !== 'undefined') {
+                    const { createClient } = supabase;
+                    const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
+                    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
+                    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('Supabase client initialized successfully');
+                } else {
+                    console.error('Supabase library not available');
+                }
+            } catch (error) {
+                console.error('Error initializing Supabase client:', error);
+            }
+
+            // --- STATE & CONSTANTS ---
+            const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
+            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
+            let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
+            let isEssentialsMode = false, currentEssentialsCategoryName = "";
+            let audioInitialized = false;
+            let mcqAnswered = false, typeTranslationAnswered = false, fillBlanksAnswered = false;
+            let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0;
+            let findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [];
+            let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
+            
+            // Live Notes state
+            let liveNotesData = [], currentActiveInput = null, autoAdvanceTimer = null, autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
+
+            // --- ELEMENT SELECTORS ---
+            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
+            
+            // Live Notes elements
+            const liveNotesInterface = document.getElementById('liveNotesInterface'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), targetLanguageColumn = document.getElementById('targetLanguageColumn'), translationColumn = document.getElementById('translationColumn'), newLineBtn = document.getElementById('newLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), cloudSaveIcon = document.getElementById('cloudSaveIcon'), saveStatus = document.getElementById('saveStatus');
+            const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
+            const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
+            const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
+            const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
+            const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
+
+            // --- DATA ---
+            const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
+            Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
+
+            // --- AUTHENTICATION & DATA FUNCTIONS ---
+            function toggleAuthMode() {
+                isSignUp = !isSignUp;
+                authError.textContent = '';
+                authForm.reset();
+                authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+                authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+                authToggleText.innerHTML = isSignUp
+                    ? `Already have an account? <span class="toggle-auth-link">Login</span>`
+                    : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+            }
+
+            async function fetchNotes(retryCount = 0) {
+                console.log('fetchNotes: Starting to fetch notes... (attempt', retryCount + 1, ')');
+
+                // Check if Supabase client is available
+                if (!supabaseClient) {
+                    console.error('fetchNotes: Supabase client not available');
+                    vocabulary = [];
+                    return false;
+                }
+
+                try {
+                    // Wait a short time for auth to stabilize
+                    if (retryCount === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+
+                    console.log('fetchNotes: Getting user authentication...');
+                    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+                    if (userError) {
+                        console.error('fetchNotes: Error getting user:', userError);
+                        // Retry once if we get an auth error
+                        if (retryCount === 0) {
+                            console.log('fetchNotes: Retrying due to auth error...');
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            return await fetchNotes(retryCount + 1);
+                        }
+                        vocabulary = [];
+                        return false;
+                    }
+
+                    if (!user) {
+                        console.log('fetchNotes: No user found');
+                        vocabulary = [];
+                        return false;
+                    }
+                    console.log('fetchNotes: User found, fetching notes for user:', user.id);
+
+                    console.log('fetchNotes: Executing database query...');
+                    const { data, error } = await supabaseClient
+                        .from('notes')
+                        .select('term, definition, term_lang')
+                        .eq('user_id', user.id);
+
+                    console.log('fetchNotes: Database query completed. Error:', error, 'Data count:', data ? data.length : 0);
+
+                    if (error) {
+                        console.error('fetchNotes: Error fetching notes:', error);
+                        // Retry once if we get a database error
+                        if (retryCount === 0) {
+                            console.log('fetchNotes: Retrying due to database error...');
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            return await fetchNotes(retryCount + 1);
+                        }
+                        vocabulary = [];
+                        return false;
+                    }
+
+                    if (!data || data.length === 0) {
+                        console.log('fetchNotes: No notes found in database');
+                        vocabulary = [];
+                        return false;
+                    }
+
+                    console.log('fetchNotes: Processing', data.length, 'notes from database...');
+
+                    // Get the target language from the first note (assuming all notes use same language)
+                    const targetLanguage = data[0]?.term_lang || 'en-US';
+                    console.log('fetchNotes: Setting target language to:', targetLanguage);
+                    csvUploadedTargetLanguage = targetLanguage;
+
+                    vocabulary = data.map((note, index) => ({
+                        lang1: note.term,
+                        lang2: note.definition,
+                        originalIndex: index,
+                    }));
+
+                    console.log('fetchNotes: Successfully loaded', vocabulary.length, 'notes with target language:', targetLanguage);
+                    console.log('fetchNotes: Sample vocabulary:', vocabulary.slice(0, 2));
+
+                    return vocabulary.length > 0;
+
+                } catch (err) {
+                    console.error('fetchNotes: Unexpected error:', err);
+                    console.error('fetchNotes: Error stack:', err.stack);
+                    
+                    // Retry once if we get an unexpected error
+                    if (retryCount === 0) {
+                        console.log('fetchNotes: Retrying due to unexpected error...');
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return await fetchNotes(retryCount + 1);
+                    }
+                    
+                    vocabulary = [];
+                    return false;
+                }
+            }
+
+            function parseCSV(csvData) {
+                const parsed = [];
+                const lines = csvData.split(/\r\n|\n/);
+
+                // Skip header row if it exists
+                const startIndex = lines.length > 0 && lines[0].toLowerCase().includes('word') ? 1 : 0;
+
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line === '') continue;
+
+                    const parts = [];
+                    let currentField = '';
+                    let inQuotedField = false;
+
+                    for (let j = 0; j < line.length; j++) {
+                        const char = line[j];
+                        if (char === '"') {
+                            if (inQuotedField && j + 1 < line.length && line[j + 1] === '"') {
+                                currentField += '"';
+                                j++; 
+                            } else {
+                                inQuotedField = !inQuotedField;
+                            }
+                        } else if (char === ',' && !inQuotedField) {
+                            parts.push(currentField.trim());
+                            currentField = '';
+                        } else {
+                            currentField += char;
+                        }
+                    }
+                    parts.push(currentField.trim()); 
+
+                    if (parts.length >= 2 && parts[0] && parts[1]) {
+                        parsed.push({
+                            lang1: parts[0],
+                            lang2: parts[1]
+                        });
+                    }
+                }
+                return parsed;
+            }
+
+async function saveNotes(notesToSave) {
+    console.log('saveNotes called with:', notesToSave);
+
+    const userResult = await supabaseClient.auth.getUser();
+    console.log('userResult:', userResult);
+
+    const user = userResult?.data?.user;
+    if (!user) {
+        uploadStatus.textContent = 'You must be logged in to save notes.';
+        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        return false;
+    }
+
+    const notesWithUser = notesToSave.map(note => ({
+        user_id: user.id,
+        term: note.lang1,
+        definition: note.lang2,
+        term_lang: csvUploadedTargetLanguage,
+        definition_lang: 'en'
+    }));
+    console.log('Inserting into supabase:', notesWithUser);
+
+    const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
+    console.log('Supabase insert result:', data, error);
+
+    if (error) {
+        console.error('Error saving notes:', error);
+        uploadStatus.textContent = 'Error saving notes: ' + error.message;
+        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        return false;
+    }
+    return true;
+}
+
+            // --- LIVE NOTES FUNCTIONS ---
+            function initializeLiveNotes() {
+                // Prevent zooming on mobile devices when Live Notes is active
+                const viewport = document.querySelector('meta[name="viewport"]');
+                if (viewport) {
+                    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                }
+                
+                // Initialize first line
+                addNewNoteLine();
+                
+                // Start auto-save timer
+                startAutoSaveTimer();
+                
+                // Show interface
+                liveNotesInterface.classList.remove('hidden');
+            }
+            
+            function closeLiveNotes() {
+                // Reset viewport to allow zooming
+                const viewport = document.querySelector('meta[name="viewport"]');
+                if (viewport) {
+                    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+                }
+                
+                // Clear timers
+                if (autoAdvanceTimer) {
+                    clearTimeout(autoAdvanceTimer);
+                    autoAdvanceTimer = null;
+                }
+                if (autoSaveTimer) {
+                    clearInterval(autoSaveTimer);
+                    autoSaveTimer = null;
+                }
+                
+                // Hide interface
+                liveNotesInterface.classList.add('hidden');
+                
+                // Save any pending changes
+                if (pendingChanges) {
+                    saveLiveNotes();
+                }
+            }
+            
+            function addNewNoteLine() {
+                const lineIndex = liveNotesData.length;
+                
+                // Add to data array
+                liveNotesData.push({
+                    targetLang: '',
+                    translation: '',
+                    saved: false
+                });
+                
+                // Create target language input
+                const targetInput = document.createElement('textarea');
+                targetInput.className = 'live-notes-input';
+                targetInput.placeholder = 'Write word/phrase here...';
+                targetInput.dataset.lineIndex = lineIndex;
+                targetInput.dataset.column = 'target';
+                
+                // Create translation input
+                const translationInput = document.createElement('textarea');
+                translationInput.className = 'live-notes-input';
+                translationInput.placeholder = 'Write translation/definition here...';
+                translationInput.dataset.lineIndex = lineIndex;
+                translationInput.dataset.column = 'translation';
+                
+                // Add event listeners
+                [targetInput, translationInput].forEach(input => {
+                    input.addEventListener('input', handleLiveNotesInput);
+                    input.addEventListener('focus', handleLiveNotesFocus);
+                    input.addEventListener('blur', handleLiveNotesBlur);
+                });
+                
+                // Add to columns
+                targetLanguageColumn.appendChild(targetInput);
+                translationColumn.appendChild(translationInput);
+                
+                // Focus on target input
+                targetInput.focus();
+                currentActiveInput = targetInput;
+            }
+            
+            function handleLiveNotesInput(event) {
+                const input = event.target;
+                const lineIndex = parseInt(input.dataset.lineIndex);
+                const column = input.dataset.column;
+                
+                // Update data
+                if (column === 'target') {
+                    liveNotesData[lineIndex].targetLang = input.value;
+                } else {
+                    liveNotesData[lineIndex].translation = input.value;
+                }
+                
+                // Mark as not saved
+                liveNotesData[lineIndex].saved = false;
+                pendingChanges = true;
+                
+                // Update save status
+                updateSaveStatus();
+                
+                // Reset auto-advance timer
+                resetAutoAdvanceTimer();
+            }
+            
+            function handleLiveNotesFocus(event) {
+                const input = event.target;
+                currentActiveInput = input;
+                input.classList.add('active');
+            }
+            
+            function handleLiveNotesBlur(event) {
+                const input = event.target;
+                input.classList.remove('active');
+            }
+            
+            function resetAutoAdvanceTimer() {
+                if (autoAdvanceTimer) {
+                    clearTimeout(autoAdvanceTimer);
+                }
+                
+                // Show countdown indicator
+                let countdown = 7;
+                const updateCountdown = () => {
+                    if (currentActiveInput) {
+                        // Remove existing countdown
+                        const existingCountdown = currentActiveInput.parentElement.querySelector('.countdown-indicator');
+                        if (existingCountdown) {
+                            existingCountdown.remove();
+                        }
+                        
+                        if (countdown > 0) {
+                            const countdownDiv = document.createElement('div');
+                            countdownDiv.className = 'countdown-indicator';
+                            countdownDiv.textContent = countdown;
+                            countdownDiv.style.position = 'relative';
+                            countdownDiv.style.top = '-10px';
+                            countdownDiv.style.right = '10px';
+                            countdownDiv.style.float = 'right';
+                            countdownDiv.style.marginBottom = '-20px';
+                            currentActiveInput.parentElement.insertBefore(countdownDiv, currentActiveInput.nextSibling);
+                            countdown--;
+                            setTimeout(updateCountdown, 1000);
+                        } else {
+                            // Auto-advance to next line
+                            autoAdvanceToNextLine();
+                        }
+                    }
+                };
+                
+                autoAdvanceTimer = setTimeout(updateCountdown, 1000);
+            }
+            
+            function autoAdvanceToNextLine() {
+                if (currentActiveInput) {
+                    const lineIndex = parseInt(currentActiveInput.dataset.lineIndex);
+                    const column = currentActiveInput.dataset.column;
+                    
+                    // If we're on target column, move to translation
+                    if (column === 'target') {
+                        const translationInput = translationColumn.children[lineIndex];
+                        if (translationInput) {
+                            translationInput.focus();
+                        }
+                    } else {
+                        // If we're on translation column, add new line
+                        addNewNoteLine();
+                    }
+                }
+            }
+            
+            function startAutoSaveTimer() {
+                autoSaveCountdown = 300; // 5 minutes in seconds
+                
+                autoSaveTimer = setInterval(() => {
+                    autoSaveCountdown--;
+                    updateSaveStatus();
+                    
+                    if (autoSaveCountdown <= 0) {
+                        if (pendingChanges) {
+                            saveLiveNotes();
+                        }
+                        autoSaveCountdown = 300; // Reset for next cycle
+                    }
+                }, 1000);
+            }
+            
+            function updateSaveStatus() {
+                const minutes = Math.floor(autoSaveCountdown / 60);
+                const seconds = autoSaveCountdown % 60;
+                
+                if (pendingChanges) {
+                    saveStatus.textContent = `Auto-save in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    saveStatus.className = 'text-sm text-gray-600';
+                    cloudSaveIcon.className = 'h-5 w-5 text-orange-400 save-pending';
+                } else {
+                    saveStatus.textContent = 'All saved';
+                    saveStatus.className = 'text-sm text-green-600';
+                    cloudSaveIcon.className = 'h-5 w-5 text-green-500 save-complete';
+                }
+            }
+            
+            async function saveLiveNotes() {
+                console.log('Saving live notes...');
+                
+                // Filter out empty notes and duplicates
+                const notesToSave = liveNotesData
+                    .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
+                    .map(note => ({
+                        lang1: note.targetLang.trim(),
+                        lang2: note.translation.trim()
+                    }));
+                
+                if (notesToSave.length === 0) {
+                    console.log('No notes to save');
+                    return;
+                }
+                
+                // Check for duplicates in existing vocabulary
+                const newNotes = [];
+                for (const note of notesToSave) {
+                    const exists = vocabulary.some(v => 
+                        v.lang1.toLowerCase() === note.lang1.toLowerCase() && 
+                        v.lang2.toLowerCase() === note.lang2.toLowerCase()
+                    );
+                    
+                    if (!exists) {
+                        newNotes.push(note);
+                    }
+                }
+                
+                if (newNotes.length === 0) {
+                    console.log('All notes already exist in database');
+                    pendingChanges = false;
+                    updateSaveStatus();
+                    return;
+                }
+                
+                // Save to database
+                const success = await saveNotes(newNotes);
+                
+                if (success) {
+                    console.log(`Saved ${newNotes.length} new notes`);
+                    // Mark saved notes
+                    liveNotesData.forEach(note => {
+                        if (note.targetLang.trim() !== '' && note.translation.trim() !== '') {
+                            note.saved = true;
+                        }
+                    });
+                    
+                    pendingChanges = false;
+                    updateSaveStatus();
+                    
+                    // Refresh vocabulary
+                    await fetchNotes();
+                }
+            }
+            
+            function clearAllLiveNotes() {
+                if (confirm('Are you sure you want to clear all notes? Unsaved changes will be lost.')) {
+                    liveNotesData = [];
+                    targetLanguageColumn.innerHTML = '';
+                    translationColumn.innerHTML = '';
+                    pendingChanges = false;
+                    updateSaveStatus();
+                    addNewNoteLine();
+                }
+            }
+            async function handleFileUpload(droppedFile = null) {
+                console.log('handleFileUpload called');
+                
+                // Prevent file upload during authentication process
+                if (isAuthenticating) {
+                    console.log('handleFileUpload: Blocked during authentication process');
+                    return;
+                }
+                
+                const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
+                if (!file) {
+                    uploadStatus.textContent = 'Please select or drop a CSV file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                    return;
+                }
+
+                if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
+                    uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                    return;
+                }
+
+                csvUploadedTargetLanguage = targetLanguageSelector.value;
+                uploadStatus.textContent = 'Processing CSV file...';
+                uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
+
+                const reader = new FileReader();
+                reader.onload = async function(event) {
+                    try {
+                         console.log('FileReader loaded:', event.target.result.slice(0,100)); // <--- add preview
+                        const parsedNotes = parseCSV(event.target.result);
+                           console.log('Parsed notes:', parsedNotes); // <--- add
+                        if (parsedNotes.length > 0) {
+                            uploadStatus.textContent = 'Saving notes to your account...';
+                            uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
+                            const success = await saveNotes(parsedNotes);
+                            if (success) {
+                                await fetchNotes();
+                                uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
+                                uploadStatus.className = 'text-sm text-green-600 mt-2 h-5';
+                                isEssentialsMode = false;
+                                setTimeout(() => {
+                                    uploadSection.classList.add('hidden');
+                                    showGameSelection();
+                                }, 1500);
+                            }
+                        } else {
+                            uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                        }
+                    } catch (error) {
+                        uploadStatus.textContent = 'Error processing CSV file.';
+                        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                        console.error("Error processing CSV:", error);
+                    }
+                };
+                reader.onerror = () => {
+                    uploadStatus.textContent = 'Error reading file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                };
+                reader.readAsText(file);
+            }
+
+            // --- UI & NAVIGATION ---
+            function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
+            function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
+            function showMainSelection() { 
+                console.log('showMainSelection: Showing main selection interface');
+                console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
+                mainSelectionSection.classList.remove('hidden'); 
+                [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
+                    if (el) el.classList.add('hidden');
+                }); 
+                isEssentialsMode = false; 
+            }
+            function showGameSelection() {
+                console.log('showGameSelection: Showing game selection interface');
+                console.log('showGameSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
+                if (!isEssentialsMode) {
+                    activeTargetStudyLanguage = csvUploadedTargetLanguage; 
+                } 
+
+                // Hide all other sections
+                [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea].forEach(el => {
+                    if (el) el.classList.add('hidden');
+                });
+                hideAllGames();
+
+                // Show game selection
+                gameSelectionSection.classList.remove('hidden');
+                fillInTheBlanksBtn.classList.toggle('hidden', !isEssentialsMode); 
+                findTheWordsBtn.classList.remove('hidden'); 
+
+                const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
+                console.log('showGameSelection: Active vocabulary count:', activeVocab.length);
+
+                if (activeVocab.length === 0) { 
+                    console.log('showGameSelection: No vocabulary found, showing no vocabulary message');
+                    noVocabularyMessage.classList.remove('hidden'); 
+                    gameButtonsContainer.classList.add('hidden'); 
+                } else { 
+                    console.log('showGameSelection: Vocabulary found, showing game buttons');
+                    noVocabularyMessage.classList.add('hidden'); 
+                    gameButtonsContainer.classList.remove('hidden'); 
+                }
+            }
+            function populateEssentialsCategoryButtons() { 
+                essentialsCategoryButtonsContainer.innerHTML = ''; 
+                Object.keys(essentialsVocabularyData).forEach(categoryKey => { 
+                    const button = document.createElement('button'); 
+                    button.className = 'btn essentials-category-btn p-3 sm:p-4 text-sm sm:text-md'; 
+                    button.textContent = categoryKey; 
+                    button.addEventListener('click', () => { 
+                        currentEssentialsCategoryName = categoryKey; 
+                        isEssentialsMode = true; 
+                        if (categoryKey.toLowerCase().includes("(en-es)")) { 
+                            activeTargetStudyLanguage = 'es-ES'; 
+                        } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
+                            activeTargetStudyLanguage = 'fr-FR'; 
+                        } else { 
+                            activeTargetStudyLanguage = 'en-US'; 
+                        } 
+                        currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({
+                            ...item, 
+                            originalIndex: index, 
+                            correctCount: item.correctCount || 0 
+                        })); 
+                        essentialsOptionsTitle.textContent = `Category: ${categoryKey}`; 
+                        essentialsCategorySelectionSection.classList.add('hidden'); 
+                        essentialsCategoryOptionsSection.classList.remove('hidden'); 
+                    }); 
+                    essentialsCategoryButtonsContainer.appendChild(button); 
+                }); 
+            }
+
+            function showPartSelection(gameType) {
+                const sourceForParts = isEssentialsMode ? currentVocabularyPart : vocabulary;
+                if (sourceForParts.length === 0) { 
+                    noVocabularyMessage.classList.remove('hidden'); 
+                    gameArea.classList.remove('hidden'); 
+                    [partSelectionContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage].forEach(el => el.classList.add('hidden')); 
+                    return; 
+                }
+                gameTitle.textContent = gameType.charAt(0).toUpperCase() + gameType.slice(1).replace(/([A-Z])/g, ' $1');
+                [uploadSection, gameSelectionSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, mainSelectionSection].forEach(el => el.classList.add('hidden'));
+                gameArea.classList.remove('hidden');
+                partSelectionContainer.classList.remove('hidden');
+                hideAllGames();
+                partButtonsContainer.innerHTML = '';
+                const numParts = Math.ceil(sourceForParts.length / ITEMS_PER_PART);
+                const fullMixButton = document.createElement('button');
+                fullMixButton.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
+                fullMixButton.textContent = `Full Mix (${sourceForParts.length} items)`;
+                fullMixButton.addEventListener('click', () => { 
+                    currentVocabularyPart = [...sourceForParts]; 
+                    currentPartName = "Full Mix"; 
+                    startGame(gameType); 
+                });
+                partButtonsContainer.appendChild(fullMixButton);
+                if (!isEssentialsMode && numParts > 1 && sourceForParts.length > ITEMS_PER_PART) {
+                    for (let i = 0; i < numParts; i++) {
+                        const start = i * ITEMS_PER_PART;
+                        const end = start + ITEMS_PER_PART;
+                        const partVocab = sourceForParts.slice(start, end);
+                        if (partVocab.length === 0) continue;
+                        const button = document.createElement('button');
+                        button.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
+                        button.textContent = `Part ${i + 1} (Items ${start + 1}-${Math.min(end, sourceForParts.length)})`;
+                        button.addEventListener('click', () => { 
+                            currentVocabularyPart = partVocab; 
+                            currentPartName = `Part ${i + 1}`; 
+                            startGame(gameType); 
+                        });
+                        partButtonsContainer.appendChild(button);
+                    }
+                }
+            }
+
+            function startGame(gameType) {
+                if (!audioInitialized) initializeAudio();
+                partSelectionContainer.classList.add('hidden');
+                resetGameStats();
+                switch (gameType) {
+                    case 'matching': initMatchingGame(); break;
+                    case 'multipleChoice': initMultipleChoiceGame(); break;
+                    case 'typeTranslation': initTypeTranslationGame(); break;
+                    case 'talkToMe': initTalkToMeGame(); break;
+                    case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
+                    case 'findTheWords': initFindTheWordsGame(); break;
+                }
+            }
+
+            // --- HELPER & CORE GAME MECHANICS ---
+            function shuffleArray(array) { 
+                const newArray = [...array]; 
+                for (let i = newArray.length - 1; i > 0; i--) { 
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; 
+                } 
+                return newArray; 
+            }
+            function normalizeText(text) { 
+                return text.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,""); 
+            }
+            function updateScoreDisplay() { 
+                currentScoreDisplay.textContent = `Score: ${currentScore}`; 
+                maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; 
+            }
+            function setupMistakeTracker() { 
+                mistakeTrackerDiv.innerHTML = ''; 
+                for (let i = 0; i < MAX_MISTAKES; i++) { 
+                    const capybaraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); 
+                    capybaraSvg.setAttribute("viewBox", "0 0 60 60"); 
+                    capybaraSvg.setAttribute("fill", "currentColor"); 
+                    capybaraSvg.classList.add("capybara-life-icon"); 
+                    capybaraSvg.innerHTML = ` <path d="M30,15 C18,15 10,23 10,33 C10,43 15,50 22,52 C20,48 20,42 23,40 C25,38 28,38 30,39 C32,38 35,38 37,40 C40,42 40,48 38,52 C45,50 50,43 50,33 C50,23 42,15 30,15 Z M22,28 A2,2 0 0,1 24,30 A2,2 0 0,1 22,32 A2,2 0 0,1 20,30 A2,2 0 0,1 22,28 Z M38,28 A2,2 0 0,1 40,30 A2,2 0 0,1 38,32 A2,2 0 0,1 36,30 A2,2 0 0,1 38,28 Z M30,42 C28,42 27,41 27,40 C27,39 28,38 30,38 C32,38 33,39 33,40 C33,41 32,42 30,42 Z"></path> <ellipse cx="23" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <ellipse cx="37" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <path d="M28,33 Q30,35 32,33" stroke="#4a2c2a" stroke-width="1.5" fill="none" /> `; 
+                    mistakeTrackerDiv.appendChild(capybaraSvg); 
+                } 
+            }
+            function updateMistakeDisplay() { 
+                const icons = mistakeTrackerDiv.querySelectorAll('.capybara-life-icon'); 
+                icons.forEach((icon, index) => icon.classList.toggle('mistake', index < MAX_MISTAKES - mistakesRemaining)); 
+            }
+            function resetGameStats() { 
+                mistakesRemaining = MAX_MISTAKES; 
+                updateScoreDisplay(); 
+                setupMistakeTracker(); 
+                gameOverMessage.classList.add('hidden'); 
+            }
+
+            // --- SPEECH & AUDIO ---
+            function initializeAudio() {
+                if (audioInitialized) return;
+                audioInitialized = true;
+                console.log("Audio initialized");
+            }
+
+            function speakText(text, lang) {
+                return new Promise((resolve) => {
+                    if ('speechSynthesis' in window && text) {
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = lang;
+                        utterance.onend = resolve;
+                        utterance.onerror = () => resolve();
+                        window.speechSynthesis.speak(utterance);
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+
+            function initSpeechRecognition() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = false;
+                    recognition.lang = 'en-US';
+                    recognition.interimResults = false;
+                    recognition.maxAlternatives = 1;
+
+                    recognition.onresult = (event) => {
+                        const speechResult = event.results[0][0].transcript;
+                        talkToMeRecognizedText.textContent = speechResult;
+                        checkSpeechAnswer(speechResult);
+                    };
+                    recognition.onerror = (event) => { 
+                        speechApiStatus.textContent = `Error: ${event.error}`; 
+                        stopListening(); 
+                    };
+                    recognition.onend = () => { 
+                        if (isListening) stopListening(); 
+                    };
+                } else {
+                    speechApiStatus.textContent = "Browser doesn't support speech recognition.";
+                    if(listenBtn) listenBtn.disabled = true;
+                }
+            }
+
+            // --- GAME LOGIC FUNCTIONS ---
+            function initMatchingGame() {
+                let gameVocab = shuffleArray(currentVocabularyPart).slice(0, ITEMS_PER_SUB_ROUND);
+                pairsToMatch = gameVocab.length;
+                let cards = [];
+                gameVocab.forEach((item, index) => {
+                    cards.push({ id: index, type: 'lang1', text: item.lang1, isTargetLang: true });
+                    cards.push({ id: index, type: 'lang2', text: item.lang2, isTargetLang: false });
+                });
+
+                matchingGameContainer.classList.remove('hidden');
+                matchingGrid.innerHTML = '';
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                shuffleArray(cards).forEach(cardData => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'game-card card p-2';
+                    cardElement.textContent = cardData.text;
+                    cardElement.dataset.id = cardData.id;
+                    cardElement.dataset.isTargetLang = cardData.isTargetLang;
+                    cardElement.addEventListener('click', () => handleMatchCardClick(cardElement));
+                    matchingGrid.appendChild(cardElement);
+                });
+            }
+
+            function handleMatchCardClick(cardElement) {
+                if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
+
+                // Speak target language words when clicked (if enabled and is target language)
+                if (hearItOutLoudEnabled && cardElement.dataset.isTargetLang === 'true') {
+                    speakText(cardElement.textContent, activeTargetStudyLanguage);
+                }
+
+                if (!selectedMatchCard) {
+                    selectedMatchCard = cardElement;
+                    cardElement.classList.add('selected-match');
+                } else {
+                    if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
+                        [selectedMatchCard, cardElement].forEach(el => {
+                            el.classList.add('matched');
+                            el.classList.remove('selected-match');
+                        });
+                        playCorrectMatchSound();
+                        matchedPairs++;
+                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
+                    } else {
+                        [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
+                        playIncorrectSound();
+                        setTimeout(() => {
+                            [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
+                            selectedMatchCard = null;
+                        }, 400);
+                    }
+                    if (selectedMatchCard) selectedMatchCard = null;
+                }
+            }
+
+            function initMultipleChoiceGame() {
+                let mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentMcqIndex = 0;
+                multipleChoiceGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                displayNextMcq(mcqGameActiveVocab);
+            }
+
+            function displayNextMcq(gameVocab) {
+                if (currentMcqIndex >= gameVocab.length) {
+                    mcqQuestion.textContent = "Part Complete!";
+                    mcqOptions.innerHTML = '';
+                    return;
+                }
+                const currentItem = gameVocab[currentMcqIndex];
+                mcqQuestion.textContent = currentItem.lang1;
+
+                // Add click-to-speak functionality to the question
+                mcqQuestion.onclick = () => {
+                    if (hearItOutLoudEnabled) speakText(currentItem.lang1, activeTargetStudyLanguage);
+                };
+                mcqQuestion.classList.add('speakable-question');
+
+                let options = [currentItem.lang2, ...shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3).map(v => v.lang2)];
+                mcqOptions.innerHTML = '';
+                shuffleArray(options).forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn mcq-option-btn';
+                    btn.textContent = opt;
+                    btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
+                    // Add TTS for options when double-clicked or right-clicked
+                    btn.ondblclick = () => {
+                        if (hearItOutLoudEnabled) speakText(opt, 'en-US'); // Options are in user's language
+                    };
+                    mcqOptions.appendChild(btn);
+                });
+            }
+
+            function checkMcqAnswer(button, isCorrect, item) {
+                if (mcqAnswered) return;
+                mcqAnswered = true;
+                button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
+                if (!isCorrect) {
+                    mcqFeedback.textContent = `Correct: ${item.lang2}`;
+                    mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
+                        if (btn.textContent === item.lang2) btn.classList.add('correct-answer');
+                    });
+                }
+                nextMcqBtn.classList.remove('hidden');
+            }
+
+            function initTypeTranslationGame() {
+                let typeTransGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTypeTranslationIndex = 0;
+                typeTranslationGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                displayNextTypeTranslation(typeTransGameActiveVocab);
+            }
+
+            function displayNextTypeTranslation(gameVocab) {
+                if (currentTypeTranslationIndex >= gameVocab.length) {
+                    typeTranslationPhrase.textContent = "Part Complete!";
+                    typeTranslationInput.style.display = 'none';
+                    return;
+                }
+                const item = gameVocab[currentTypeTranslationIndex];
+                typeTranslationPhrase.textContent = item.lang2;
+
+                // Add click-to-speak functionality to the phrase (user's language)
+                typeTranslationPhrase.onclick = () => {
+                    if (hearItOutLoudEnabled) speakText(item.lang2, 'en-US');
+                };
+                typeTranslationPhrase.classList.add('speakable-question');
+
+                typeTranslationInput.value = '';
+                typeTranslationFeedback.textContent = '';
+                nextTypeTranslationBtn.classList.add('hidden');
+            }
+
+            function checkTypeTranslation() {
+                const item = currentVocabularyPart[currentTypeTranslationIndex];
+                const isCorrect = typeTranslationInput.value.trim().toLowerCase() === item.lang1.toLowerCase();
+                typeTranslationFeedback.textContent = isCorrect ? "Correct!" : `Correct: ${item.lang1}`;
+                nextTypeTranslationBtn.classList.remove('hidden');
+            }
+
+            function initFillInTheBlanksGame() {
+                fillInTheBlanksGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                fillInTheBlanksSentence.textContent = "Fill in the blanks is not yet implemented.";
+            }
+
+            function initTalkToMeGame() {
+                talkToMeGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                let talkToMeActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTalkToMeIndex = 0;
+                displayNextTalkToMe(talkToMeActiveVocab);
+            }
+
+            function displayNextTalkToMe(gameVocab) {
+                if (currentTalkToMeIndex >= gameVocab.length) {
+                    talkToMePhraseText.textContent = "Part Complete!";
+                    return;
+                }
+                const item = gameVocab[currentTalkToMeIndex];
+                talkToMePhraseText.textContent = item.lang1;
+                talkToMeRecognizedText.textContent = "...";
+                talkToMeFeedback.textContent = "";
+                nextTalkToMeBtn.classList.add('hidden');
+
+                // Show translation reference
+                talkToMeReferenceContainer.classList.remove('hidden');
+                talkToMeReferenceDisplay.textContent = item.lang2;
+
+                // Add click-to-speak functionality to the phrase
+                talkToMePhraseToRead.onclick = () => {
+                    speakText(item.lang1, activeTargetStudyLanguage);
+                };
+
+                // Automatically speak the word when displayed
+                setTimeout(() => {
+                    speakText(item.lang1, activeTargetStudyLanguage);
+                }, 300);
+            }
+
+            function startListening() {
+                if (!recognition || isListening) return;
+                recognition.lang = activeTargetStudyLanguage;
+                recognition.start();
+                isListening = true;
+                listenBtnText.textContent = 'Listening...';
+            }
+
+            function stopListening() {
+                if (!recognition || !isListening) return;
+                recognition.stop();
+                isListening = false;
+                listenBtnText.textContent = 'Start Listening';
+            }
+
+            function checkSpeechAnswer(spokenText) {
+                const item = currentVocabularyPart[currentTalkToMeIndex];
+                const isCorrect = normalizeText(spokenText) === normalizeText(item.lang1);
+
+                if (isCorrect) {
+                    talkToMeFeedback.textContent = "Correct! Well done!";
+                    talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
+                    playCorrectMatchSound();
+
+                    // Auto-advance after a short delay
+                    setTimeout(() => {
+                        currentTalkToMeIndex++;
+                        displayNextTalkToMe(currentVocabularyPart);
+                    }, 1500);
+                } else {
+                    talkToMeFeedback.textContent = "Not quite, try again or click the word to hear it again.";
+                    talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                    playIncorrectSound();
+                }
+
+                nextTalkToMeBtn.classList.remove('hidden');
+            }
+
+            function initFindTheWordsGame() {
+                findTheWordsGameContainer.classList.remove('hidden');
+                languageSelectionInGameContainer.classList.remove('hidden');
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                findWordsSessionPool = shuffleArray(currentVocabularyPart);
+                currentFindWordsRound = 0;
+                startFindTheWordsRound(findWordsSessionPool);
+            }
+
+            // Helper: Speak the three target words, respecting current language
+async function speakFindTheWordsTargets(words, lang) {
+    for (const w of words) {
+        await speakText(w.lang1, lang);
+        await new Promise(res => setTimeout(res, 350));
+    }
+}
+
+// Call this when starting a round or when replay is requested
+async function startFindTheWordsRound(pool) {
+    if (currentFindWordsRound >= MAX_FIND_WORDS_ROUNDS || pool.length < WORDS_PER_FIND_WORDS_TARGET) {
+        findTheWordsInstructions.textContent = "Game Complete!";
+        findTheWordsGrid.innerHTML = '';
+        return;
+    }
+    currentFindWordsRound++;
+    findWordsTargetWords = pool.splice(0, WORDS_PER_FIND_WORDS_TARGET);
+    let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.includes(v))).slice(0, WORDS_PER_FIND_WORDS_DISPLAY - WORDS_PER_FIND_WORDS_TARGET);
+    let findWordsCurrentChoices = shuffleArray([...findWordsTargetWords, ...distractors]);
+    findTheWordsGrid.innerHTML = '';
+    findWordsCurrentChoices.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'game-card card p-2';
+        card.textContent = item.lang1;
+        card.setAttribute('data-lang', activeTargetStudyLanguage);
+        card.onclick = () => {
+            speakText(item.lang1, card.getAttribute('data-lang'));
+            toggleFindWordSelection(card, item);
+        };
+        findTheWordsGrid.appendChild(card);
+    });
+    findTheWordsRoundCounter.textContent = `Round: ${currentFindWordsRound}/${MAX_FIND_WORDS_ROUNDS}`;
+    await speakFindTheWordsTargets(findWordsTargetWords, activeTargetStudyLanguage);
+}
+
+            function toggleFindWordSelection(card, item) {
+                card.classList.toggle('selected-find-word');
+                const index = findWordsSelectedWords.findIndex(i => i.lang1 === item.lang1);
+                if (index > -1) findWordsSelectedWords.splice(index, 1);
+                else findWordsSelectedWords.push(item);
+                sendFindTheWordsBtn.disabled = findWordsSelectedWords.length === 0;
+            }
+
+            function checkFindTheWordsAnswer() {
+                const correctCount = findWordsSelectedWords.filter(s => findWordsTargetWords.includes(s)).length;
+                findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length}.`;
+                nextFindTheWordsRoundBtn.classList.remove('hidden');
+            }
+
+            // --- EVENT LISTENERS ---
+            authToggleText.addEventListener('click', (e) => { if (e.target.matches('.toggle-auth-link')) { e.preventDefault(); toggleAuthMode(); } });
+            authForm.addEventListener('submit', async (e) => { 
+                e.preventDefault(); 
+                const email = document.getElementById('emailInput').value.trim(); 
+                const password = document.getElementById('passwordInput').value.trim(); 
+                authError.textContent = ''; 
+
+                console.log('Auth form submitted:', isSignUp ? 'Sign Up' : 'Login', 'Email:', email);
+
+                try { 
+                    if (isSignUp) { 
+                        console.log('Attempting sign up...');
+                        const { error } = await supabaseClient.auth.signUp({ email, password }); 
+                        if (error) { 
+                            console.error('Sign up error:', error);
+                            authError.textContent = error.message; 
+                        } else { 
+                            console.log('Sign up successful');
+                            alert('Sign up successful! Please check your email to confirm your account.'); 
+                            toggleAuthMode(); 
+                        } 
+                    } else { 
+                        console.log('Attempting login...');
+                        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password }); 
+                        if (error) { 
+                            console.error('Login error:', error);
+                            authError.textContent = error.message; 
+                        } else {
+                            console.log('Login successful, user:', data.user?.id);
+                        }
+                    } 
+                } catch (err) { 
+                    console.error('Unexpected auth error:', err);
+                    authError.textContent = 'Unexpected error. Try again.'; 
+                } 
+            });
+            googleLoginBtn.addEventListener('click', async () => { 
+                const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' }); 
+                if (error) { authError.textContent = error.message; } 
+            });
+            // Ensure logout button is properly initialized with error handling
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async (e) => { 
+                    e.preventDefault();
+                    console.log('Logout button clicked');
+
+                    try {
+                        console.log('Attempting to sign out...');
+                        const { error } = await supabaseClient.auth.signOut(); 
+
+                        if (error) {
+                            console.error('Logout error from Supabase:', error);
+                        } else {
+                            console.log('Successfully signed out from Supabase');
+                        }
+
+                        // Clear local state regardless of Supabase response
+                        vocabulary = [];
+                        isEssentialsMode = false;
+                        currentVocabularyPart = [];
+
+                        // Force reload to ensure clean state
+                        console.log('Reloading page to ensure clean state');
+                        window.location.reload(); 
+                    } catch (error) {
+                        console.error('Unexpected logout error:', error);
+                        // Force reload anyway to ensure clean state
+                        vocabulary = [];
+                        window.location.reload();
+                    }
+                });
+            } else {
+                console.error('Logout button not found in DOM');
+            }
+
+            addNotesBtn.addEventListener('click', showMainSelection);
+            
+            // Live Notes event listeners
+            liveNotesBtn.addEventListener('click', initializeLiveNotes);
+            closeLiveNotesBtn.addEventListener('click', closeLiveNotes);
+            newLineBtn.addEventListener('click', addNewNoteLine);
+            clearAllBtn.addEventListener('click', clearAllLiveNotes);
+            manualSaveBtn.addEventListener('click', saveLiveNotes);
+            showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
+            backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
+            showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
+            backToMainSelectionFromEssentialsBtn.addEventListener('click', showMainSelection);
+            backToEssentialsCategoriesBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); });
+            reviewEssentialsCategoryBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); gameArea.classList.remove('hidden'); startGame('matching'); });
+            playGamesWithEssentialsBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); showGameSelection(); });
+            backToGameSelectionBtn.addEventListener('click', showGameSelection);
+            backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
+            matchingBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('matching'); });
+            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('multipleChoice'); });
+            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('typeTranslation'); });
+            talkToMeBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('talkToMe'); });
+            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('fillInTheBlanks'); });
+            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('findTheWords'); });
+            uploadBtn.addEventListener('click', () => handleFileUpload());
+            csvFileInput.addEventListener('change', (e) => {
+                // Only process file changes if user is not in the middle of authentication
+                // and if there's actually a file selected
+                if (!isAuthenticating && e.target.files.length > 0) {
+                    console.log('csvFileInput change event: Processing file upload');
+                    handleFileUpload();
+                } else {
+                    console.log('csvFileInput change event: Ignored (isAuthenticating:', isAuthenticating, 'files.length:', e.target.files.length, ')');
+                }
+            });
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover-active'); });
+            dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); });
+            dropZone.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); if (e.dataTransfer.files && e.dataTransfer.files.length > 0) { handleFileUpload(e.dataTransfer.files[0]); } });
+
+            // Game specific event listeners
+            if (checkTypeTranslationBtn) checkTypeTranslationBtn.addEventListener('click', checkTypeTranslation);
+            if (listenBtn) listenBtn.addEventListener('click', startListening);
+            if (sendFindTheWordsBtn) sendFindTheWordsBtn.addEventListener('click', checkFindTheWordsAnswer);
+            if (nextMcqBtn) nextMcqBtn.addEventListener('click', () => { 
+                mcqAnswered = false; 
+                currentMcqIndex++; 
+                displayNextMcq(currentVocabularyPart); 
+                nextMcqBtn.classList.add('hidden'); 
+            });
+            if (nextTypeTranslationBtn) nextTypeTranslationBtn.addEventListener('click', () => { 
+                typeTranslationAnswered = false; 
+                currentTypeTranslationIndex++; 
+                displayNextTypeTranslation(currentVocabularyPart); 
+                nextTypeTranslationBtn.classList.add('hidden'); 
+            });
+            if (nextTalkToMeBtn) nextTalkToMeBtn.addEventListener('click', () => { 
+                currentTalkToMeIndex++; 
+                displayNextTalkToMe(currentVocabularyPart); 
+                nextTalkToMeBtn.classList.add('hidden'); 
+            });
+
+            // Replay button for TTS
+replayFindTheWordsAudioBtn.onclick = () => speakFindTheWordsTargets(findWordsTargetWords, activeTargetStudyLanguage);
+
+// Next round button
+nextFindTheWordsRoundBtn.onclick = () => startFindTheWordsRound(findWordsSessionPool);
+
+// Update card language tags if the selector changes
+if (languageSelectorInGame) {
+    languageSelectorInGame.addEventListener('change', (e) => {
+        activeTargetStudyLanguage = e.target.value;
+        document.querySelectorAll('#findTheWordsGrid .game-card').forEach(card => {
+            card.setAttribute('data-lang', activeTargetStudyLanguage);
+        });
+    });
+}
+
+            // --- SPEECH & AUDIO ---
+            // === PATCHED AUDIO LOGIC ===
+            let backgroundMusicSynth, correctMatchSynth, incorrectBuzzSynth, notebookLostSynth, musicPart;
+            let musicPlaying = false;
+            let hearItOutLoudEnabled = false;
+
+            function initializeAudio() {
+                if (audioInitialized) return;
+                Tone.start().then(() => {
+                    audioInitialized = true;
+                    backgroundMusicSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }, volume: -28 }).toDestination();
+                    const vivaldiSpringMotif = [ 
+                        { time: "0:0", note: "E4", duration: "4n" }, { time: "0:1", note: "E4", duration: "4n" }, { time: "0:2", note: "E4", duration: "4n" }, { time: "0:3", note: "C#5", duration: "4n" },
+                        { time: "1:0", note: "D#5", duration: "4n" }, { time: "1:1", note: "D#5", duration: "4n" }, { time: "1:2", note: "D#5", duration: "4n" }, { time: "1:3", note: "B4", duration: "4n" },
+                        { time: "2:0", note: "E4", duration: "4n" }, { time: "2:1", note: "E4", duration: "4n" }, { time: "2:2", note: "E4", duration: "4n" }, { time: "2:3", note: "C#5", duration: "4n" },
+                        { time: "3:0", note: "D#5", duration: "4n" }, { time: "3:1", note: "D#5", duration: "4n" }, { time: "3:2", note: "B4", duration: "4n" }, { time: "3:3", note: "E4", duration: "4n" }
+                    ];
+                    musicPart = new Tone.Part((time, value) => backgroundMusicSynth.triggerAttackRelease(value.note, value.duration, time), vivaldiSpringMotif).start(0);
+                    musicPart.loop = true; musicPart.loopEnd = "4m";
+                    correctMatchSynth = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.2 }, volume: -12 }).toDestination();
+                    incorrectBuzzSynth = new Tone.NoiseSynth ({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }, volume: -18 }).toDestination();
+                    notebookLostSynth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, filter: { Q: 2, type: "lowpass", rolloff: -24 }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.2, baseFrequency: 200, octaves: 2 }, volume: -15 }).toDestination();
+                    updateMusicButton();
+                    if(musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start();
+                    else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause();
+                }).catch(e => console.error("Failed to start audio context:", e));
+            }
+
+            function toggleMusic() {
+                if (!audioInitialized) { initializeAudio(); musicPlaying = !musicPlaying; return; }
+                musicPlaying = !musicPlaying;
+                if (musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start();
+                else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause();
+                updateMusicButton();
+            }
+            function updateMusicButton() { 
+                if (musicPlaying) { 
+                    musicIconOn.classList.remove('hidden'); 
+                    musicIconOff.classList.add('hidden'); 
+                    musicStatusText.textContent = "Music: ON"; 
+                } else { 
+                    musicIconOn.classList.add('hidden'); 
+                    musicIconOff.classList.remove('hidden'); 
+                    musicStatusText.textContent = "Music: OFF"; 
+                } 
+            }
+            function playCorrectMatchSound() { if (audioInitialized && correctMatchSynth) { correctMatchSynth.triggerAttackRelease("C5", "8n", Tone.now()); correctMatchSynth.triggerAttackRelease("G5", "4n", Tone.now() + 0.12); } }
+            function playIncorrectSound() {  if (audioInitialized && incorrectBuzzSynth) { incorrectBuzzSynth.triggerAttackRelease("0.2n"); } }
+            function playNotebookLostSound() { if (audioInitialized && notebookLostSynth) { notebookLostSynth.triggerAttackRelease("C3", "0.3n"); } }
+
+            function speakText(text, lang) {
+                return new Promise((resolve) => {
+                    if ('speechSynthesis' in window && text) {
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = lang || activeTargetStudyLanguage || 'en-US';
+                        utterance.onend = resolve;
+                        utterance.onerror = () => resolve();
+                        window.speechSynthesis.speak(utterance);
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+
+            // --- PATCH: Also call initializeAudio() on all game buttons (already present in your code, leave as is) ---
+
+            // Music toggle functionality
+            musicToggleBtn.addEventListener('click', toggleMusic);
+
+            // Hear it out loud toggle functionality  
+            hearItOutLoudToggleBtn.addEventListener('click', () => {
+                hearItOutLoudEnabled = !hearItOutLoudEnabled;
+                updateHearItOutLoudButton();
+            });
+
+            function updateHearItOutLoudButton() {
+                if (hearItOutLoudToggleBtn && hearItOutLoudBtnText) {
+                    hearItOutLoudBtnText.textContent = `Hear: ${hearItOutLoudEnabled ? 'ON' : 'OFF'}`;
+                    hearItOutLoudToggleBtn.classList.toggle('active', hearItOutLoudEnabled); 
+                }
+            }
+
+
+            // --- INITIALIZATION ---
+            // Check if Supabase is available before setting up auth
+            if (supabaseClient) {
+                console.log('Supabase client available, setting up authentication...');
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    console.log('Auth state changed:', event, session ? 'user logged in' : 'user logged out');
+
+                    if (session) {
+                        console.log('User session found, setting up app...');
+                        isAuthenticating = true; // Prevent file upload during auth
+                        
+                        // Clear any existing file input to prevent unwanted triggers
+                        if (csvFileInput) {
+                            csvFileInput.value = '';
+                        }
+                        
+                        loginSection.classList.add('hidden');
+                        appContent.classList.remove('hidden');
+
+                        try {
+                            console.log('Starting fetchNotes() call...');
+                            const hasNotes = await fetchNotes();
+                            console.log('fetchNotes completed, hasNotes:', hasNotes, 'vocabulary.length:', vocabulary.length);
+                            console.log('csvUploadedTargetLanguage is now:', csvUploadedTargetLanguage);
+
+                            if (hasNotes && vocabulary.length > 0) {
+                                console.log('User has existing notes, showing game selection');
+                                showGameSelection();
+                            } else {
+                                console.log('User has no notes, showing main selection (upload section)');
+                                showMainSelection();
+                            }
+                        } catch (error) {
+                            console.error('Error during app initialization:', error);
+                            console.error('Error stack:', error.stack);
+                            // Fallback to main selection on error
+                            console.log('Falling back to main selection due to error');
+                            showMainSelection();
+                        } finally {
+                            // Re-enable file upload after authentication is complete
+                            isAuthenticating = false;
+                            console.log('Authentication process completed, file upload re-enabled');
+                        }
+                    } else {
+                        console.log('No user session, showing login');
+                        isAuthenticating = false; // Reset flag on logout
+                        loginSection.classList.remove('hidden');
+                        appContent.classList.add('hidden');
+                        vocabulary = [];
+                        
+                        // Clear file input on logout to prevent issues
+                        if (csvFileInput) {
+                            csvFileInput.value = '';
+                        }
+                    }
+                });
+
+                // Check current session on page load
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    if (!session) {
+                        console.log('No active session found, showing login');
+                        loginSection.classList.remove('hidden');
+                        appContent.classList.add('hidden');
+                    }
+                }).catch(error => {
+                    console.error('Error checking session:', error);
+                    loginSection.classList.remove('hidden');
+                    appContent.classList.add('hidden');
+                });
+            } else {
+                console.error('Supabase not available - authentication will not work');
+                // Fallback: ensure login is shown when Supabase is not available
+                loginSection.classList.remove('hidden');
+                appContent.classList.add('hidden');
+                // Disable login functionality
+                if (authForm) {
+                    authForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        authError.textContent = 'Authentication service is currently unavailable.';
+                    });
+                }
+                if (googleLoginBtn) {
+                    googleLoginBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        authError.textContent = 'Google login is currently unavailable.';
+                    });
+                }
+            }
+
+            // Initialize other components
+            setupMistakeTracker(); 
+            updateScoreDisplay();
+            initSpeechRecognition();
+
+        });
