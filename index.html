@@ -53,6 +53,7 @@
         .btn-warning:hover { background-color: #d97706; }
         .btn-danger { background-color: #dc2626; color: white; }
         .btn-danger:hover { background-color: #b91c1c; }
+
         /* --- New Google Login Button Style --- */
         .btn-google {
             background-color: #ffffff;
@@ -71,6 +72,7 @@
             width: 1.25rem;
             height: 1.25rem;
         }
+
         /* Game Specific Styles */
         .game-card {
             min-height: 150px; display: flex; align-items: center; justify-content: center;
@@ -81,6 +83,7 @@
         .matched { opacity: 0.4; pointer-events: none; background-color: #a7f3d0; border-color: #34d399; }
         .incorrect-match-animation { animation: shake 0.4s; border: 2px solid #ef4444 !important; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
         .mcq-option-btn, .part-selection-btn, .essentials-category-btn, .essentials-action-btn {
             display: block; width: 100%; text-align: left; margin-bottom: 0.5rem;
             background-color: #f8fafc; border: 1px solid #cbd5e1; color: #334155;
@@ -94,6 +97,7 @@
         .incorrect-answer { background-color: #fee2e2 !important; border-color: #fca5a5 !important; color: #991b1b !important; }
         .stack-selection-btn { background-color: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
         .stack-selection-btn:hover { background-color: #e0e7ff; }
+
         /* UI Elements */
         #musicToggleBtn { position: fixed; top: 1rem; right: 1rem; z-index: 1000; background-color: rgba(255,255,255,0.7); backdrop-filter: blur(4px); border: 1px solid #99f6e4; color: #0d9488; }
         .capybara-life-icon { width: 2rem; height: 2rem; color: #8d5524; transition: opacity 0.3s ease, transform 0.3s ease; vertical-align: middle; }
@@ -115,18 +119,23 @@
         #maxScoreDisplay { font-size: 0.875rem; color: #0f766e;}
         .truncate-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%; }
         #roundCompleteMessage, #bonusRoundCountdownMessage { text-align: center; font-size: 1.5rem; font-weight: 600; color: #0d9488; padding: 2rem; border: 2px dashed #99f6e4; border-radius: 0.5rem; margin-top: 1rem; }
+
         #talkToMePhraseToRead { min-height: 80px; padding-bottom: 2.5rem; position: relative; }
         #talkToMeRecognizedText, #talkToMeReferenceDisplay { min-height: 40px; }
         #speakPhraseBtn { position: absolute; bottom: 0.5rem; left: 50%; transform: translateX(-50%); padding: 0.3rem; background-color: rgba(255,255,255,0.5); }
         #speakPhraseBtn svg { width: 1.25rem; height: 1.25rem; color: #0d9488; }
         #listenBtn.listening { background-color: #ef4444; color: white; }
         #listenBtn.listening:hover { background-color: #dc2626; }
+
         .header-logo-image { max-width: 120px; height: auto; margin: 0 auto; }
         #hearItOutLoudToggleBtn.active { background-color: #0d9488; color: white; }
+
         .selected-find-word { background-color: #cffafe !important; border-color: #67e8f9 !important; outline: 2px solid #06b6d4; }
+
         #fillInTheBlanksSentence.speakable-question:hover { cursor: pointer; background-color: #e0f2f7; }
         .blank-input { border-bottom: 2px solid #0d9488; padding: 0.25rem 0.5rem; margin: 0 0.25rem; background-color: transparent; text-align: center; min-width: 80px; }
         #fillInTheBlanksSentence .blank-placeholder { display: inline-block; width: 100px; border-bottom: 1px solid #334155; text-align: center; font-style: italic; color: #64748b; }
+
         #targetLanguageSelectorContainer { margin-bottom: 1rem; }
         #targetLanguageSelector, #languageSelectorInGame { 
             padding: 0.5rem; font-size: 0.875rem; border: 1px solid #cbd5e1;
@@ -164,6 +173,7 @@
             background-color: #ccfbf1; /* Tailwind teal-100 */
             border-color: #0d9488; /* Tailwind teal-600 */
         }
+
         /* New Login Form Styles */
         .form-input {
             width: 100%;
@@ -182,6 +192,7 @@
             cursor: pointer;
             text-decoration: underline;
         }
+
         /* Mobile Specific Adjustments */
         @media (max-width: 420px) { /* Slightly wider breakpoint for these general adjustments */
             .card {
@@ -203,6 +214,7 @@
                 min-height: 60px;
                 font-size: 1rem;
             }
+
             #gameInfoBar {
                 padding: 0.35rem;
                 gap: 0.35rem;
@@ -280,6 +292,7 @@
                 align-items: center;
             }
         }
+
         /* Live Notes Styles */
         #liveNotesInterface {
             font-family: 'Inter', sans-serif;
@@ -344,11 +357,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="min-h-screen flex flex-col items-center p-2 sm:p-4 md:p-6">
+
     <button id="musicToggleBtn" class="btn p-2 text-sm">
         <svg id="musicIconOn" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15z" /></svg>
         <svg id="musicIconOff" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
         <span id="musicStatusText">Music: ON</span>
     </button>
+
     <div class="w-full max-w-3xl mx-auto"> 
         <header class="text-center mb-6 sm:mb-10">
             <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh7G7JZO-izPezsiQzlGVi10doRtWHuCKsp3u9txVRurU_ziVdRHtF5XswySzXYQMbLpJXCr3QvXSrSQdJIuzO9QeNIkjUKqHIayQZQUFQFP2bpmVr_5auHdT-lbCL8KaVkrjrbw5UJqJApeGTADnBy-r5G-CBhHOGsvuAy8cN7FyJxH8VrJHM2Bu4TqZo/s512/studybuddy.jpg" alt="StudyBuddy Logo" class="header-logo-image"
@@ -356,6 +371,7 @@
             <p class="text-2xl sm:text-3xl font-bold text-teal-700 mt-2">StudyBuddy</p>
             <p class="text-lg sm:text-xl text-teal-600 mt-1">Your fun way to master vocabulary!</p>
         </header>
+
         <!-- Cache Status Indicator -->
         <div id="cacheStatusBar" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-center text-sm">
             <div class="flex items-center justify-center gap-4 flex-wrap">
@@ -370,9 +386,11 @@
                 </span>
             </div>
         </div>
+
         <!-- Login Section -->
         <section id="loginSection" class="card mb-8">
             <h2 id="authTitle" class="text-2xl font-semibold text-teal-700 mb-4 text-center">Login to Your Account</h2>
+
             <form id="authForm" class="space-y-4">
                 <div>
                     <label for="emailInput" class="block text-sm font-medium text-gray-700">Email Address</label>
@@ -385,18 +403,22 @@
                 <button type="submit" id="authSubmitBtn" class="btn btn-primary w-full p-3 text-lg">Login</button>
             </form>
             <p id="authError" class="text-red-500 text-sm text-center mt-2 h-5"></p>
+
             <div class="relative my-6">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true"><div class="w-full border-t border-gray-300"></div></div>
                 <div class="relative flex justify-center"><span class="bg-white px-2 text-sm text-gray-500">or</span></div>
             </div>
+
             <button id="googleLoginBtn" class="btn btn-google w-full p-4 text-lg">
                 <svg class="google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"></path><path fill="#34A853" d="M24 46c6.48 0 11.93-2.13 15.89-5.82l-7.11-5.52c-2.17 1.45-4.92 2.3-8.78 2.3-6.76 0-12.47-4.55-14.51-10.61H2.3v5.7C6.32 40.57 14.56 46 24 46z"></path><path fill="#FBBC05" d="M9.49 27.9c-.4-1.18-.62-2.45-.62-3.79s.22-2.61.62-3.79V14.6H2.3C.83 17.53 0 20.65 0 24.11s.83 6.58 2.3 9.51l7.19-5.72z"></path><path fill="#EA4335" d="M24 8.71c3.55 0 6.63 1.23 9.13 3.63l6.3-6.3C35.91 2.25 30.47 0 24 0 14.56 0 6.32 5.43 2.3 14.6l7.19 5.71C11.53 14.26 17.24 8.71 24 8.71z"></path></svg>
                 <span>Continue with Google</span>
             </button>
+
             <p id="authToggleText" class="text-center text-sm mt-4">
                 Don't have an account? <span id="toggleToSignUp" class="toggle-auth-link">Sign Up</span>
             </p>
         </section>
+
         <!-- Main App Content (hidden by default) -->
         <div id="appContent" class="hidden w-full">
             <div class="flex justify-between items-center mb-4">
@@ -413,6 +435,7 @@
                     <button id="showEssentialsSectionBtn" class="btn btn-primary p-4 sm:p-6 text-base sm:text-lg">Study Essentials</button>
                 </div>
             </section>
+
             <section id="uploadSection" class="card non-interactive-card mb-6 sm:mb-8 hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl sm:text-2xl font-semibold text-teal-700">1. Upload Vocabulary</h2>
@@ -460,6 +483,7 @@
                 <button id="uploadBtn" class="btn btn-primary mt-3 sm:mt-4 w-full sm:w-auto">Load Vocabulary from Selected File</button>
                 <p id="uploadStatus" class="text-sm text-slate-500 mt-2 h-5"></p>
             </section>
+
             <section id="essentialsCategorySelectionSection" class="card non-interactive-card mb-6 sm:mb-8 hidden">
                  <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl sm:text-2xl font-semibold text-teal-700">Study Essentials: Select a Category</h2>
@@ -467,6 +491,7 @@
                 </div>
                 <div id="essentialsCategoryButtonsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3"></div>
             </section>
+
             <section id="essentialsCategoryOptionsSection" class="card non-interactive-card mb-6 sm:mb-8 hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h2 id="essentialsOptionsTitle" class="text-xl sm:text-2xl font-semibold text-teal-700">Category: [Name]</h2>
@@ -477,6 +502,7 @@
                     <button id="playGamesWithEssentialsBtn" class="btn btn-outline essentials-action-btn p-4 sm:p-6 text-base sm:text-lg">Play Games with This Category</button>
                 </div>
             </section>
+
             <section id="gameSelectionSection" class="card non-interactive-card mb-6 sm:mb-8 hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl sm:text-2xl font-semibold text-teal-700">2. Select a Game</h2>
@@ -491,6 +517,7 @@
                     <button id="findTheWordsBtn" class="btn btn-outline p-4 sm:p-6 text-base sm:text-lg">Find the Words</button>
                 </div>
             </section>
+
             <section id="gameArea" class="card non-interactive-card hidden">
                 <div id="gameHeader" class="flex justify-between items-center mb-2">
                      <h2 id="gameTitle" class="text-xl sm:text-2xl md:text-3xl font-semibold text-teal-700">Game</h2>
@@ -531,10 +558,12 @@
                 </div>
                 <p id="ttsGeneralStatus" class="text-center text-xs text-red-500 mt-1 h-4"></p>
                 <hr class="my-3 sm:my-4 border-teal-200">
+
                 <div id="partSelectionContainer" class="hidden mb-4 sm:mb-6">
                     <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-2 sm:mb-3">Choose a Part to Study:</h3>
                     <div id="partButtonsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3"></div>
                 </div>
+
                 <div id="matchingGame" class="hidden">
                     <p id="matchingInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">Match Target Language to Your Language.</p>
                     <div id="matchingGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4"></div>
@@ -543,6 +572,7 @@
                          <button id="resetCurrentPartBtn" class="btn btn-primary">Restart This Part</button>
                     </div>
                 </div>
+
                  <div id="findTheWordsGame" class="hidden">
                     <p id="findTheWordsInstructions" class="text-slate-600 mb-2 text-sm sm:text-base">Listen carefully and select the words you hear (in the Target Language).</p>
                     <div class="flex flex-col sm:flex-row justify-between items-center mb-3 sm:mb-4 gap-2">
@@ -559,6 +589,7 @@
                         <button id="nextFindTheWordsRoundBtn" class="btn btn-primary hidden">Next Round</button>
                     </div>
                 </div>
+
                 <div id="multipleChoiceGame" class="hidden">
                     <p id="mcqInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">Choose the correct Translation for the Target Language word.</p>
                     <div id="mcqQuestion" class="card non-interactive-card bg-sky-50 p-3 sm:p-4 mb-3 sm:mb-4 text-lg sm:text-xl font-medium text-sky-700 text-center min-h-[70px] sm:min-h-[80px] flex items-center justify-center"></div>
@@ -568,6 +599,7 @@
                         <button id="nextMcqBtn" class="btn btn-primary hidden">Next Question</button>
                     </div>
                 </div>
+
                 <div id="typeTranslationGame" class="hidden">
                     <p id="typeTranslationInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">Type the Target Language translation for the word/phrase shown in Your Language.</p>
                     <div id="typeTranslationPhrase" class="card non-interactive-card bg-sky-50 p-3 sm:p-4 mb-3 sm:mb-4 text-lg sm:text-xl font-medium text-sky-700 text-center min-h-[70px] sm:min-h-[80px] flex items-center justify-center"></div>
@@ -583,6 +615,7 @@
                     </div>
                      <p id="typeTranslationCounter" class="text-center text-xs sm:text-sm text-slate-500 mt-3 sm:mt-4"></p>
                 </div>
+
                 <div id="fillInTheBlanksGame" class="hidden">
                     <p id="fillInTheBlanksInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">Fill in the blank with the correct English word (Essentials Mode Only).</p>
                     <div id="fillInTheBlanksSentence" class="card non-interactive-card bg-sky-50 p-4 sm:p-6 mb-3 sm:mb-4 text-lg sm:text-xl font-medium text-sky-700 text-center min-h-[80px] sm:min-h-[100px] flex items-center justify-center leading-relaxed"></div>
@@ -594,6 +627,7 @@
                     </div>
                     <p id="fillInTheBlanksCounter" class="text-center text-xs sm:text-sm text-slate-500 mt-3 sm:mt-4"></p>
                 </div>
+
                 <div id="talkToMeGame" class="hidden">
                     <p id="talkToMeInstructions" class="text-slate-600 mb-2 text-sm sm:text-base">Read the Target Language phrase aloud.</p>
                     <div id="talkToMePhraseToRead" class="card non-interactive-card bg-sky-100 border-sky-300 p-4 sm:p-6 mb-3 sm:mb-4 text-xl sm:text-2xl font-semibold text-sky-800 text-center relative">
@@ -621,11 +655,13 @@
                     <p id="talkToMeCounter" class="text-center text-xs sm:text-sm text-slate-500 mt-3 sm:mt-4"></p>
                     <p id="speechApiStatus" class="text-center text-xs text-red-500 mt-1 sm:mt-2 h-4"></p>
                 </div>
+
                 <div id="roundCompleteMessage" class="hidden"></div>
                 <div id="bonusRoundCountdownMessage" class="hidden"></div>
                 <p id="gameOverMessage" class="text-center text-xl sm:text-2xl font-bold text-red-600 my-4 sm:my-6 hidden"></p>
                 <p id="noVocabularyMessage" class="text-center text-red-500 hidden">Please upload a vocabulary list first.</p>
             </section>
+
             <!-- Live Notes Interface -->
             <section id="liveNotesInterface" class="fixed inset-0 bg-white z-50 hidden flex flex-col">
                 <!-- Header Bar -->
@@ -643,6 +679,7 @@
                         <button id="closeLiveNotesBtn" class="btn btn-secondary text-sm py-1 px-3">✕ Close</button>
                     </div>
                 </div>
+
                 <!-- Content Area -->
                 <div class="flex-1 p-6 overflow-hidden">
                     <div class="max-w-4xl mx-auto h-full flex flex-col">
@@ -667,10 +704,12 @@
                                 id="notepadTextarea" 
                                 class="flex-1 w-full border-none outline-none resize-none p-0 font-mono text-base leading-relaxed bg-transparent"
                                 placeholder="Start writing your notes here...
+
 word - translation
 phrase - definition
 bonjour - hello
 buenos días - good morning
+
 Use a dash (-) to separate words from their translations."
                                 style="font-family: 'Courier New', monospace; line-height: 1.8;"
                             ></textarea>
@@ -682,22 +721,12 @@ Use a dash (-) to separate words from their translations."
                             <button id="newLineBtn" class="btn btn-primary py-2 px-4">+ New Line</button>
                             <button id="clearAllBtn" class="btn btn-warning py-2 px-4">Clear All</button>
                         </div>
-
-    
-          
-            
-    
-
-          
-          Expand Down
-    
-    
-  
                     </div>
                 </div>
             </section>
         </div>
     </div>
+
     <script src="app.js"></script>
 </body>
 </html>
