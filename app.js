@@ -591,17 +591,24 @@ async function saveNotes(notesToSave) {
                 
                 console.log('📊 Summary: Total notes to process:', notesToSave.length, '| New unique notes:', newNotes.length, '| Duplicates found:', duplicateNotes.length);
                 
-                // Show user feedback about duplicates
+                // Show user feedback about duplicates if any
                 if (duplicateNotes.length > 0) {
-                    const duplicateList = duplicateNotes.map(note => `"${note.lang1} - ${note.lang2}"`).join(', ');
-                    alert(`Can't save ${duplicateNotes.length} word(s) - already in your notes:\n\n${duplicateList}\n\nThese words are already in your vocabulary database.`);
+                    const duplicateList = duplicateNotes.map(note => `"${note.lang1}"`).join(', ');
+                    console.log('❌ Skipping duplicates:', duplicateList);
+                    
+                    // Show a more concise alert about duplicates
+                    if (newNotes.length > 0) {
+                        alert(`Found ${duplicateNotes.length} duplicate(s) that won't be saved: ${duplicateList}\n\nSaving ${newNotes.length} new word(s).`);
+                    } else {
+                        alert(`All ${duplicateNotes.length} word(s) already exist in your vocabulary: ${duplicateList}\n\nNothing to save.`);
+                    }
                 }
                 
                 if (newNotes.length === 0) {
                     console.log('All notes already exist in database');
                     pendingChanges = false;
                     updateSaveStatus();
-                    alert('Can\'t save - all these words are already in your notes database.');
+                    // Note: The user has already been informed via the alert above
                     return;
                 }
                 
@@ -622,6 +629,7 @@ async function saveNotes(notesToSave) {
                     pendingChanges = false;
                     updateSaveStatus();
                     updateLineAndParsedCounts();
+                    updateAddNotesButtonText(); // Update button text since user now has vocabulary
                     
                     // Refresh vocabulary
                     await fetchNotes();
@@ -684,6 +692,7 @@ async function saveNotes(notesToSave) {
                             const success = await saveNotes(parsedNotes);
                             if (success) {
                                 await fetchNotes();
+                                updateAddNotesButtonText(); // Update button text since user now has vocabulary
                                 uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
                                 uploadStatus.className = 'text-sm text-green-600 mt-2 h-5';
                                 isEssentialsMode = false;
@@ -709,12 +718,28 @@ async function saveNotes(notesToSave) {
                 reader.readAsText(file);
             }
 
-            // --- UI & NAVIGATION ---
+            function updateAddNotesButtonText() {
+                if (addNotesBtn) {
+                    if (vocabulary && vocabulary.length > 0) {
+                        addNotesBtn.textContent = '📝 Add Notes';
+                    } else {
+                        addNotesBtn.textContent = 'Add / Manage Notes';
+                    }
+                }
+            }
             function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
             function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
             function showMainSelection() { 
                 console.log('showMainSelection: Showing main selection interface');
                 console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
+                
+                // If user has existing vocabulary, skip main selection and go directly to games
+                if (vocabulary && vocabulary.length > 0) {
+                    console.log('showMainSelection: User has existing vocabulary, redirecting to games');
+                    showGameSelection();
+                    return;
+                }
+                
                 mainSelectionSection.classList.remove('hidden'); 
                 [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
                     if (el) el.classList.add('hidden');
@@ -1269,13 +1294,16 @@ async function startFindTheWordsRound(pool) {
                         isEssentialsMode = false;
                         currentVocabularyPart = [];
 
-                        // Force reload to ensure clean state
+                        // Force reload to ensure clean state and return to login
                         console.log('Reloading page to ensure clean state');
                         window.location.reload(); 
                     } catch (error) {
                         console.error('Unexpected logout error:', error);
                         // Force reload anyway to ensure clean state
                         vocabulary = [];
+                        isEssentialsMode = false;
+                        currentVocabularyPart = [];
+                        console.log('Forcing reload due to logout error');
                         window.location.reload();
                     }
                 });
@@ -1283,7 +1311,15 @@ async function startFindTheWordsRound(pool) {
                 console.error('Logout button not found in DOM');
             }
 
-            addNotesBtn.addEventListener('click', showMainSelection);
+            addNotesBtn.addEventListener('click', () => {
+                // If user has existing vocabulary, only show Live Notes
+                if (vocabulary && vocabulary.length > 0) {
+                    initializeLiveNotes();
+                } else {
+                    // If no vocabulary, show main selection (which will show upload options)
+                    showMainSelection();
+                }
+            });
             
             // Live Notes event listeners
             liveNotesBtn.addEventListener('click', initializeLiveNotes);
@@ -1478,6 +1514,9 @@ if (languageSelectorInGame) {
                                 console.log('✅ User has existing vocabulary (' + vocabulary.length + ' notes), redirecting to game selection');
                                 console.log('Sample vocabulary entries:', vocabulary.slice(0, 3));
                                 
+                                // Update button text and navigation
+                                updateAddNotesButtonText();
+                                
                                 // Ensure we're not in essentials mode for user's own vocabulary
                                 isEssentialsMode = false;
                                 
@@ -1491,6 +1530,7 @@ if (languageSelectorInGame) {
                             } else {
                                 console.log('❌ User has no vocabulary, showing main selection (upload section)');
                                 console.log('Vocabulary state:', { vocabulary, length: vocabulary?.length, type: typeof vocabulary });
+                                updateAddNotesButtonText();
                                 showMainSelection();
                             }
                         } catch (error) {

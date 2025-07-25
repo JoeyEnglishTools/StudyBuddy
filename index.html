@@ -330,9 +330,10 @@
             border-radius: 0.5rem;
             padding: 1rem;
             width: 100%;
-            height: calc(100% - 120px); /* Leave space for header and controls */
+            height: calc(100% - 80px); /* Reduced top space to give more room to textarea */
             font-size: 1.2rem;
             resize: none;
+            min-height: 70vh; /* Ensure minimum height takes most of the screen */
         }
 
         #liveNotesTextarea:focus {
