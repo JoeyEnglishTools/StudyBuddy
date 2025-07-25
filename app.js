@@ -174,12 +174,27 @@
                     console.log('🔐 fetchNotes: Getting user authentication...');
                     
                     // Add timeout to prevent hanging on auth.getUser()
-                    const authPromise = supabaseClient.auth.getUser();
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
-                    );
+                    let authResult;
+                    try {
+                        const authPromise = supabaseClient.auth.getUser();
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
+                        );
+                        
+                        authResult = await Promise.race([authPromise, timeoutPromise]);
+                        console.log('🔐 fetchNotes: Auth call completed successfully');
+                    } catch (timeoutError) {
+                        console.error('❌ fetchNotes: Auth timeout or error:', timeoutError);
+                        if (retryCount === 0) {
+                            console.log('🔄 fetchNotes: Retrying due to auth timeout...');
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            return await fetchNotes(retryCount + 1);
+                        }
+                        vocabulary = [];
+                        return false;
+                    }
                     
-                    const { data: { user }, error: userError } = await Promise.race([authPromise, timeoutPromise]);
+                    const { data: { user }, error: userError } = authResult;
 
                     if (userError) {
                         console.error('❌ fetchNotes: Error getting user:', userError);
@@ -341,6 +356,7 @@ async function saveNotes(notesToSave) {
 
     console.log('🔐 saveNotes: Getting user authentication...');
     
+    let userResult;
     try {
         // Add timeout to prevent hanging on auth.getUser()
         const authPromise = supabaseClient.auth.getUser();
@@ -348,23 +364,32 @@ async function saveNotes(notesToSave) {
             setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
         );
         
-        const userResult = await Promise.race([authPromise, timeoutPromise]);
-        
-        console.log('🔐 saveNotes: User result:', { 
-            userId: userResult?.data?.user?.id, 
-            email: userResult?.data?.user?.email, 
-            error: userResult?.error 
-        });
-
-        const user = userResult?.data?.user;
-        if (!user) {
-            console.error('❌ saveNotes: User not authenticated');
-            if (uploadStatus) {
-                uploadStatus.textContent = 'You must be logged in to save notes.';
-                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-            }
-            return false;
+        userResult = await Promise.race([authPromise, timeoutPromise]);
+        console.log('🔐 saveNotes: Auth call completed successfully');
+    } catch (timeoutError) {
+        console.error('❌ saveNotes: Auth timeout or error:', timeoutError);
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Authentication timeout. Please try again.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
         }
+        return false;
+    }
+    
+    console.log('🔐 saveNotes: User result:', { 
+        userId: userResult?.data?.user?.id, 
+        email: userResult?.data?.user?.email, 
+        error: userResult?.error 
+    });
+
+    const user = userResult?.data?.user;
+    if (!user) {
+        console.error('❌ saveNotes: User not authenticated');
+        if (uploadStatus) {
+            uploadStatus.textContent = 'You must be logged in to save notes.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        }
+        return false;
+    }
 
         const notesWithUser = notesToSave.map(note => ({
             user_id: user.id,
@@ -1829,6 +1854,12 @@ if (languageSelectorInGame) {
 
 
             // --- INITIALIZATION ---
+            
+            // Ensure clean initial state
+            console.log('🔧 Initializing app - resetting state...');
+            isAuthenticating = false;
+            vocabulary = [];
+            
             // Check if Supabase is available before setting up auth
             if (supabaseClient) {
                 console.log('🔐 Supabase client available, setting up authentication...');
@@ -1951,18 +1982,28 @@ if (languageSelectorInGame) {
 
                 // Check current session on page load
                 console.log('🔍 Checking for existing session on page load...');
-                supabaseClient.auth.getSession().then(({ data: { session } }) => {
-                    console.log('🔍 Initial session check result:', session ? 'session found' : 'no session');
-                    if (!session) {
-                        console.log('❌ No active session found, showing login');
+                
+                // Add timeout to session check as well
+                const sessionCheckPromise = supabaseClient.auth.getSession();
+                const sessionTimeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000)
+                );
+                
+                Promise.race([sessionCheckPromise, sessionTimeoutPromise])
+                    .then(({ data: { session } }) => {
+                        console.log('🔍 Initial session check result:', session ? 'session found' : 'no session');
+                        if (!session) {
+                            console.log('❌ No active session found, showing login');
+                            isAuthenticating = false; // Ensure flag is reset
+                            loginSection.classList.remove('hidden');
+                            appContent.classList.add('hidden');
+                        }
+                    }).catch(error => {
+                        console.error('💥 Error checking session:', error);
+                        console.error('💥 Error details:', error.message);
+                        isAuthenticating = false; // Ensure flag is reset on error
                         loginSection.classList.remove('hidden');
                         appContent.classList.add('hidden');
-                    }
-                }).catch(error => {
-                    console.error('💥 Error checking session:', error);
-                    console.error('💥 Error details:', error.message);
-                    loginSection.classList.remove('hidden');
-                    appContent.classList.add('hidden');
                 });
             } else {
                 console.error('❌ Supabase not available - authentication will not work');
