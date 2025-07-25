@@ -152,59 +152,130 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Replace the original fetchNotes function with this simplified version
-    async function fetchNotes() {
-        console.log('🔍 fetchNotes: Starting to fetch notes...');
-        
-        try {
-            // Get user with simpler approach
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                console.log('❌ fetchNotes: No authenticated user found');
-                vocabulary = [];
-                return false;
-            }
-            
-            console.log('✅ fetchNotes: User found, fetching notes for user:', user.id);
-            
-            // Simpler query without all the logging
-            const { data, error } = await supabaseClient
-                .from('notes')
-                .select('term, definition, term_lang')
-                .eq('user_id', user.id);
-                
-            if (error) {
-                console.error('Error fetching notes:', error);
-                vocabulary = [];
-                return false;
-            }
-            
-            if (!data || data.length === 0) {
-                console.log('No notes found for user');
-                vocabulary = [];
-                return false;
-            }
-            
-            // Map data directly like the working version
-            vocabulary = data.map((note, index) => ({
-                lang1: note.term,
-                lang2: note.definition,
-                originalIndex: index,
-                correctCount: 0
-            }));
-            
-            // Set language from first note if available
-            if (data.length > 0 && data[0].term_lang) {
-                csvUploadedTargetLanguage = data[0].term_lang;
-            }
-            
-            console.log(`✅ Loaded ${vocabulary.length} vocabulary items`);
-            return vocabulary.length > 0;
-        } catch (err) {
-            console.error('Error in fetchNotes:', err);
-            vocabulary = [];
-            return false;
-        }
+  // Enhanced fetchNotes function with guaranteed data population
+async function fetchNotes() {
+  console.log('🔍 FETCH STARTED: Beginning data fetch process');
+  
+  try {
+    // 1. Verify Supabase client is available
+    if (!supabaseClient) {
+      console.error('❌ No Supabase client available');
+      vocabulary = [];
+      return false;
     }
+    
+    // 2. Get the authenticated user with extra validation
+    const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+    if (authError) {
+      console.error('❌ Authentication error:', authError);
+      vocabulary = [];
+      return false;
+    }
+    
+    const user = authData?.user;
+    if (!user || !user.id) {
+      console.error('❌ No valid user found in auth data:', authData);
+      vocabulary = [];
+      return false;
+    }
+    
+    console.log('✅ User authenticated:', user.id, user.email);
+    
+    // 3. Perform database query with explicit timeout handling
+    console.log('📡 Querying database for notes...');
+    
+    // Create a timeout promise to handle stalled queries
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database query timed out after 10 seconds')), 10000)
+    );
+    
+    // Create the actual query
+    const queryPromise = supabaseClient
+      .from('notes')
+      .select('term, definition, term_lang')
+      .eq('user_id', user.id);
+    
+    // Race the query against the timeout
+    const { data, error } = await Promise.race([
+      queryPromise,
+      timeoutPromise
+    ]);
+    
+    if (error) {
+      console.error('❌ Database error:', error);
+      vocabulary = [];
+      return false;
+    }
+    
+    // 4. Validate the returned data
+    if (!data) {
+      console.error('❌ No data returned from query');
+      vocabulary = [];
+      return false;
+    }
+    
+    console.log('📊 Raw data received:', data);
+    
+    // 5. Explicitly check the data structure
+    if (!Array.isArray(data)) {
+      console.error('❌ Data is not an array:', typeof data);
+      vocabulary = [];
+      return false;
+    }
+    
+    // 6. Map data with explicit property checks
+    console.log(`📝 Processing ${data.length} notes...`);
+    
+    const mappedVocabulary = data.map((note, index) => {
+      // Validate each note has required fields
+      if (!note.term || !note.definition) {
+        console.warn(`⚠️ Note at index ${index} is missing required fields:`, note);
+        return null;
+      }
+      
+      return {
+        lang1: note.term,
+        lang2: note.definition,
+        originalIndex: index,
+        correctCount: 0
+      };
+    }).filter(item => item !== null); // Remove any invalid notes
+    
+    // 7. CRUCIAL: Explicitly assign to global vocabulary
+    console.log(`✅ Successfully mapped ${mappedVocabulary.length} vocabulary items`);
+    
+    window.vocabulary = mappedVocabulary; // Ensure global assignment
+    vocabulary = mappedVocabulary; // Local assignment
+    
+    // 8. Set language from first note if available
+    if (data.length > 0 && data[0].term_lang) {
+      csvUploadedTargetLanguage = data[0].term_lang;
+      console.log('🌐 Set language to:', csvUploadedTargetLanguage);
+    }
+    
+    // 9. Verify the vocabulary array is actually populated
+    console.log('🔍 FINAL VERIFICATION:', {
+      vocabularyLength: vocabulary.length,
+      isArray: Array.isArray(vocabulary),
+      sampleItems: vocabulary.slice(0, 2)
+    });
+    
+    return vocabulary.length > 0;
+  } catch (err) {
+    console.error('💥 Unexpected error in fetchNotes:', err);
+    console.error('Stack trace:', err.stack);
+    
+    // Try to recover with a direct global assignment
+    try {
+      window.vocabulary = [];
+      vocabulary = [];
+    } catch (e) {
+      console.error('Failed to reset vocabulary array:', e);
+    }
+    
+    return false;
+  }
+}
 
     // --- STATE & CONSTANTS ---
     const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
@@ -1506,6 +1577,65 @@ async function startFindTheWordsRound(pool) {
             }
 
             // --- EVENT LISTENERS ---
+    // Add this in your event listeners section
+document.getElementById('debugDbBtn')?.addEventListener('click', async function() {
+  console.clear(); // Clear console for cleaner output
+  console.log('🔍 DATABASE DEBUG STARTED');
+  
+  try {
+    // 1. Check Supabase connection
+    console.log('Supabase client exists:', !!supabaseClient);
+    
+    // 2. Check authentication
+    const { data: authData } = await supabaseClient.auth.getUser();
+    console.log('User authenticated:', !!authData.user);
+    if (authData.user) {
+      console.log('User ID:', authData.user.id);
+      console.log('User email:', authData.user.email);
+    }
+    
+    // 3. Try a manual query to the database
+    console.log('Attempting direct database query...');
+    const { data, error } = await supabaseClient
+      .from('notes')
+      .select('*')
+      .limit(10);
+      
+    if (error) {
+      console.error('Query error:', error);
+    } else {
+      console.log('Query successful, returned items:', data?.length);
+      console.log('Sample data:', data);
+      
+      // 4. Try to manually populate the vocabulary array
+      if (data && data.length > 0) {
+        try {
+          window.vocabulary = data.map((note, index) => ({
+            lang1: note.term,
+            lang2: note.definition,
+            originalIndex: index,
+            correctCount: 0
+          }));
+          
+          console.log('Manually set vocabulary array:', window.vocabulary);
+          
+          // Force UI update
+          if (window.vocabulary.length > 0) {
+            alert(`Successfully loaded ${window.vocabulary.length} items manually!`);
+            // Try to trigger game selection if appropriate
+            if (typeof showGameSelection === 'function') {
+              showGameSelection();
+            }
+          }
+        } catch (e) {
+          console.error('Failed to manually set vocabulary:', e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Debug function error:', e);
+  }
+});
             authToggleText.addEventListener('click', (e) => { if (e.target.matches('.toggle-auth-link')) { e.preventDefault(); toggleAuthMode(); } });
             authForm.addEventListener('submit', async (e) => { 
                 e.preventDefault(); 
