@@ -686,32 +686,38 @@
                         <!-- Instructions -->
                         <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                             <p class="text-sm text-blue-800">
-                                ✍️ Write your notes directly! Left column: word in target language, Right column: translation/definition.
-                                After 7 seconds of inactivity, we'll automatically move to the next line.
+                                ✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
+                                <br>Example: "hello - hola" or "good morning - buenos días"
+                                <br>Each line with word/phrase + dash + translation gets automatically saved.
                             </p>
                         </div>
 
-                        <!-- Writing Area -->
-                        <div class="flex-1 grid grid-cols-2 gap-4 h-full">
-                            <!-- Left Column: Target Language -->
-                            <div class="bg-gray-50 rounded-lg p-4 flex flex-col">
-                                <h3 class="text-lg font-semibold text-gray-700 mb-3">Target Language</h3>
-                                <div id="targetLanguageColumn" class="flex-1 min-h-0 overflow-y-auto">
-                                    <!-- Writing areas will be added dynamically -->
+                        <!-- Notepad Writing Area -->
+                        <div class="flex-1 bg-white rounded-lg border-2 border-gray-200 p-4 flex flex-col">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-lg font-semibold text-gray-700">📝 Your Notepad</h3>
+                                <div class="text-sm text-gray-500">
+                                    <span id="lineCount">Lines: 0</span> | <span id="parsedCount">Saved: 0</span>
                                 </div>
                             </div>
+                            <textarea 
+                                id="notepadTextarea" 
+                                class="flex-1 w-full border-none outline-none resize-none p-0 font-mono text-base leading-relaxed bg-transparent"
+                                placeholder="Start writing your notes here...
 
-                            <!-- Right Column: Translation/Definition -->
-                            <div class="bg-gray-50 rounded-lg p-4 flex flex-col">
-                                <h3 class="text-lg font-semibold text-gray-700 mb-3">Translation/Definition</h3>
-                                <div id="translationColumn" class="flex-1 min-h-0 overflow-y-auto">
-                                    <!-- Writing areas will be added dynamically -->
-                                </div>
-                            </div>
+word - translation
+phrase - definition
+bonjour - hello
+buenos días - good morning
+
+Use a dash (-) to separate words from their translations."
+                                style="font-family: 'Courier New', monospace; line-height: 1.8;"
+                            ></textarea>
                         </div>
 
                         <!-- Control Buttons -->
                         <div class="mt-4 flex justify-center gap-4">
+                            <button id="previousLineBtn" class="btn btn-secondary py-2 px-4">↑ Previous Line</button>
                             <button id="newLineBtn" class="btn btn-primary py-2 px-4">+ New Line</button>
                             <button id="clearAllBtn" class="btn btn-warning py-2 px-4">Clear All</button>
                         </div>

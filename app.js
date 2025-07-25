@@ -125,13 +125,13 @@
             let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
             
             // Live Notes state
-            let liveNotesData = [], currentActiveInput = null, autoAdvanceTimer = null, autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
+            let liveNotesData = [], notepadContent = '', autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
 
             // --- ELEMENT SELECTORS ---
             const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
             
             // Live Notes elements
-            const liveNotesInterface = document.getElementById('liveNotesInterface'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), targetLanguageColumn = document.getElementById('targetLanguageColumn'), translationColumn = document.getElementById('translationColumn'), newLineBtn = document.getElementById('newLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), cloudSaveIcon = document.getElementById('cloudSaveIcon'), saveStatus = document.getElementById('saveStatus');
+            const liveNotesInterface = document.getElementById('liveNotesInterface'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), notepadTextarea = document.getElementById('notepadTextarea'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), cloudSaveIcon = document.getElementById('cloudSaveIcon'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount');
             const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
             const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
             const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
@@ -337,14 +337,24 @@ async function saveNotes(notesToSave) {
                     viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
                 }
                 
-                // Initialize first line
-                addNewNoteLine();
+                // Clear existing content
+                notepadContent = '';
+                liveNotesData = [];
+                notepadTextarea.value = '';
+                
+                // Add event listeners to notepad
+                notepadTextarea.addEventListener('input', handleNotepadInput);
+                notepadTextarea.addEventListener('keydown', handleNotepadKeydown);
+                
+                // Initialize display counters
+                updateLineAndParsedCounts();
                 
                 // Start auto-save timer
                 startAutoSaveTimer();
                 
-                // Show interface
+                // Show interface and focus
                 liveNotesInterface.classList.remove('hidden');
+                notepadTextarea.focus();
             }
             
             function closeLiveNotes() {
@@ -355,10 +365,6 @@ async function saveNotes(notesToSave) {
                 }
                 
                 // Clear timers
-                if (autoAdvanceTimer) {
-                    clearTimeout(autoAdvanceTimer);
-                    autoAdvanceTimer = null;
-                }
                 if (autoSaveTimer) {
                     clearInterval(autoSaveTimer);
                     autoSaveTimer = null;
@@ -373,133 +379,108 @@ async function saveNotes(notesToSave) {
                 }
             }
             
-            function addNewNoteLine() {
-                const lineIndex = liveNotesData.length;
-                
-                // Add to data array
-                liveNotesData.push({
-                    targetLang: '',
-                    translation: '',
-                    saved: false
-                });
-                
-                // Create target language input
-                const targetInput = document.createElement('textarea');
-                targetInput.className = 'live-notes-input';
-                targetInput.placeholder = 'Write word/phrase here...';
-                targetInput.dataset.lineIndex = lineIndex;
-                targetInput.dataset.column = 'target';
-                
-                // Create translation input
-                const translationInput = document.createElement('textarea');
-                translationInput.className = 'live-notes-input';
-                translationInput.placeholder = 'Write translation/definition here...';
-                translationInput.dataset.lineIndex = lineIndex;
-                translationInput.dataset.column = 'translation';
-                
-                // Add event listeners
-                [targetInput, translationInput].forEach(input => {
-                    input.addEventListener('input', handleLiveNotesInput);
-                    input.addEventListener('focus', handleLiveNotesFocus);
-                    input.addEventListener('blur', handleLiveNotesBlur);
-                });
-                
-                // Add to columns
-                targetLanguageColumn.appendChild(targetInput);
-                translationColumn.appendChild(translationInput);
-                
-                // Focus on target input
-                targetInput.focus();
-                currentActiveInput = targetInput;
-            }
-            
-            function handleLiveNotesInput(event) {
-                const input = event.target;
-                const lineIndex = parseInt(input.dataset.lineIndex);
-                const column = input.dataset.column;
-                
-                // Update data
-                if (column === 'target') {
-                    liveNotesData[lineIndex].targetLang = input.value;
-                } else {
-                    liveNotesData[lineIndex].translation = input.value;
-                }
-                
-                // Mark as not saved
-                liveNotesData[lineIndex].saved = false;
+            function handleNotepadInput(event) {
+                notepadContent = event.target.value;
                 pendingChanges = true;
                 
-                // Update save status
+                // Parse content and update data
+                parseNotepadContent();
+                updateLineAndParsedCounts();
                 updateSaveStatus();
-                
-                // Reset auto-advance timer
-                resetAutoAdvanceTimer();
             }
             
-            function handleLiveNotesFocus(event) {
-                const input = event.target;
-                currentActiveInput = input;
-                input.classList.add('active');
-            }
-            
-            function handleLiveNotesBlur(event) {
-                const input = event.target;
-                input.classList.remove('active');
-            }
-            
-            function resetAutoAdvanceTimer() {
-                if (autoAdvanceTimer) {
-                    clearTimeout(autoAdvanceTimer);
+            function handleNotepadKeydown(event) {
+                // Handle Enter key to auto-advance
+                if (event.key === 'Enter') {
+                    // Natural behavior - just update counts
+                    setTimeout(() => {
+                        parseNotepadContent();
+                        updateLineAndParsedCounts();
+                    }, 10);
                 }
-                
-                // Show countdown indicator
-                let countdown = 7;
-                const updateCountdown = () => {
-                    if (currentActiveInput) {
-                        // Remove existing countdown
-                        const existingCountdown = currentActiveInput.parentElement.querySelector('.countdown-indicator');
-                        if (existingCountdown) {
-                            existingCountdown.remove();
-                        }
-                        
-                        if (countdown > 0) {
-                            const countdownDiv = document.createElement('div');
-                            countdownDiv.className = 'countdown-indicator';
-                            countdownDiv.textContent = countdown;
-                            countdownDiv.style.position = 'relative';
-                            countdownDiv.style.top = '-10px';
-                            countdownDiv.style.right = '10px';
-                            countdownDiv.style.float = 'right';
-                            countdownDiv.style.marginBottom = '-20px';
-                            currentActiveInput.parentElement.insertBefore(countdownDiv, currentActiveInput.nextSibling);
-                            countdown--;
-                            setTimeout(updateCountdown, 1000);
-                        } else {
-                            // Auto-advance to next line
-                            autoAdvanceToNextLine();
-                        }
-                    }
-                };
-                
-                autoAdvanceTimer = setTimeout(updateCountdown, 1000);
             }
             
-            function autoAdvanceToNextLine() {
-                if (currentActiveInput) {
-                    const lineIndex = parseInt(currentActiveInput.dataset.lineIndex);
-                    const column = currentActiveInput.dataset.column;
+            function parseNotepadContent() {
+                const lines = notepadContent.split('\n').filter(line => line.trim() !== '');
+                liveNotesData = [];
+                
+                lines.forEach(line => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === '') return;
                     
-                    // If we're on target column, move to translation
-                    if (column === 'target') {
-                        const translationInput = translationColumn.children[lineIndex];
-                        if (translationInput) {
-                            translationInput.focus();
+                    // Look for dash separator (-, –, —)
+                    const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+                    if (dashMatches) {
+                        const word = dashMatches[1].trim();
+                        const translation = dashMatches[2].trim();
+                        
+                        if (word && translation) {
+                            liveNotesData.push({
+                                targetLang: word,
+                                translation: translation,
+                                saved: false
+                            });
                         }
-                    } else {
-                        // If we're on translation column, add new line
-                        addNewNoteLine();
                     }
+                });
+            }
+            
+            function updateLineAndParsedCounts() {
+                const totalLines = notepadContent.split('\n').filter(line => line.trim() !== '').length;
+                const parsedLines = liveNotesData.length;
+                
+                lineCount.textContent = `Lines: ${totalLines}`;
+                parsedCount.textContent = `Parsed: ${parsedLines}`;
+            }
+            
+            function addNewNoteLine() {
+                const cursorPos = notepadTextarea.selectionStart;
+                const text = notepadTextarea.value;
+                const beforeCursor = text.substring(0, cursorPos);
+                const afterCursor = text.substring(cursorPos);
+                
+                // Add new line at cursor position
+                let newText;
+                if (beforeCursor.endsWith('\n') || beforeCursor === '') {
+                    newText = beforeCursor + '\n' + afterCursor;
+                } else {
+                    newText = beforeCursor + '\n\n' + afterCursor;
                 }
+                
+                notepadTextarea.value = newText;
+                
+                // Position cursor at the start of the new line
+                const newCursorPos = beforeCursor.length + (beforeCursor.endsWith('\n') || beforeCursor === '' ? 1 : 2);
+                notepadTextarea.setSelectionRange(newCursorPos, newCursorPos);
+                notepadTextarea.focus();
+                
+                // Update content and counts
+                notepadContent = newText;
+                parseNotepadContent();
+                updateLineAndParsedCounts();
+            }
+            
+            function goToPreviousLine() {
+                const cursorPos = notepadTextarea.selectionStart;
+                const text = notepadTextarea.value;
+                const beforeCursor = text.substring(0, cursorPos);
+                
+                // Find the previous line break
+                const lastLineBreak = beforeCursor.lastIndexOf('\n');
+                if (lastLineBreak > 0) {
+                    const secondLastLineBreak = beforeCursor.lastIndexOf('\n', lastLineBreak - 1);
+                    const previousLineStart = secondLastLineBreak + 1;
+                    const previousLineEnd = lastLineBreak;
+                    
+                    // Move cursor to the end of the previous line
+                    notepadTextarea.setSelectionRange(previousLineEnd, previousLineEnd);
+                    notepadTextarea.focus();
+                } else if (lastLineBreak === 0) {
+                    // We're on the second line, go to the end of the first line
+                    notepadTextarea.setSelectionRange(0, 0);
+                    notepadTextarea.focus();
+                }
+                // If no previous line, stay where we are
             }
             
             function startAutoSaveTimer() {
@@ -536,7 +517,15 @@ async function saveNotes(notesToSave) {
             async function saveLiveNotes() {
                 console.log('Saving live notes...');
                 
-                // Filter out empty notes and duplicates
+                // Parse current content to ensure we have the latest data
+                parseNotepadContent();
+                
+                if (liveNotesData.length === 0) {
+                    console.log('No notes to save');
+                    return;
+                }
+                
+                // Filter and prepare notes for saving
                 const notesToSave = liveNotesData
                     .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
                     .map(note => ({
@@ -545,7 +534,7 @@ async function saveNotes(notesToSave) {
                     }));
                 
                 if (notesToSave.length === 0) {
-                    console.log('No notes to save');
+                    console.log('No valid notes to save');
                     return;
                 }
                 
@@ -576,13 +565,12 @@ async function saveNotes(notesToSave) {
                     console.log(`Saved ${newNotes.length} new notes`);
                     // Mark saved notes
                     liveNotesData.forEach(note => {
-                        if (note.targetLang.trim() !== '' && note.translation.trim() !== '') {
-                            note.saved = true;
-                        }
+                        note.saved = true;
                     });
                     
                     pendingChanges = false;
                     updateSaveStatus();
+                    updateLineAndParsedCounts();
                     
                     // Refresh vocabulary
                     await fetchNotes();
@@ -592,11 +580,12 @@ async function saveNotes(notesToSave) {
             function clearAllLiveNotes() {
                 if (confirm('Are you sure you want to clear all notes? Unsaved changes will be lost.')) {
                     liveNotesData = [];
-                    targetLanguageColumn.innerHTML = '';
-                    translationColumn.innerHTML = '';
+                    notepadContent = '';
+                    notepadTextarea.value = '';
                     pendingChanges = false;
                     updateSaveStatus();
-                    addNewNoteLine();
+                    updateLineAndParsedCounts();
+                    notepadTextarea.focus();
                 }
             }
             async function handleFileUpload(droppedFile = null) {
@@ -1242,6 +1231,7 @@ async function startFindTheWordsRound(pool) {
             liveNotesBtn.addEventListener('click', initializeLiveNotes);
             closeLiveNotesBtn.addEventListener('click', closeLiveNotes);
             newLineBtn.addEventListener('click', addNewNoteLine);
+            previousLineBtn.addEventListener('click', goToPreviousLine);
             clearAllBtn.addEventListener('click', clearAllLiveNotes);
             manualSaveBtn.addEventListener('click', saveLiveNotes);
             showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
