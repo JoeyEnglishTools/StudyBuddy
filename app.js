@@ -236,6 +236,7 @@ async function fetchNotes() {
       return {
         lang1: note.term,
         lang2: note.definition,
+        term_lang: note.term_lang || 'en-US', // Include language info
         originalIndex: index,
         correctCount: 0
       };
@@ -277,6 +278,98 @@ async function fetchNotes() {
   }
 }
 
+    // --- SESSION MANAGEMENT ---
+    async function enforceSignOutOtherDevices() {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+            
+            const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const userLogin = user.email?.split('@')[0] || 'user';
+            const newSessionId = `${userLogin}_${Date.now().toString()}_${Math.random().toString(36).substring(2)}`;
+            
+            console.log('🔐 Enforcing sign out on other devices for user:', user.id);
+            console.log('🔐 New session ID:', newSessionId);
+            
+            // Update the profiles table with new session info
+            const { error } = await supabaseClient
+                .from('profiles')
+                .update({ 
+                    active_session_id: newSessionId,
+                    last_active: currentDate,
+                    username: userLogin
+                })
+                .eq('id', user.id);
+                
+            if (error) {
+                console.error('Failed to update profile session:', error);
+                return false;
+            }
+            
+            // Store session ID locally
+            localStorage.setItem('current_session_id', newSessionId);
+            console.log('✅ Session enforcement completed successfully');
+            return true;
+        } catch (err) {
+            console.error('Failed to enforce sign out on other devices:', err);
+            return false;
+        }
+    }
+
+    async function validateSessionIsActive() {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return false;
+            
+            // Get current session ID from local storage
+            const currentSessionId = localStorage.getItem('current_session_id');
+            if (!currentSessionId) {
+                console.log('⚠️ No local session ID found');
+                return false;
+            }
+            
+            // Check if this session is still active in the database
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('active_session_id')
+                .eq('id', user.id)
+                .single();
+                
+            if (error) {
+                console.error('Failed to validate session:', error);
+                return false;
+            }
+            
+            const isValid = data && data.active_session_id === currentSessionId;
+            if (!isValid) {
+                console.log('❌ Session is no longer valid - another device has logged in');
+                // Force logout
+                await supabaseClient.auth.signOut();
+                localStorage.removeItem('current_session_id');
+                return false;
+            }
+            
+            console.log('✅ Session is valid');
+            return true;
+        } catch (err) {
+            console.error('Error validating session:', err);
+            return false;
+        }
+    }
+
+    function setupSessionValidation() {
+        // Check session validity every minute
+        setInterval(async () => {
+            // Only check if user is logged in
+            const { data } = await supabaseClient.auth.getSession();
+            if (data.session) {
+                await validateSessionIsActive();
+            }
+        }, 60000); // 60 seconds
+        
+        console.log('✅ Session validation setup completed');
+    }
+
     // --- STATE & CONSTANTS ---
     const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
     let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
@@ -295,7 +388,7 @@ async function fetchNotes() {
     const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
     
     // Live Notes elements
-    const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
+    const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
     const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
     const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
     const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
@@ -398,7 +491,9 @@ async function fetchNotes() {
                 user_id: user.id,
                 term: note.lang1,
                 definition: note.lang2,
-                term_lang: csvUploadedTargetLanguage || 'en-US',
+                term_lang: (liveNotesLanguageSelector && !liveNotesModal?.classList.contains('hidden')) 
+                          ? liveNotesLanguageSelector.value 
+                          : csvUploadedTargetLanguage || 'en-US',
                 definition_lang: 'en'
             }));
             console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
@@ -915,7 +1010,7 @@ async function fetchNotes() {
             noteContent.innerHTML = `
                 <div class="flex items-center space-x-3">
                     <div class="flex-1">
-                        <span class="font-medium text-gray-900 click-to-speak" data-text="${note.lang1}" data-lang="${csvUploadedTargetLanguage}">${note.lang1}</span>
+                        <span class="font-medium text-gray-900 click-to-speak" data-text="${note.lang1}" data-lang="${note.term_lang || csvUploadedTargetLanguage}">${note.lang1}</span>
                         <span class="text-gray-600 mx-2">—</span>
                         <span class="text-gray-700 click-to-speak" data-text="${note.lang2}" data-lang="en">${note.lang2}</span>
                     </div>
@@ -1370,7 +1465,7 @@ async function fetchNotes() {
 
                 // Add click-to-speak functionality to the question
                 mcqQuestion.onclick = () => {
-                    if (hearItOutLoudEnabled) speakText(currentItem.lang1, activeTargetStudyLanguage);
+                    if (hearItOutLoudEnabled) speakText(currentItem.lang1, currentItem.term_lang || activeTargetStudyLanguage);
                 };
                 mcqQuestion.classList.add('speakable-question');
 
@@ -1471,12 +1566,12 @@ async function fetchNotes() {
 
                 // Add click-to-speak functionality to the phrase
                 talkToMePhraseToRead.onclick = () => {
-                    speakText(item.lang1, activeTargetStudyLanguage);
+                    speakText(item.lang1, item.term_lang || activeTargetStudyLanguage);
                 };
 
                 // Automatically speak the word when displayed
                 setTimeout(() => {
-                    speakText(item.lang1, activeTargetStudyLanguage);
+                    speakText(item.lang1, item.term_lang || activeTargetStudyLanguage);
                 }, 300);
             }
 
@@ -1530,7 +1625,7 @@ async function fetchNotes() {
             // Helper: Speak the three target words, respecting current language
 async function speakFindTheWordsTargets(words, lang) {
     for (const w of words) {
-        await speakText(w.lang1, lang);
+        await speakText(w.lang1, w.term_lang || lang);
         await new Promise(res => setTimeout(res, 350));
     }
 }
@@ -1551,9 +1646,9 @@ async function startFindTheWordsRound(pool) {
         const card = document.createElement('div');
         card.className = 'game-card card p-2';
         card.textContent = item.lang1;
-        card.setAttribute('data-lang', activeTargetStudyLanguage);
+        card.setAttribute('data-lang', item.term_lang || activeTargetStudyLanguage);
         card.onclick = () => {
-            speakText(item.lang1, card.getAttribute('data-lang'));
+            speakText(item.lang1, item.term_lang || activeTargetStudyLanguage);
             toggleFindWordSelection(card, item);
         };
         findTheWordsGrid.appendChild(card);
@@ -1665,6 +1760,9 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                             authError.textContent = error.message; 
                         } else {
                             console.log('Login successful, user:', data.user?.id);
+                            
+                            // Call session enforcement after successful login
+                            await enforceSignOutOtherDevices();
                         }
                     } 
                 } catch (err) { 
@@ -1961,6 +2059,13 @@ if (languageSelectorInGame) {
                         console.log('✅ Session details:', { userId: session.user?.id, email: session.user?.email });
                         isAuthenticating = true; // Prevent file upload during auth
                         
+                        // Add session validation check
+                        const isValidSession = await validateSessionIsActive();
+                        if (!isValidSession && event !== 'SIGNED_IN') {
+                            console.log('❌ Session validation failed, stopping app setup');
+                            return;
+                        }
+                        
                         // Clear any existing file input to prevent unwanted triggers
                         if (csvFileInput) {
                             csvFileInput.value = '';
@@ -2087,9 +2192,33 @@ if (languageSelectorInGame) {
                 }
             }
 
+            // Initialize session validation if Supabase is available
+            if (supabaseClient) {
+                setupSessionValidation();
+            }
+
             // Initialize other components
             setupMistakeTracker(); 
             updateScoreDisplay();
             initSpeechRecognition();
+
+            // Language selector event listeners
+            if (targetLanguageSelector) {
+                targetLanguageSelector.addEventListener('change', (e) => {
+                    csvUploadedTargetLanguage = e.target.value;
+                    activeTargetStudyLanguage = e.target.value;
+                    console.log('🌐 CSV Target language changed to:', csvUploadedTargetLanguage);
+                });
+            }
+
+            if (liveNotesLanguageSelector) {
+                liveNotesLanguageSelector.addEventListener('change', (e) => {
+                    // Update the active language when live notes modal is open
+                    if (!liveNotesModal?.classList.contains('hidden')) {
+                        activeTargetStudyLanguage = e.target.value;
+                        console.log('🌐 Live notes language changed to:', activeTargetStudyLanguage);
+                    }
+                });
+            }
 
         });
