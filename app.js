@@ -172,7 +172,14 @@
                     }
 
                     console.log('🔐 fetchNotes: Getting user authentication...');
-                    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+                    
+                    // Add timeout to prevent hanging on auth.getUser()
+                    const authPromise = supabaseClient.auth.getUser();
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
+                    );
+                    
+                    const { data: { user }, error: userError } = await Promise.race([authPromise, timeoutPromise]);
 
                     if (userError) {
                         console.error('❌ fetchNotes: Error getting user:', userError);
@@ -333,34 +340,42 @@ async function saveNotes(notesToSave) {
     }
 
     console.log('🔐 saveNotes: Getting user authentication...');
-    const userResult = await supabaseClient.auth.getUser();
-    console.log('🔐 saveNotes: User result:', { 
-        userId: userResult?.data?.user?.id, 
-        email: userResult?.data?.user?.email, 
-        error: userResult?.error 
-    });
-
-    const user = userResult?.data?.user;
-    if (!user) {
-        console.error('❌ saveNotes: User not authenticated');
-        if (uploadStatus) {
-            uploadStatus.textContent = 'You must be logged in to save notes.';
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-        }
-        return false;
-    }
-
-    const notesWithUser = notesToSave.map(note => ({
-        user_id: user.id,
-        term: note.lang1,
-        definition: note.lang2,
-        term_lang: csvUploadedTargetLanguage || 'en-US',
-        definition_lang: 'en'
-    }));
-    console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
-    console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
-
+    
     try {
+        // Add timeout to prevent hanging on auth.getUser()
+        const authPromise = supabaseClient.auth.getUser();
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
+        );
+        
+        const userResult = await Promise.race([authPromise, timeoutPromise]);
+        
+        console.log('🔐 saveNotes: User result:', { 
+            userId: userResult?.data?.user?.id, 
+            email: userResult?.data?.user?.email, 
+            error: userResult?.error 
+        });
+
+        const user = userResult?.data?.user;
+        if (!user) {
+            console.error('❌ saveNotes: User not authenticated');
+            if (uploadStatus) {
+                uploadStatus.textContent = 'You must be logged in to save notes.';
+                uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+            }
+            return false;
+        }
+
+        const notesWithUser = notesToSave.map(note => ({
+            user_id: user.id,
+            term: note.lang1,
+            definition: note.lang2,
+            term_lang: csvUploadedTargetLanguage || 'en-US',
+            definition_lang: 'en'
+        }));
+        console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
+        console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
+
         console.log('💾 saveNotes: Executing INSERT query...');
         const insertStartTime = Date.now();
         const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
@@ -381,12 +396,13 @@ async function saveNotes(notesToSave) {
         
         console.log('✅ saveNotes: Notes saved successfully');
         return true;
+        
     } catch (err) {
         console.error('💥 saveNotes: Unexpected error saving notes:', err);
         console.error('💥 saveNotes: Error message:', err.message);
         console.error('💥 saveNotes: Error stack:', err.stack);
         if (uploadStatus) {
-            uploadStatus.textContent = 'Unexpected error saving notes.';
+            uploadStatus.textContent = 'Unexpected error saving notes: ' + err.message;
             uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
         }
         return false;
@@ -1816,14 +1832,31 @@ if (languageSelectorInGame) {
             // Check if Supabase is available before setting up auth
             if (supabaseClient) {
                 console.log('🔐 Supabase client available, setting up authentication...');
+                
+                // Add safety mechanism to ensure isAuthenticating is reset after max 30 seconds
+                let authTimeoutId = null;
+                
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
                     console.log('🔐 Auth state changed:', event, session ? 'user logged in' : 'user logged out');
                     console.log('🔐 Event details:', { event, userId: session?.user?.id, email: session?.user?.email });
+
+                    // Clear any existing timeout
+                    if (authTimeoutId) {
+                        clearTimeout(authTimeoutId);
+                        authTimeoutId = null;
+                    }
 
                     if (session) {
                         console.log('✅ User session found, setting up app...');
                         console.log('✅ Session details:', { userId: session.user?.id, email: session.user?.email });
                         isAuthenticating = true; // Prevent file upload during auth
+                        
+                        // Set up safety timeout to reset isAuthenticating after 30 seconds max
+                        authTimeoutId = setTimeout(() => {
+                            console.warn('⚠️ Authentication taking too long, force resetting isAuthenticating flag');
+                            isAuthenticating = false;
+                            authTimeoutId = null;
+                        }, 30000);
                         
                         // Clear any existing file input to prevent unwanted triggers
                         if (csvFileInput) {
@@ -1894,7 +1927,11 @@ if (languageSelectorInGame) {
                             console.log('🏠 Falling back to main selection due to error');
                             showMainSelection();
                         } finally {
-                            // Re-enable file upload after authentication is complete
+                            // ALWAYS re-enable file upload after authentication, even if there were errors
+                            if (authTimeoutId) {
+                                clearTimeout(authTimeoutId);
+                                authTimeoutId = null;
+                            }
                             isAuthenticating = false;
                             console.log('✅ Authentication process completed, file upload re-enabled');
                         }
