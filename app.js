@@ -178,27 +178,7 @@
                         hasGetUser: !!supabaseClient?.auth?.getUser 
                     });
                     
-                    // Add timeout to prevent hanging on auth.getUser()
-                    let authResult;
-                    try {
-                        const authPromise = supabaseClient.auth.getUser();
-                        const timeoutPromise = new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
-                        );
-                        
-                        authResult = await Promise.race([authPromise, timeoutPromise]);
-                        console.log('🔐 fetchNotes: Auth call completed successfully');
-                    } catch (timeoutError) {
-                        console.error('❌ fetchNotes: Auth timeout or error:', timeoutError);
-                        console.error('❌ fetchNotes: Error details:', timeoutError.message, timeoutError.stack);
-                        if (retryCount === 0) {
-                            console.log('🔄 fetchNotes: Retrying due to auth timeout...');
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            return await fetchNotes(retryCount + 1);
-                        }
-                        vocabulary = [];
-                        return false;
-                    }
+                    const authResult = await supabaseClient.auth.getUser();
                     
                     const { data: { user }, error: userError } = authResult;
                     console.log('🔐 fetchNotes: Auth result:', { 
@@ -368,24 +348,7 @@ async function saveNotes(notesToSave) {
 
     console.log('🔐 saveNotes: Getting user authentication...');
     
-    let userResult;
-    try {
-        // Add timeout to prevent hanging on auth.getUser()
-        const authPromise = supabaseClient.auth.getUser();
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
-        );
-        
-        userResult = await Promise.race([authPromise, timeoutPromise]);
-        console.log('🔐 saveNotes: Auth call completed successfully');
-    } catch (timeoutError) {
-        console.error('❌ saveNotes: Auth timeout or error:', timeoutError);
-        if (uploadStatus) {
-            uploadStatus.textContent = 'Authentication timeout. Please try again.';
-            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
-        }
-        return false;
-    }
+    const userResult = await supabaseClient.auth.getUser();
     
     console.log('🔐 saveNotes: User result:', { 
         userId: userResult?.data?.user?.id, 
@@ -1903,30 +1866,14 @@ if (languageSelectorInGame) {
             if (supabaseClient) {
                 console.log('🔐 Supabase client available, setting up authentication...');
                 
-                // Add safety mechanism to ensure isAuthenticating is reset after max 30 seconds
-                let authTimeoutId = null;
-                
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
                     console.log('🔐 Auth state changed:', event, session ? 'user logged in' : 'user logged out');
                     console.log('🔐 Event details:', { event, userId: session?.user?.id, email: session?.user?.email });
-
-                    // Clear any existing timeout
-                    if (authTimeoutId) {
-                        clearTimeout(authTimeoutId);
-                        authTimeoutId = null;
-                    }
 
                     if (session) {
                         console.log('✅ User session found, setting up app...');
                         console.log('✅ Session details:', { userId: session.user?.id, email: session.user?.email });
                         isAuthenticating = true; // Prevent file upload during auth
-                        
-                        // Set up safety timeout to reset isAuthenticating after 30 seconds max
-                        authTimeoutId = setTimeout(() => {
-                            console.warn('⚠️ Authentication taking too long, force resetting isAuthenticating flag');
-                            isAuthenticating = false;
-                            authTimeoutId = null;
-                        }, 30000);
                         
                         // Clear any existing file input to prevent unwanted triggers
                         if (csvFileInput) {
@@ -1998,10 +1945,6 @@ if (languageSelectorInGame) {
                             showMainSelection();
                         } finally {
                             // ALWAYS re-enable file upload after authentication, even if there were errors
-                            if (authTimeoutId) {
-                                clearTimeout(authTimeoutId);
-                                authTimeoutId = null;
-                            }
                             isAuthenticating = false;
                             console.log('✅ Authentication process completed, file upload re-enabled');
                         }
@@ -2022,13 +1965,7 @@ if (languageSelectorInGame) {
                 // Check current session on page load
                 console.log('🔍 Checking for existing session on page load...');
                 
-                // Add timeout to session check as well
-                const sessionCheckPromise = supabaseClient.auth.getSession();
-                const sessionTimeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000)
-                );
-                
-                Promise.race([sessionCheckPromise, sessionTimeoutPromise])
+                supabaseClient.auth.getSession()
                     .then(({ data: { session } }) => {
                         console.log('🔍 Initial session check result:', session ? 'session found' : 'no session');
                         if (!session) {
