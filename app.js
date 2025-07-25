@@ -155,11 +155,11 @@
             }
 
             async function fetchNotes(retryCount = 0) {
-                console.log('fetchNotes: Starting to fetch notes... (attempt', retryCount + 1, ')');
+                console.log('🔍 fetchNotes: Starting to fetch notes... (attempt', retryCount + 1, ')');
 
                 // Check if Supabase client is available
                 if (!supabaseClient) {
-                    console.error('fetchNotes: Supabase client not available');
+                    console.error('❌ fetchNotes: Supabase client not available');
                     vocabulary = [];
                     return false;
                 }
@@ -167,17 +167,19 @@
                 try {
                     // Wait a short time for auth to stabilize
                     if (retryCount === 0) {
+                        console.log('⏳ fetchNotes: Waiting 500ms for auth to stabilize...');
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }
 
-                    console.log('fetchNotes: Getting user authentication...');
+                    console.log('🔐 fetchNotes: Getting user authentication...');
                     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
 
                     if (userError) {
-                        console.error('fetchNotes: Error getting user:', userError);
+                        console.error('❌ fetchNotes: Error getting user:', userError);
+                        console.error('❌ fetchNotes: User error details:', JSON.stringify(userError, null, 2));
                         // Retry once if we get an auth error
                         if (retryCount === 0) {
-                            console.log('fetchNotes: Retrying due to auth error...');
+                            console.log('🔄 fetchNotes: Retrying due to auth error...');
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             return await fetchNotes(retryCount + 1);
                         }
@@ -186,28 +188,40 @@
                     }
 
                     if (!user) {
-                        console.log('fetchNotes: No user found');
+                        console.log('❌ fetchNotes: No user found - user is null or undefined');
                         vocabulary = [];
                         return false;
                     }
-                    console.log('fetchNotes: ✅ User found, fetching notes for user:', user.id, 'email:', user.email);
+                    console.log('✅ fetchNotes: User found, fetching notes for user:', user.id, 'email:', user.email);
 
-                    console.log('fetchNotes: Executing database query...');
+                    console.log('📊 fetchNotes: Executing database query...');
+                    console.log('📊 fetchNotes: Query details - table: notes, user_id:', user.id);
+                    
+                    const queryStartTime = Date.now();
                     const { data, error } = await supabaseClient
                         .from('notes')
                         .select('term, definition, term_lang')
                         .eq('user_id', user.id);
+                    const queryDuration = Date.now() - queryStartTime;
 
-                    console.log('fetchNotes: Database query completed. Error:', error, 'Data count:', data ? data.length : 0);
+                    console.log('📊 fetchNotes: Database query completed in', queryDuration, 'ms');
+                    console.log('📊 fetchNotes: Query result - Error:', error, 'Data count:', data ? data.length : 0);
+                    
+                    if (error) {
+                        console.error('❌ fetchNotes: Database error details:', JSON.stringify(error, null, 2));
+                    }
+                    
                     if (data && data.length > 0) {
-                        console.log('fetchNotes: ✅ Found notes! Sample entries:', data.slice(0, 3));
+                        console.log('✅ fetchNotes: Found', data.length, 'notes! Sample entries:', data.slice(0, 3));
+                    } else {
+                        console.log('⚠️ fetchNotes: Data is empty or null:', { data, dataLength: data?.length });
                     }
 
                     if (error) {
-                        console.error('fetchNotes: Error fetching notes:', error);
+                        console.error('❌ fetchNotes: Error fetching notes:', error);
                         // Retry once if we get a database error
                         if (retryCount === 0) {
-                            console.log('fetchNotes: Retrying due to database error...');
+                            console.log('🔄 fetchNotes: Retrying due to database error...');
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             return await fetchNotes(retryCount + 1);
                         }
@@ -216,36 +230,44 @@
                     }
 
                     if (!data || data.length === 0) {
-                        console.log('fetchNotes: No notes found in database');
+                        console.log('⚠️ fetchNotes: No notes found in database for user', user.id);
+                        console.log('⚠️ fetchNotes: This could mean:');
+                        console.log('   - User has no notes in database');
+                        console.log('   - Database permissions issue');
+                        console.log('   - Wrong table or column names');
+                        console.log('   - User ID mismatch');
                         vocabulary = [];
                         return false;
                     }
 
-                    console.log('fetchNotes: Processing', data.length, 'notes from database...');
+                    console.log('🔄 fetchNotes: Processing', data.length, 'notes from database...');
 
                     // Get the target language from the first note (assuming all notes use same language)
                     const targetLanguage = data[0]?.term_lang || 'en-US';
-                    console.log('fetchNotes: Setting target language to:', targetLanguage);
+                    console.log('🌐 fetchNotes: Setting target language to:', targetLanguage);
                     csvUploadedTargetLanguage = targetLanguage;
 
                     vocabulary = data.map((note, index) => ({
                         lang1: note.term,
                         lang2: note.definition,
                         originalIndex: index,
+                        correctCount: 0
                     }));
 
-                    console.log('fetchNotes: Successfully loaded', vocabulary.length, 'notes with target language:', targetLanguage);
-                    console.log('fetchNotes: Sample vocabulary:', vocabulary.slice(0, 2));
+                    console.log('✅ fetchNotes: Successfully loaded', vocabulary.length, 'notes with target language:', targetLanguage);
+                    console.log('✅ fetchNotes: Sample vocabulary:', vocabulary.slice(0, 2));
+                    console.log('✅ fetchNotes: Global vocabulary array now has', vocabulary.length, 'items');
 
                     return vocabulary.length > 0;
 
                 } catch (err) {
-                    console.error('fetchNotes: Unexpected error:', err);
-                    console.error('fetchNotes: Error stack:', err.stack);
+                    console.error('💥 fetchNotes: Unexpected error:', err);
+                    console.error('💥 fetchNotes: Error message:', err.message);
+                    console.error('💥 fetchNotes: Error stack:', err.stack);
                     
                     // Retry once if we get an unexpected error
                     if (retryCount === 0) {
-                        console.log('fetchNotes: Retrying due to unexpected error...');
+                        console.log('🔄 fetchNotes: Retrying due to unexpected error...');
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         return await fetchNotes(retryCount + 1);
                     }
@@ -299,10 +321,10 @@
             }
 
 async function saveNotes(notesToSave) {
-    console.log('saveNotes called with:', notesToSave);
+    console.log('💾 saveNotes: Called with', notesToSave.length, 'notes:', notesToSave);
 
     if (!supabaseClient) {
-        console.error('Supabase client not available');
+        console.error('❌ saveNotes: Supabase client not available');
         if (uploadStatus) {
             uploadStatus.textContent = 'Database connection not available.';
             uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
@@ -310,12 +332,17 @@ async function saveNotes(notesToSave) {
         return false;
     }
 
+    console.log('🔐 saveNotes: Getting user authentication...');
     const userResult = await supabaseClient.auth.getUser();
-    console.log('userResult:', userResult);
+    console.log('🔐 saveNotes: User result:', { 
+        userId: userResult?.data?.user?.id, 
+        email: userResult?.data?.user?.email, 
+        error: userResult?.error 
+    });
 
     const user = userResult?.data?.user;
     if (!user) {
-        console.error('User not authenticated');
+        console.error('❌ saveNotes: User not authenticated');
         if (uploadStatus) {
             uploadStatus.textContent = 'You must be logged in to save notes.';
             uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
@@ -330,14 +357,21 @@ async function saveNotes(notesToSave) {
         term_lang: csvUploadedTargetLanguage || 'en-US',
         definition_lang: 'en'
     }));
-    console.log('Inserting into supabase:', notesWithUser);
+    console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
+    console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
 
     try {
+        console.log('💾 saveNotes: Executing INSERT query...');
+        const insertStartTime = Date.now();
         const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
-        console.log('Supabase insert result:', data, error);
+        const insertDuration = Date.now() - insertStartTime;
+        
+        console.log('💾 saveNotes: INSERT completed in', insertDuration, 'ms');
+        console.log('💾 saveNotes: Supabase insert result:', { data, error });
 
         if (error) {
-            console.error('Error saving notes:', error);
+            console.error('❌ saveNotes: Error saving notes:', error);
+            console.error('❌ saveNotes: Error details:', JSON.stringify(error, null, 2));
             if (uploadStatus) {
                 uploadStatus.textContent = 'Error saving notes: ' + error.message;
                 uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
@@ -345,10 +379,12 @@ async function saveNotes(notesToSave) {
             return false;
         }
         
-        console.log('Notes saved successfully');
+        console.log('✅ saveNotes: Notes saved successfully');
         return true;
     } catch (err) {
-        console.error('Unexpected error saving notes:', err);
+        console.error('💥 saveNotes: Unexpected error saving notes:', err);
+        console.error('💥 saveNotes: Error message:', err.message);
+        console.error('💥 saveNotes: Error stack:', err.stack);
         if (uploadStatus) {
             uploadStatus.textContent = 'Unexpected error saving notes.';
             uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
@@ -539,13 +575,14 @@ async function saveNotes(notesToSave) {
             }
             
             async function saveLiveNotes() {
-                console.log('Saving live notes...');
+                console.log('💾 saveLiveNotes: Starting live notes save process...');
                 
                 // Parse current content to ensure we have the latest data
                 parseNotepadContent();
+                console.log('💾 saveLiveNotes: Parsed notepad content, found', liveNotesData.length, 'notes');
                 
                 if (liveNotesData.length === 0) {
-                    console.log('No notes to save');
+                    console.log('💾 saveLiveNotes: No notes to save');
                     return;
                 }
                 
@@ -557,8 +594,14 @@ async function saveNotes(notesToSave) {
                         lang2: note.translation.trim()
                     }));
                 
+                console.log('💾 saveLiveNotes: Prepared notes for saving:', {
+                    originalCount: liveNotesData.length,
+                    validCount: notesToSave.length,
+                    sampleNotes: notesToSave.slice(0, 2)
+                });
+                
                 if (notesToSave.length === 0) {
-                    console.log('No valid notes to save');
+                    console.log('💾 saveLiveNotes: No valid notes to save');
                     return;
                 }
                 
@@ -566,7 +609,7 @@ async function saveNotes(notesToSave) {
                 const newNotes = [];
                 const duplicateNotes = [];
                 
-                console.log('Checking for duplicates against', vocabulary.length, 'existing vocabulary entries...');
+                console.log('🔍 saveLiveNotes: Checking for duplicates against', vocabulary.length, 'existing vocabulary entries...');
                 
                 for (const note of notesToSave) {
                     // Normalize text for comparison - remove spaces and convert to lowercase
@@ -582,14 +625,18 @@ async function saveNotes(notesToSave) {
                     
                     if (!exists) {
                         newNotes.push(note);
-                        console.log('✅ New note will be saved:', note.lang1, '-', note.lang2);
+                        console.log('✅ saveLiveNotes: New note will be saved:', note.lang1, '-', note.lang2);
                     } else {
                         duplicateNotes.push(note);
-                        console.log('❌ Duplicate detected, skipping:', note.lang1, '-', note.lang2);
+                        console.log('❌ saveLiveNotes: Duplicate detected, skipping:', note.lang1, '-', note.lang2);
                     }
                 }
                 
-                console.log('📊 Summary: Total notes to process:', notesToSave.length, '| New unique notes:', newNotes.length, '| Duplicates found:', duplicateNotes.length);
+                console.log('📊 saveLiveNotes: Summary:', {
+                    totalNotesToProcess: notesToSave.length,
+                    newUniqueNotes: newNotes.length,
+                    duplicatesFound: duplicateNotes.length
+                });
                 
                 // Show user feedback about duplicates
                 if (duplicateNotes.length > 0) {
@@ -602,17 +649,18 @@ async function saveNotes(notesToSave) {
                 }
                 
                 if (newNotes.length === 0) {
-                    console.log('All notes already exist in database');
+                    console.log('⚠️ saveLiveNotes: All notes already exist in database');
                     pendingChanges = false;
                     updateSaveStatus();
                     return;
                 }
                 
                 // Save to database
+                console.log('💾 saveLiveNotes: Calling saveNotes with', newNotes.length, 'new notes...');
                 const success = await saveNotes(newNotes);
                 
                 if (success) {
-                    console.log(`Saved ${newNotes.length} new notes`);
+                    console.log(`✅ saveLiveNotes: Successfully saved ${newNotes.length} new notes`);
                     
                     // Show user feedback
                     alert(`Successfully saved ${newNotes.length} new vocabulary notes!`);
@@ -627,9 +675,10 @@ async function saveNotes(notesToSave) {
                     updateLineAndParsedCounts();
                     
                     // Refresh vocabulary
+                    console.log('🔄 saveLiveNotes: Refreshing vocabulary from database...');
                     await fetchNotes();
                 } else {
-                    console.error('Failed to save notes');
+                    console.error('❌ saveLiveNotes: Failed to save notes');
                     // Update status to show error
                     if (saveStatus) {
                         saveStatus.textContent = 'Save failed';
@@ -714,7 +763,13 @@ async function saveNotes(notesToSave) {
 
             // --- NOTES MANAGEMENT FUNCTIONS ---
             function initializeNotesManagement() {
-                console.log('initializeNotesManagement: Opening notes management interface');
+                console.log('📚 initializeNotesManagement: Opening notes management interface');
+                console.log('📚 initializeNotesManagement: Current vocabulary state:', {
+                    vocabularyLength: vocabulary.length,
+                    vocabularyType: typeof vocabulary,
+                    vocabularyIsArray: Array.isArray(vocabulary),
+                    sampleVocab: vocabulary.slice(0, 2)
+                });
                 
                 // Get modal elements
                 const notesManagementModal = document.getElementById('notesManagementModal');
@@ -724,32 +779,49 @@ async function saveNotes(notesToSave) {
                 const notesSearchInput = document.getElementById('notesSearchInput');
                 
                 if (!notesManagementModal) {
-                    console.error('Notes management modal not found');
+                    console.error('❌ initializeNotesManagement: Notes management modal not found');
                     return;
                 }
+                
+                console.log('📚 initializeNotesManagement: Modal elements found, setting up interface');
                 
                 // Update notes count
                 if (notesCount) {
                     notesCount.textContent = vocabulary.length;
+                    console.log('📚 initializeNotesManagement: Set notes count to:', vocabulary.length);
                 }
                 
                 // Populate notes list
+                console.log('📚 initializeNotesManagement: Calling populateNotesList...');
                 populateNotesList();
                 
                 // Setup search functionality
                 if (notesSearchInput) {
                     notesSearchInput.addEventListener('input', filterNotes);
+                    console.log('📚 initializeNotesManagement: Search functionality setup complete');
                 }
                 
                 // Show modal
                 notesManagementModal.classList.remove('hidden');
+                console.log('📚 initializeNotesManagement: Modal shown');
             }
             
             function populateNotesList(searchTerm = '') {
+                console.log('📝 populateNotesList: Starting with searchTerm:', searchTerm);
+                console.log('📝 populateNotesList: Current vocabulary state:', {
+                    vocabularyLength: vocabulary.length,
+                    vocabularyType: typeof vocabulary,
+                    vocabularyIsArray: Array.isArray(vocabulary),
+                    sampleVocab: vocabulary.slice(0, 2)
+                });
+                
                 const notesList = document.getElementById('notesList');
                 const noNotesMessage = document.getElementById('noNotesMessage');
                 
-                if (!notesList) return;
+                if (!notesList) {
+                    console.error('❌ populateNotesList: notesList element not found');
+                    return;
+                }
                 
                 // Clear existing content
                 notesList.innerHTML = '';
@@ -762,7 +834,15 @@ async function saveNotes(notesToSave) {
                            note.lang2.toLowerCase().includes(term);
                 });
                 
+                console.log('📝 populateNotesList: Filtered vocabulary:', {
+                    originalCount: vocabulary.length,
+                    filteredCount: filteredVocab.length,
+                    searchTerm,
+                    sampleFiltered: filteredVocab.slice(0, 2)
+                });
+                
                 if (filteredVocab.length === 0) {
+                    console.log('📝 populateNotesList: No filtered vocabulary, showing no notes message');
                     if (noNotesMessage) {
                         noNotesMessage.classList.remove('hidden');
                         noNotesMessage.textContent = searchTerm ? 'No notes match your search.' : 'No notes found. Upload a CSV file or use Study Essentials to get started!';
@@ -774,10 +854,14 @@ async function saveNotes(notesToSave) {
                     noNotesMessage.classList.add('hidden');
                 }
                 
+                console.log('📝 populateNotesList: Creating note items for', filteredVocab.length, 'notes');
+                
                 // Create note items
                 filteredVocab.forEach((note, filteredIndex) => {
                     // Find the original index in the vocabulary array
                     const originalIndex = vocabulary.findIndex(v => v.lang1 === note.lang1 && v.lang2 === note.lang2);
+                    
+                    console.log('📝 populateNotesList: Creating item', filteredIndex, 'originalIndex:', originalIndex, 'note:', note);
                     
                     const noteItem = document.createElement('div');
                     noteItem.className = 'note-item p-3 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100';
@@ -799,6 +883,7 @@ async function saveNotes(notesToSave) {
                         if (e.target.classList.contains('click-to-speak')) {
                             const text = e.target.dataset.text;
                             const lang = e.target.dataset.lang;
+                            console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
                             speakText(text, lang);
                         }
                     });
@@ -808,7 +893,10 @@ async function saveNotes(notesToSave) {
                     deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded';
                     deleteBtn.innerHTML = '✕';
                     deleteBtn.title = 'Delete note';
-                    deleteBtn.addEventListener('click', () => deleteNote(originalIndex, note));
+                    deleteBtn.addEventListener('click', () => {
+                        console.log('🗑️ populateNotesList: Delete button clicked for note:', note);
+                        deleteNote(originalIndex, note);
+                    });
                     
                     noteItem.appendChild(noteContent);
                     noteItem.appendChild(deleteBtn);
@@ -839,6 +927,7 @@ async function saveNotes(notesToSave) {
                         const diffX = startX - currentX;
                         
                         if (diffX > 100) {
+                            console.log('📱 populateNotesList: Swipe delete triggered for note:', note);
                             deleteNote(originalIndex, note);
                         } else {
                             noteItem.style.transform = '';
@@ -849,6 +938,8 @@ async function saveNotes(notesToSave) {
                     
                     notesList.appendChild(noteItem);
                 });
+                
+                console.log('📝 populateNotesList: Successfully created', filteredVocab.length, 'note items');
             }
             
             function filterNotes() {
@@ -943,10 +1034,17 @@ async function saveNotes(notesToSave) {
                 isEssentialsMode = false; 
             }
             function showGameSelection() {
-                console.log('showGameSelection: Showing game selection interface');
-                console.log('showGameSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
+                console.log('🎮 showGameSelection: Showing game selection interface');
+                console.log('🎮 showGameSelection: Current state:', {
+                    isAuthenticating,
+                    vocabularyLength: vocabulary.length,
+                    vocabularyIsArray: Array.isArray(vocabulary),
+                    vocabulary: vocabulary.slice(0, 2) // Show first 2 items for debugging
+                });
+                
                 if (!isEssentialsMode) {
                     activeTargetStudyLanguage = csvUploadedTargetLanguage; 
+                    console.log('🌐 showGameSelection: Set activeTargetStudyLanguage to:', activeTargetStudyLanguage);
                 } 
 
                 // Hide all other sections
@@ -961,14 +1059,20 @@ async function saveNotes(notesToSave) {
                 findTheWordsBtn.classList.remove('hidden'); 
 
                 const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
-                console.log('showGameSelection: Active vocabulary count:', activeVocab.length);
+                console.log('🎮 showGameSelection: Active vocabulary details:', {
+                    isEssentialsMode,
+                    activeVocabLength: activeVocab.length,
+                    activeVocabType: typeof activeVocab,
+                    activeVocabIsArray: Array.isArray(activeVocab),
+                    activeVocab: activeVocab.slice(0, 2) // Show sample
+                });
 
                 if (activeVocab.length === 0) { 
-                    console.log('showGameSelection: No vocabulary found, showing no vocabulary message');
+                    console.log('❌ showGameSelection: No vocabulary found, showing no vocabulary message');
                     noVocabularyMessage.classList.remove('hidden'); 
                     gameButtonsContainer.classList.add('hidden'); 
                 } else { 
-                    console.log('showGameSelection: Vocabulary found, showing game buttons');
+                    console.log('✅ showGameSelection: Vocabulary found, showing game buttons');
                     noVocabularyMessage.classList.add('hidden'); 
                     gameButtonsContainer.classList.remove('hidden'); 
                 }
@@ -1711,13 +1815,14 @@ if (languageSelectorInGame) {
             // --- INITIALIZATION ---
             // Check if Supabase is available before setting up auth
             if (supabaseClient) {
-                console.log('Supabase client available, setting up authentication...');
+                console.log('🔐 Supabase client available, setting up authentication...');
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                    console.log('Auth state changed:', event, session ? 'user logged in' : 'user logged out');
+                    console.log('🔐 Auth state changed:', event, session ? 'user logged in' : 'user logged out');
+                    console.log('🔐 Event details:', { event, userId: session?.user?.id, email: session?.user?.email });
 
                     if (session) {
-                        console.log('User session found, setting up app...');
-                        console.log('Session details:', { userId: session.user?.id, email: session.user?.email });
+                        console.log('✅ User session found, setting up app...');
+                        console.log('✅ Session details:', { userId: session.user?.id, email: session.user?.email });
                         isAuthenticating = true; // Prevent file upload during auth
                         
                         // Clear any existing file input to prevent unwanted triggers
@@ -1729,18 +1834,40 @@ if (languageSelectorInGame) {
                         appContent.classList.remove('hidden');
 
                         try {
-                            console.log('Starting fetchNotes() call...');
+                            console.log('📊 Starting fetchNotes() call...');
+                            console.log('📊 Current vocabulary state before fetch:', { 
+                                vocabularyLength: vocabulary.length, 
+                                vocabularyType: typeof vocabulary,
+                                vocabularyIsArray: Array.isArray(vocabulary)
+                            });
+                            
+                            const fetchStartTime = Date.now();
                             const hasNotes = await fetchNotes();
-                            console.log('fetchNotes completed, hasNotes:', hasNotes, 'vocabulary.length:', vocabulary.length);
-                            console.log('csvUploadedTargetLanguage is now:', csvUploadedTargetLanguage);
+                            const fetchDuration = Date.now() - fetchStartTime;
+                            
+                            console.log('📊 fetchNotes completed in', fetchDuration, 'ms');
+                            console.log('📊 fetchNotes result:', { 
+                                hasNotes, 
+                                vocabularyLength: vocabulary.length,
+                                vocabularyType: typeof vocabulary,
+                                vocabularyIsArray: Array.isArray(vocabulary)
+                            });
+                            console.log('📊 csvUploadedTargetLanguage is now:', csvUploadedTargetLanguage);
 
                             // More robust check - wait a moment for UI to settle
                             await new Promise(resolve => setTimeout(resolve, 100));
 
+                            console.log('🧪 Final vocabulary check:', {
+                                vocabulary,
+                                isArray: Array.isArray(vocabulary),
+                                length: vocabulary?.length,
+                                hasContent: vocabulary && Array.isArray(vocabulary) && vocabulary.length > 0
+                            });
+
                             // Enhanced check for existing vocabulary
                             if (vocabulary && Array.isArray(vocabulary) && vocabulary.length > 0) {
                                 console.log('✅ User has existing vocabulary (' + vocabulary.length + ' notes), redirecting to game selection');
-                                console.log('Sample vocabulary entries:', vocabulary.slice(0, 3));
+                                console.log('✅ Sample vocabulary entries:', vocabulary.slice(0, 3));
                                 
                                 // Ensure we're not in essentials mode for user's own vocabulary
                                 isEssentialsMode = false;
@@ -1751,25 +1878,28 @@ if (languageSelectorInGame) {
                                 });
                                 
                                 // Go directly to games section
+                                console.log('🎮 Calling showGameSelection()...');
                                 showGameSelection();
                             } else {
                                 console.log('❌ User has no vocabulary, showing main selection (upload section)');
-                                console.log('Vocabulary state:', { vocabulary, length: vocabulary?.length, type: typeof vocabulary });
+                                console.log('❌ Vocabulary state:', { vocabulary, length: vocabulary?.length, type: typeof vocabulary });
+                                console.log('🏠 Calling showMainSelection()...');
                                 showMainSelection();
                             }
                         } catch (error) {
-                            console.error('❌ Error during app initialization:', error);
-                            console.error('Error stack:', error.stack);
+                            console.error('💥 Error during app initialization:', error);
+                            console.error('💥 Error message:', error.message);
+                            console.error('💥 Error stack:', error.stack);
                             // Fallback to main selection on error
-                            console.log('Falling back to main selection due to error');
+                            console.log('🏠 Falling back to main selection due to error');
                             showMainSelection();
                         } finally {
                             // Re-enable file upload after authentication is complete
                             isAuthenticating = false;
-                            console.log('Authentication process completed, file upload re-enabled');
+                            console.log('✅ Authentication process completed, file upload re-enabled');
                         }
                     } else {
-                        console.log('No user session, showing login');
+                        console.log('❌ No user session, showing login');
                         isAuthenticating = false; // Reset flag on logout
                         loginSection.classList.remove('hidden');
                         appContent.classList.add('hidden');
@@ -1783,19 +1913,22 @@ if (languageSelectorInGame) {
                 });
 
                 // Check current session on page load
+                console.log('🔍 Checking for existing session on page load...');
                 supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    console.log('🔍 Initial session check result:', session ? 'session found' : 'no session');
                     if (!session) {
-                        console.log('No active session found, showing login');
+                        console.log('❌ No active session found, showing login');
                         loginSection.classList.remove('hidden');
                         appContent.classList.add('hidden');
                     }
                 }).catch(error => {
-                    console.error('Error checking session:', error);
+                    console.error('💥 Error checking session:', error);
+                    console.error('💥 Error details:', error.message);
                     loginSection.classList.remove('hidden');
                     appContent.classList.add('hidden');
                 });
             } else {
-                console.error('Supabase not available - authentication will not work');
+                console.error('❌ Supabase not available - authentication will not work');
                 // Fallback: ensure login is shown when Supabase is not available
                 loginSection.classList.remove('hidden');
                 appContent.classList.add('hidden');
