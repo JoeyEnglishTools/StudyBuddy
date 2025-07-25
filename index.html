@@ -100,9 +100,12 @@
 
         /* UI Elements */
         #musicToggleBtn { position: fixed; top: 1rem; right: 1rem; z-index: 1000; background-color: rgba(255,255,255,0.7); backdrop-filter: blur(4px); border: 1px solid #99f6e4; color: #0d9488; }
-        /* Adjust music button when Live Notes modal is open */
+        /* Hide music button when Live Notes modal is open to prevent overlap */
+        #liveNotesModal:not(.hidden) {
+            z-index: 2000;
+        }
         #liveNotesModal:not(.hidden) ~ * #musicToggleBtn {
-            z-index: 1999; /* Lower than modal but still visible */
+            z-index: 999; /* Lower than modal to prevent overlap */
         }
         .capybara-life-icon { width: 2rem; height: 2rem; color: #8d5524; transition: opacity 0.3s ease, transform 0.3s ease; vertical-align: middle; }
         .capybara-life-icon.mistake { opacity: 0.3; transform: scale(0.75) rotate(-8deg) translateX(2px); color: #a1a1aa; }
@@ -312,10 +315,10 @@
         }
 
         #liveNotesContainer {
-            width: 90%;
-            max-width: 800px;
-            height: 90%;
-            max-height: 90vh;
+            width: 95%;
+            max-width: 1000px;
+            height: 95%;
+            max-height: 95vh;
         }
 
         #liveNotesTextarea {
@@ -327,7 +330,7 @@
             border-radius: 0.5rem;
             padding: 1rem;
             width: 100%;
-            height: calc(100% - 60px); /* Leave space for buttons */
+            height: calc(100% - 140px); /* Leave more space for buttons and controls */
             font-size: 1.1rem;
             resize: none;
         }
@@ -362,6 +365,11 @@
             select, textarea, input[type="text"], input[type="email"] {
                 font-size: 16px;
             }
+        }
+        
+        /* Helper class used by JS to hide/show elements */
+        .hidden {
+            display: none !important;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
