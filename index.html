@@ -100,9 +100,12 @@
 
         /* UI Elements */
         #musicToggleBtn { position: fixed; top: 1rem; right: 1rem; z-index: 1000; background-color: rgba(255,255,255,0.7); backdrop-filter: blur(4px); border: 1px solid #99f6e4; color: #0d9488; }
-        /* Adjust music button when Live Notes modal is open */
+        /* Hide music button when Live Notes modal is open to prevent overlap */
+        #liveNotesModal:not(.hidden) {
+            z-index: 2000;
+        }
         #liveNotesModal:not(.hidden) ~ * #musicToggleBtn {
-            z-index: 1999; /* Lower than modal but still visible */
+            z-index: 999; /* Lower than modal to prevent overlap */
         }
         .capybara-life-icon { width: 2rem; height: 2rem; color: #8d5524; transition: opacity 0.3s ease, transform 0.3s ease; vertical-align: middle; }
         .capybara-life-icon.mistake { opacity: 0.3; transform: scale(0.75) rotate(-8deg) translateX(2px); color: #a1a1aa; }
