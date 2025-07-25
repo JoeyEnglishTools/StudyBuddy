@@ -100,6 +100,10 @@
 
         /* UI Elements */
         #musicToggleBtn { position: fixed; top: 1rem; right: 1rem; z-index: 1000; background-color: rgba(255,255,255,0.7); backdrop-filter: blur(4px); border: 1px solid #99f6e4; color: #0d9488; }
+        /* Adjust music button when Live Notes modal is open */
+        #liveNotesModal:not(.hidden) ~ * #musicToggleBtn {
+            z-index: 1999; /* Lower than modal but still visible */
+        }
         .capybara-life-icon { width: 2rem; height: 2rem; color: #8d5524; transition: opacity 0.3s ease, transform 0.3s ease; vertical-align: middle; }
         .capybara-life-icon.mistake { opacity: 0.3; transform: scale(0.75) rotate(-8deg) translateX(2px); color: #a1a1aa; }
         #gameInfoBar {
@@ -293,38 +297,44 @@
             }
         }
 
-        /* Live Notes Styles */
-        #liveNotesInterface {
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .live-notes-input {
+        /* Live Notes Modal Styles */
+        #liveNotesModal {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            min-height: 60px;
-            padding: 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 16px;
-            line-height: 1.5;
-            resize: vertical;
-            background: white;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            margin-bottom: 12px;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        .live-notes-input:focus {
+
+        #liveNotesContainer {
+            width: 90%;
+            max-width: 800px;
+            height: 90%;
+            max-height: 90vh;
+        }
+
+        #liveNotesTextarea {
+            background-color: #fffff0; /* Ivory */
+            background-image: linear-gradient(#99f6e4 1px, transparent 1px);
+            background-size: 100% 1.5rem; /* Approx 1.5rem line height */
+            line-height: 1.5rem;
+            border: 1px solid #0d9488;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            width: 100%;
+            height: calc(100% - 60px); /* Leave space for buttons */
+            font-size: 1.1rem;
+            resize: none;
+        }
+
+        #liveNotesTextarea:focus {
             outline: none;
-            border-color: #0d9488;
-            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2);
-        }
-        
-        .live-notes-input.active {
-            border-color: #0d9488;
-            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.1);
-        }
-        
-        .live-notes-input:placeholder-shown {
-            border-style: dashed;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.4);
         }
         
         .countdown-indicator {
@@ -662,48 +672,44 @@
                 <p id="noVocabularyMessage" class="text-center text-red-500 hidden">Please upload a vocabulary list first.</p>
             </section>
 
-            <!-- Live Notes Interface -->
-            <section id="liveNotesInterface" class="fixed inset-0 bg-white z-50 hidden flex flex-col">
-                <!-- Header Bar -->
-                <div class="flex justify-between items-center p-4 bg-teal-50 border-b border-teal-200">
-                    <h1 class="text-2xl font-bold text-teal-700">📝 Live Notes</h1>
-                    <div class="flex items-center gap-4">
-                        <!-- Auto-save indicator -->
-                        <div class="flex items-center gap-2">
-                            <svg id="cloudSaveIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
+            <!-- Live Notes Modal -->
+            <div id="liveNotesModal" class="hidden">
+                <div id="liveNotesContainer" class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-teal-700">📝 Live Notes</h2>
+                        <div class="flex gap-2">
                             <span id="saveStatus" class="text-sm text-gray-600">Auto-save in 5:00</span>
+                            <button id="manualSaveBtn" class="btn btn-primary text-sm py-1 px-3">Save Now</button>
+                            <button id="closeLiveNotesBtn" class="btn btn-secondary text-sm py-1 px-3">✕ Close</button>
                         </div>
-                        <button id="manualSaveBtn" class="btn btn-primary text-sm py-1 px-3">Save Now</button>
-                        <button id="closeLiveNotesBtn" class="btn btn-secondary text-sm py-1 px-3">✕ Close</button>
                     </div>
-                </div>
-
-                <!-- Content Area -->
-                <div class="flex-1 p-6 overflow-hidden">
-                    <div class="max-w-4xl mx-auto h-full flex flex-col">
-                        <!-- Instructions -->
-                        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p class="text-sm text-blue-800">
-                                ✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
-                                <br>Example: "hello - hola" or "good morning - buenos días"
-                                <br>Each line with word/phrase + dash + translation gets automatically saved.
-                            </p>
-                        </div>
-
-                        <!-- Notepad Writing Area -->
-                        <div class="flex-1 bg-white rounded-lg border-2 border-gray-200 p-4 flex flex-col">
-                            <div class="flex justify-between items-center mb-3">
-                                <h3 class="text-lg font-semibold text-gray-700">📝 Your Notepad</h3>
-                                <div class="text-sm text-gray-500">
-                                    <span id="lineCount">Lines: 0</span> | <span id="parsedCount">Saved: 0</span>
-                                </div>
+                    
+                    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                            ✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
+                            <br>Example: "hello - hola" or "good morning - buenos días"
+                            <br>Each line with word/phrase + dash + translation gets automatically saved.
+                        </p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-semibold text-gray-700">📝 Your Notepad</h3>
+                            <div class="text-sm text-gray-500">
+                                <span id="lineCount">Lines: 0</span> | <span id="parsedCount">Parsed: 0</span>
                             </div>
-                            <textarea 
-                                id="notepadTextarea" 
-                                class="flex-1 w-full border-none outline-none resize-none p-0 font-mono text-base leading-relaxed bg-transparent"
-                                placeholder="Start writing your notes here...
+                        </div>
+                        
+                        <!-- Control Buttons positioned above textarea -->
+                        <div class="flex justify-center gap-2 mb-3">
+                            <button id="previousLineBtn" class="btn btn-secondary text-sm py-1 px-2">↑ Previous Line</button>
+                            <button id="newLineBtn" class="btn btn-primary text-sm py-1 px-2">+ New Line</button>
+                            <button id="clearAllBtn" class="btn btn-warning text-sm py-1 px-2">Clear All</button>
+                        </div>
+                        
+                        <textarea 
+                            id="liveNotesTextarea" 
+                            placeholder="Start writing your notes here...
 
 word - translation
 phrase - definition
@@ -711,19 +717,13 @@ bonjour - hello
 buenos días - good morning
 
 Use a dash (-) to separate words from their translations."
-                                style="font-family: 'Courier New', monospace; line-height: 1.8;"
-                            ></textarea>
-                        </div>
-
-                        <!-- Control Buttons -->
-                        <div class="mt-4 flex justify-center gap-4">
-                            <button id="previousLineBtn" class="btn btn-secondary py-2 px-4">↑ Previous Line</button>
-                            <button id="newLineBtn" class="btn btn-primary py-2 px-4">+ New Line</button>
-                            <button id="clearAllBtn" class="btn btn-warning py-2 px-4">Clear All</button>
-                        </div>
+                            autocorrect="off"
+                            autocapitalize="off" 
+                            spellcheck="false"
+                        ></textarea>
                     </div>
                 </div>
-            </section>
+            </div>
         </div>
     </div>
 
