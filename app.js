@@ -403,6 +403,7 @@ async function saveNotes(notesToSave) {
         return false;
     }
 
+    try {
         const notesWithUser = notesToSave.map(note => ({
             user_id: user.id,
             term: note.lang1,
