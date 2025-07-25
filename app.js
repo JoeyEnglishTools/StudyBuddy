@@ -593,15 +593,18 @@ async function saveNotes(notesToSave) {
                 
                 // Show user feedback about duplicates
                 if (duplicateNotes.length > 0) {
-                    const duplicateList = duplicateNotes.map(note => `"${note.lang1} - ${note.lang2}"`).join(', ');
-                    alert(`Can't save ${duplicateNotes.length} word(s) - already in your notes:\n\n${duplicateList}\n\nThese words are already in your vocabulary database.`);
+                    const duplicateList = duplicateNotes.map(note => `"${note.lang1}"`).join(', ');
+                    if (newNotes.length > 0) {
+                        alert(`Found ${duplicateNotes.length} duplicate(s) that won't be saved: ${duplicateList}\n\nSaving ${newNotes.length} new word(s).`);
+                    } else {
+                        alert(`All ${duplicateNotes.length} word(s) already exist in your vocabulary: ${duplicateList}\n\nNothing to save.`);
+                    }
                 }
                 
                 if (newNotes.length === 0) {
                     console.log('All notes already exist in database');
                     pendingChanges = false;
                     updateSaveStatus();
-                    alert('Can\'t save - all these words are already in your notes database.');
                     return;
                 }
                 
@@ -772,7 +775,10 @@ async function saveNotes(notesToSave) {
                 }
                 
                 // Create note items
-                filteredVocab.forEach((note, index) => {
+                filteredVocab.forEach((note, filteredIndex) => {
+                    // Find the original index in the vocabulary array
+                    const originalIndex = vocabulary.findIndex(v => v.lang1 === note.lang1 && v.lang2 === note.lang2);
+                    
                     const noteItem = document.createElement('div');
                     noteItem.className = 'note-item p-3 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100';
                     
@@ -802,7 +808,7 @@ async function saveNotes(notesToSave) {
                     deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded';
                     deleteBtn.innerHTML = '✕';
                     deleteBtn.title = 'Delete note';
-                    deleteBtn.addEventListener('click', () => deleteNote(index, note));
+                    deleteBtn.addEventListener('click', () => deleteNote(originalIndex, note));
                     
                     noteItem.appendChild(noteContent);
                     noteItem.appendChild(deleteBtn);
@@ -833,7 +839,7 @@ async function saveNotes(notesToSave) {
                         const diffX = startX - currentX;
                         
                         if (diffX > 100) {
-                            deleteNote(index, note);
+                            deleteNote(originalIndex, note);
                         } else {
                             noteItem.style.transform = '';
                             noteItem.style.backgroundColor = '';
@@ -885,8 +891,10 @@ async function saveNotes(notesToSave) {
                         notesCount.textContent = vocabulary.length;
                     }
                     
-                    // Refresh the notes list
-                    populateNotesList();
+                    // Refresh the notes list with current search term
+                    const notesSearchInput = document.getElementById('notesSearchInput');
+                    const currentSearchTerm = notesSearchInput ? notesSearchInput.value : '';
+                    populateNotesList(currentSearchTerm);
                     
                 } catch (error) {
                     console.error('Error deleting note:', error);
