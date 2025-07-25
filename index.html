@@ -463,11 +463,13 @@
             border: 1px solid #0d9488;
             border-radius: 0.5rem;
             padding: 1rem;
-            width: 100%;
-            height: calc(100% - 80px); /* Reduced top space to give more room to textarea */
+            width: calc(100% - 4%); /* 96% width leaving 2% margin on each side */
+            height: 80%; /* 80% of container height */
+            margin: 0 2%; /* 2% margin on left and right */
+            margin-bottom: 5%; /* 5% margin from bottom */
             font-size: 1.2rem;
             resize: none;
-            min-height: 70vh; /* Ensure minimum height takes most of the screen */
+            min-height: 60vh; /* Reduced minimum height */
         }
 
         #liveNotesTextarea:focus {
