@@ -128,7 +128,7 @@
             let liveNotesData = [], notepadContent = '', autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
 
             // --- ELEMENT SELECTORS ---
-            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
+            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
             
             // Live Notes elements
             const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
@@ -172,7 +172,41 @@
                     }
 
                     console.log('🔐 fetchNotes: Getting user authentication...');
-                    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+                    console.log('🔐 fetchNotes: Supabase client status:', { 
+                        hasClient: !!supabaseClient, 
+                        hasAuth: !!supabaseClient?.auth, 
+                        hasGetUser: !!supabaseClient?.auth?.getUser 
+                    });
+                    
+                    // Add timeout to prevent hanging on auth.getUser()
+                    let authResult;
+                    try {
+                        const authPromise = supabaseClient.auth.getUser();
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
+                        );
+                        
+                        authResult = await Promise.race([authPromise, timeoutPromise]);
+                        console.log('🔐 fetchNotes: Auth call completed successfully');
+                    } catch (timeoutError) {
+                        console.error('❌ fetchNotes: Auth timeout or error:', timeoutError);
+                        console.error('❌ fetchNotes: Error details:', timeoutError.message, timeoutError.stack);
+                        if (retryCount === 0) {
+                            console.log('🔄 fetchNotes: Retrying due to auth timeout...');
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            return await fetchNotes(retryCount + 1);
+                        }
+                        vocabulary = [];
+                        return false;
+                    }
+                    
+                    const { data: { user }, error: userError } = authResult;
+                    console.log('🔐 fetchNotes: Auth result:', { 
+                        hasUser: !!user, 
+                        userId: user?.id, 
+                        userEmail: user?.email,
+                        userError: userError
+                    });
 
                     if (userError) {
                         console.error('❌ fetchNotes: Error getting user:', userError);
@@ -333,7 +367,26 @@ async function saveNotes(notesToSave) {
     }
 
     console.log('🔐 saveNotes: Getting user authentication...');
-    const userResult = await supabaseClient.auth.getUser();
+    
+    let userResult;
+    try {
+        // Add timeout to prevent hanging on auth.getUser()
+        const authPromise = supabaseClient.auth.getUser();
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Auth timeout after 5 seconds')), 5000)
+        );
+        
+        userResult = await Promise.race([authPromise, timeoutPromise]);
+        console.log('🔐 saveNotes: Auth call completed successfully');
+    } catch (timeoutError) {
+        console.error('❌ saveNotes: Auth timeout or error:', timeoutError);
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Authentication timeout. Please try again.';
+            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        }
+        return false;
+    }
+    
     console.log('🔐 saveNotes: User result:', { 
         userId: userResult?.data?.user?.id, 
         email: userResult?.data?.user?.email, 
@@ -350,17 +403,16 @@ async function saveNotes(notesToSave) {
         return false;
     }
 
-    const notesWithUser = notesToSave.map(note => ({
-        user_id: user.id,
-        term: note.lang1,
-        definition: note.lang2,
-        term_lang: csvUploadedTargetLanguage || 'en-US',
-        definition_lang: 'en'
-    }));
-    console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
-    console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
+        const notesWithUser = notesToSave.map(note => ({
+            user_id: user.id,
+            term: note.lang1,
+            definition: note.lang2,
+            term_lang: csvUploadedTargetLanguage || 'en-US',
+            definition_lang: 'en'
+        }));
+        console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
+        console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
 
-    try {
         console.log('💾 saveNotes: Executing INSERT query...');
         const insertStartTime = Date.now();
         const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
@@ -381,12 +433,13 @@ async function saveNotes(notesToSave) {
         
         console.log('✅ saveNotes: Notes saved successfully');
         return true;
+        
     } catch (err) {
         console.error('💥 saveNotes: Unexpected error saving notes:', err);
         console.error('💥 saveNotes: Error message:', err.message);
         console.error('💥 saveNotes: Error stack:', err.stack);
         if (uploadStatus) {
-            uploadStatus.textContent = 'Unexpected error saving notes.';
+            uploadStatus.textContent = 'Unexpected error saving notes: ' + err.message;
             uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
         }
         return false;
@@ -1617,6 +1670,32 @@ async function startFindTheWordsRound(pool) {
                     showMainSelection();
                 }
             });
+
+            // Add refresh vocabulary button functionality
+            if (refreshVocabBtn) {
+                refreshVocabBtn.addEventListener('click', async () => {
+                    console.log('🔄 Manual vocabulary refresh requested');
+                    refreshVocabBtn.disabled = true;
+                    refreshVocabBtn.textContent = '⏳ Refreshing...';
+                    
+                    try {
+                        const hasNotes = await fetchNotes();
+                        if (hasNotes) {
+                            alert(`Successfully loaded ${vocabulary.length} notes from database!`);
+                        } else {
+                            alert('No notes found in database or refresh failed. Please check the console for details.');
+                        }
+                    } catch (error) {
+                        console.error('💥 Manual refresh error:', error);
+                        alert('Refresh failed: ' + error.message);
+                    } finally {
+                        refreshVocabBtn.disabled = false;
+                        refreshVocabBtn.textContent = '🔄 Refresh';
+                    }
+                });
+            } else {
+                console.error('Refresh vocabulary button not found in DOM');
+            }
             
             // Live Notes event listeners
             liveNotesBtn.addEventListener('click', initializeLiveNotes);
@@ -1813,17 +1892,40 @@ if (languageSelectorInGame) {
 
 
             // --- INITIALIZATION ---
+            
+            // Ensure clean initial state
+            console.log('🔧 Initializing app - resetting state...');
+            isAuthenticating = false;
+            vocabulary = [];
+            
             // Check if Supabase is available before setting up auth
             if (supabaseClient) {
                 console.log('🔐 Supabase client available, setting up authentication...');
+                
+                // Add safety mechanism to ensure isAuthenticating is reset after max 30 seconds
+                let authTimeoutId = null;
+                
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
                     console.log('🔐 Auth state changed:', event, session ? 'user logged in' : 'user logged out');
                     console.log('🔐 Event details:', { event, userId: session?.user?.id, email: session?.user?.email });
+
+                    // Clear any existing timeout
+                    if (authTimeoutId) {
+                        clearTimeout(authTimeoutId);
+                        authTimeoutId = null;
+                    }
 
                     if (session) {
                         console.log('✅ User session found, setting up app...');
                         console.log('✅ Session details:', { userId: session.user?.id, email: session.user?.email });
                         isAuthenticating = true; // Prevent file upload during auth
+                        
+                        // Set up safety timeout to reset isAuthenticating after 30 seconds max
+                        authTimeoutId = setTimeout(() => {
+                            console.warn('⚠️ Authentication taking too long, force resetting isAuthenticating flag');
+                            isAuthenticating = false;
+                            authTimeoutId = null;
+                        }, 30000);
                         
                         // Clear any existing file input to prevent unwanted triggers
                         if (csvFileInput) {
@@ -1894,7 +1996,11 @@ if (languageSelectorInGame) {
                             console.log('🏠 Falling back to main selection due to error');
                             showMainSelection();
                         } finally {
-                            // Re-enable file upload after authentication is complete
+                            // ALWAYS re-enable file upload after authentication, even if there were errors
+                            if (authTimeoutId) {
+                                clearTimeout(authTimeoutId);
+                                authTimeoutId = null;
+                            }
                             isAuthenticating = false;
                             console.log('✅ Authentication process completed, file upload re-enabled');
                         }
@@ -1914,18 +2020,28 @@ if (languageSelectorInGame) {
 
                 // Check current session on page load
                 console.log('🔍 Checking for existing session on page load...');
-                supabaseClient.auth.getSession().then(({ data: { session } }) => {
-                    console.log('🔍 Initial session check result:', session ? 'session found' : 'no session');
-                    if (!session) {
-                        console.log('❌ No active session found, showing login');
+                
+                // Add timeout to session check as well
+                const sessionCheckPromise = supabaseClient.auth.getSession();
+                const sessionTimeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Session check timeout after 5 seconds')), 5000)
+                );
+                
+                Promise.race([sessionCheckPromise, sessionTimeoutPromise])
+                    .then(({ data: { session } }) => {
+                        console.log('🔍 Initial session check result:', session ? 'session found' : 'no session');
+                        if (!session) {
+                            console.log('❌ No active session found, showing login');
+                            isAuthenticating = false; // Ensure flag is reset
+                            loginSection.classList.remove('hidden');
+                            appContent.classList.add('hidden');
+                        }
+                    }).catch(error => {
+                        console.error('💥 Error checking session:', error);
+                        console.error('💥 Error details:', error.message);
+                        isAuthenticating = false; // Ensure flag is reset on error
                         loginSection.classList.remove('hidden');
                         appContent.classList.add('hidden');
-                    }
-                }).catch(error => {
-                    console.error('💥 Error checking session:', error);
-                    console.error('💥 Error details:', error.message);
-                    loginSection.classList.remove('hidden');
-                    appContent.classList.add('hidden');
                 });
             } else {
                 console.error('❌ Supabase not available - authentication will not work');
