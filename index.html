@@ -3,15 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Comprehensive Cache-Busting Headers -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <meta http-equiv="Last-Modified" content="0">
-    <meta http-equiv="If-Modified-Since" content="0">
-    <meta name="cache-control" content="no-cache">
-    <meta name="expires" content="0">
-    <meta name="pragma" content="no-cache">
     <title>StudyBuddy</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -47,8 +38,6 @@
         .btn-primary:hover { background-color: #0f766e; box-shadow: 0 2px 10px -1px rgba(13, 148, 136, 0.5); }
         .btn-secondary { background-color: #475569; color: white; }
         .btn-secondary:hover { background-color: #334155; }
-        .btn-outline { background-color: transparent; color: #0d9488; border: 1px solid #0d9488; }
-        .btn-outline:hover { background-color: #0d9488; color: white; }
         .btn-outline { border-color: #0d9488; color: #0d9488; }
         .btn-outline:hover { background-color: #ccfbf1; color: #0f766e; }
         .btn-warning { background-color: #f59e0b; color: white; }
@@ -102,13 +91,6 @@
 
         /* UI Elements */
         #musicToggleBtn { position: fixed; top: 1rem; right: 1rem; z-index: 1000; background-color: rgba(255,255,255,0.7); backdrop-filter: blur(4px); border: 1px solid #99f6e4; color: #0d9488; }
-        /* Hide music button when Live Notes modal is open to prevent overlap */
-        #liveNotesModal:not(.hidden) {
-            z-index: 2000;
-        }
-        #liveNotesModal:not(.hidden) ~ * #musicToggleBtn {
-            z-index: 999; /* Lower than modal to prevent overlap */
-        }
         .capybara-life-icon { width: 2rem; height: 2rem; color: #8d5524; transition: opacity 0.3s ease, transform 0.3s ease; vertical-align: middle; }
         .capybara-life-icon.mistake { opacity: 0.3; transform: scale(0.75) rotate(-8deg) translateX(2px); color: #a1a1aa; }
         #gameInfoBar {
@@ -182,7 +164,7 @@
             background-color: #ccfbf1; /* Tailwind teal-100 */
             border-color: #0d9488; /* Tailwind teal-600 */
         }
-
+       
         /* New Login Form Styles */
         .form-input {
             width: 100%;
@@ -301,237 +283,6 @@
                 align-items: center;
             }
         }
-
-        /* Notes Management Modal Styles */
-        #notesManagementModal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #notesManagementContainer {
-            width: 95%;
-            max-width: 900px;
-            height: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .note-item {
-            display: flex;
-            align-items: center;
-            justify-content: between;
-            padding: 12px 16px;
-            background-color: white;
-            transition: background-color 0.2s;
-        }
-
-        .note-item:hover {
-            background-color: #f8fafc;
-        }
-
-        .note-content {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 0;
-        }
-
-        .note-word {
-            font-weight: 600;
-            color: #0d9488;
-            cursor: pointer;
-            min-width: 120px;
-            flex-shrink: 0;
-        }
-
-        .note-word:hover {
-            color: #0f766e;
-            text-decoration: underline;
-        }
-
-        .note-separator {
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        .note-definition {
-            color: #374151;
-            flex-grow: 1;
-            min-width: 0;
-            word-wrap: break-word;
-        }
-
-        .note-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .note-delete-btn {
-            color: #ef4444;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .note-delete-btn:hover {
-            background-color: #fee2e2;
-            color: #dc2626;
-        }
-
-        .note-speak-btn {
-            color: #0d9488;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .note-speak-btn:hover {
-            background-color: #f0fdfa;
-            color: #0f766e;
-        }
-
-        /* Swipe to delete styles for mobile */
-        @media (max-width: 768px) {
-            .note-item {
-                position: relative;
-                transform: translateX(0);
-                transition: transform 0.3s ease;
-            }
-
-            .note-item.swiping {
-                transform: translateX(-80px);
-            }
-
-            .note-item.swiping::after {
-                content: "Delete";
-                position: absolute;
-                right: 0;
-                top: 0;
-                bottom: 0;
-                width: 80px;
-                background-color: #ef4444;
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 14px;
-                font-weight: 600;
-            }
-        }
-
-        /* Live Notes Modal Styles */
-        #liveNotesModal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #liveNotesContainer {
-            width: 98%;
-            max-width: none;
-            height: 98%;
-            max-height: 98vh;
-        }
-
-        #liveNotesTextarea {
-            background-color: #fffff0; /* Ivory */
-            background-image: linear-gradient(#99f6e4 1px, transparent 1px);
-            background-size: 100% 1.5rem; /* Approx 1.5rem line height */
-            line-height: 1.5rem;
-            border: 1px solid #0d9488;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            width: calc(100% - 4%); /* 96% width leaving 2% margin on each side */
-            height: 80%; /* 80% of container height */
-            margin: 0 2%; /* 2% margin on left and right */
-            margin-bottom: 5%; /* 5% margin from bottom */
-            font-size: 1.2rem;
-            resize: none;
-            min-height: 60vh; /* Reduced minimum height */
-        }
-
-        #liveNotesTextarea:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.4);
-        }
-        
-        .countdown-indicator {
-            position: absolute;
-            top: -8px;
-            right: 8px;
-            background: #0d9488;
-            color: white;
-            border-radius: 12px;
-            padding: 2px 8px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .save-pending {
-            color: #f59e0b !important;
-        }
-        
-        .save-complete {
-            color: #10b981 !important;
-        }
-        
-        /* Prevent zoom on iOS */
-        @media screen and (-webkit-min-device-pixel-ratio: 0) {
-            select, textarea, input[type="text"], input[type="email"] {
-                font-size: 16px;
-            }
-        }
-        
-        
-        /* Cloud icon status styles */
-        #cloudIcon.saved {
-            color: #3b82f6; /* blue-500 */
-        }
-        
-        #cloudIcon.pending {
-            color: #f59e0b; /* amber-500 */
-        }
-        
-        #uploadArrow {
-            transition: opacity 0.3s ease;
-        }
-        
-        #uploadArrow.show {
-            opacity: 1;
-        }
-        
-        #uploadArrow.hide {
-            opacity: 0;
-        }
-        
-        /* Helper class used by JS to hide/show elements */
-        .hidden {
-            display: none !important;
-        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -551,25 +302,10 @@
             <p class="text-lg sm:text-xl text-teal-600 mt-1">Your fun way to master vocabulary!</p>
         </header>
 
-        <!-- Cache Status Indicator -->
-        <div id="cacheStatusBar" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-center text-sm">
-            <div class="flex items-center justify-center gap-4 flex-wrap">
-                <span class="text-yellow-800">
-                    <strong>App Version:</strong> <span id="appVersionDisplay">Loading...</span>
-                </span>
-                <button id="forceCacheRefresh" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
-                    🔄 Force Refresh
-                </button>
-                <span class="text-yellow-700 text-xs">
-                    Seeing old content? Press Ctrl+Shift+R (PC) or Cmd+Shift+R (Mac)
-                </span>
-            </div>
-        </div>
-
         <!-- Login Section -->
         <section id="loginSection" class="card mb-8">
             <h2 id="authTitle" class="text-2xl font-semibold text-teal-700 mb-4 text-center">Login to Your Account</h2>
-
+           
             <form id="authForm" class="space-y-4">
                 <div>
                     <label for="emailInput" class="block text-sm font-medium text-gray-700">Email Address</label>
@@ -592,7 +328,7 @@
                 <svg class="google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"></path><path fill="#34A853" d="M24 46c6.48 0 11.93-2.13 15.89-5.82l-7.11-5.52c-2.17 1.45-4.92 2.3-8.78 2.3-6.76 0-12.47-4.55-14.51-10.61H2.3v5.7C6.32 40.57 14.56 46 24 46z"></path><path fill="#FBBC05" d="M9.49 27.9c-.4-1.18-.62-2.45-.62-3.79s.22-2.61.62-3.79V14.6H2.3C.83 17.53 0 20.65 0 24.11s.83 6.58 2.3 9.51l7.19-5.72z"></path><path fill="#EA4335" d="M24 8.71c3.55 0 6.63 1.23 9.13 3.63l6.3-6.3C35.91 2.25 30.47 0 24 0 14.56 0 6.32 5.43 2.3 14.6l7.19 5.71C11.53 14.26 17.24 8.71 24 8.71z"></path></svg>
                 <span>Continue with Google</span>
             </button>
-
+           
             <p id="authToggleText" class="text-center text-sm mt-4">
                 Don't have an account? <span id="toggleToSignUp" class="toggle-auth-link">Sign Up</span>
             </p>
@@ -601,38 +337,9 @@
         <!-- Main App Content (hidden by default) -->
         <div id="appContent" class="hidden w-full">
             <div class="flex justify-between items-center mb-4">
-                <div class="flex gap-2">
-                    <button id="addNotesBtn" class="btn btn-secondary text-sm py-2 px-3">Add / Manage Notes</button>
-                    <button id="refreshVocabBtn" class="btn btn-outline text-sm py-2 px-3" title="Refresh vocabulary from database">🔄 Refresh</button>
-                </div>
-                <div class="flex gap-2">
-                    <button id="liveNotesBtn" class="btn btn-primary text-sm py-2 px-3">📝 Live Notes</button>
-                    <button id="logoutBtn" class="btn btn-danger text-sm py-2 px-3">Logout</button>
-                </div>
+                <button id="addNotesBtn" class="btn btn-secondary text-sm py-2 px-3">Add / Manage Notes</button>
+                <button id="logoutBtn" class="btn btn-danger text-sm py-2 px-3">Logout</button>
             </div>
-            <!-- Add this right after your logout button in the HTML -->
-<button id="debugBtn" class="btn btn-outline text-sm py-2 px-3">🔍 Debug</button>
-
-<script>
-  // Add this to your event listeners section
-  document.getElementById('debugBtn').addEventListener('click', async function() {
-    console.log('--- DEBUG INFO ---');
-    console.log('Supabase client:', !!supabaseClient);
-    
-    try {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      console.log('Active session:', !!session);
-      console.log('User ID:', session?.user?.id);
-      
-      // Test database connection
-      const testResult = await testDatabaseConnection();
-      alert(`Database test result: ${testResult ? 'SUCCESS' : 'FAILED'}\nCheck console for details`);
-    } catch (e) {
-      console.error('Debug error:', e);
-      alert('Debug error: ' + e.message);
-    }
-  });
-</script>
             <section id="mainSelectionSection" class="card non-interactive-card mb-6 sm:mb-8">
                 <h2 class="text-xl sm:text-2xl font-semibold text-teal-700 mb-4">Get Started</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -866,119 +573,905 @@
                 <p id="gameOverMessage" class="text-center text-xl sm:text-2xl font-bold text-red-600 my-4 sm:my-6 hidden"></p>
                 <p id="noVocabularyMessage" class="text-center text-red-500 hidden">Please upload a vocabulary list first.</p>
             </section>
-
-            <!-- Notes Management Modal -->
-            <div id="notesManagementModal" class="hidden">
-                <div id="notesManagementContainer" class="card">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-semibold text-teal-700">📚 Add / Manage Notes</h2>
-                        <button id="closeNotesManagementBtn" class="btn btn-secondary text-sm py-1 px-3">✕ Close</button>
-                    </div>
-                    
-                    <!-- Upload Options Section -->
-                    <div id="notesManagementUploadSection" class="mb-6">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Add New Notes</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <button id="notesUploadCsvBtn" class="btn btn-primary p-3 text-sm">📄 Upload CSV File</button>
-                            <button id="notesStudyEssentialsBtn" class="btn btn-primary p-3 text-sm">📖 Study Essentials</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Existing Notes Section -->
-                    <div id="notesManagementExistingSection" class="mb-4">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-lg font-semibold text-gray-700">Your Notes (<span id="notesCount">0</span>)</h3>
-                            <div class="relative">
-                                <input type="text" id="notesSearchInput" placeholder="Search notes..." 
-                                       class="form-input text-sm py-2 pl-8 pr-3 w-64">
-                                <svg class="w-4 h-4 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" 
-                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        
-                        <div id="notesListContainer" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
-                            <div id="notesList" class="divide-y divide-gray-100">
-                                <!-- Notes will be populated here -->
-                            </div>
-                            <div id="noNotesMessage" class="p-8 text-center text-gray-500 hidden">
-                                No notes found. Upload a CSV file or use Study Essentials to get started!
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Live Notes Modal -->
-            <div id="liveNotesModal" class="hidden">
-                <div id="liveNotesContainer" class="card">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-semibold text-teal-700">📝 Live Notes</h2>
-                        <div class="flex gap-2 items-center">
-                            <div id="saveStatusContainer" class="flex items-center gap-1">
-                                <svg id="cloudIcon" class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M5.5 16c-2.485 0-4.5-2.015-4.5-4.5s2.015-4.5 4.5-4.5c.485 0 .954.078 1.39.22C7.813 5.072 9.706 3.5 12 3.5c2.761 0 5 2.239 5 5 0 .126-.005.25-.014.374A3.5 3.5 0 0116.5 16.5h-11z"/>
-                                </svg>
-                                <svg id="uploadArrow" class="w-3 h-3 text-orange-500 hidden" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                                </svg>
-                                <span id="saveStatus" class="text-sm text-gray-600">All saved</span>
-                            </div>
-                            <button id="manualSaveBtn" class="btn btn-primary text-sm py-1 px-3 flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6a1 1 0 10-2 0v5.586l-1.293-1.293z"/>
-                                </svg>
-                                Save Now
-                            </button>
-                            <button id="closeLiveNotesBtn" class="btn btn-secondary text-sm py-1 px-3">✕ Close</button>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p class="text-sm text-blue-800">
-                            ✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
-                            <br>Example: "hello - hola" or "good morning - buenos días"
-                            <br>Each line with word/phrase + dash + translation gets automatically saved.
-                        </p>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-lg font-semibold text-gray-700">📝 Your Notepad</h3>
-                            <div class="text-sm text-gray-500">
-                                <span id="lineCount">Lines: 0</span> | <span id="parsedCount">Parsed: 0</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Control Buttons positioned above textarea -->
-                        <div class="flex justify-center gap-2 mb-3">
-                            <button id="previousLineBtn" class="btn btn-secondary text-sm py-1 px-2">↑ Previous Line</button>
-                            <button id="newLineBtn" class="btn btn-primary text-sm py-1 px-2">+ New Line</button>
-                            <button id="clearAllBtn" class="btn btn-warning text-sm py-1 px-2">Clear All</button>
-                        </div>
-                        
-                        <textarea 
-                            id="liveNotesTextarea" 
-                            placeholder="Start writing your notes here...
-
-word - translation
-phrase - definition
-bonjour - hello
-buenos días - good morning
-
-Use a dash (-) to separate words from their translations."
-                            autocorrect="off"
-                            autocapitalize="off" 
-                            spellcheck="false"
-                        ></textarea>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {     
+          
+            // --- Supabase Client Setup ---
+            const { createClient } = supabase;
+            const SUPABASE_URL = 'https://yxngigimphtfoslzmksn.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4bmdpZ2ltcGh0Zm9zbHpta3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwMjk2NDUsImV4cCI6MjA2ODYwNTY0NX0.c4b45vxCOnmLV6VY7w0DsPr2cAzRf9zNbqaXkKaWmYQ';
+            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // --- STATE & CONSTANTS ---
+            const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
+            let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false;
+            let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
+            let isEssentialsMode = false, currentEssentialsCategoryName = "";
+            let audioInitialized = false;
+            let mcqAnswered = false, typeTranslationAnswered = false, fillBlanksAnswered = false;
+            let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0;
+            let findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [];
+            let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
+
+            // --- ELEMENT SELECTORS ---
+            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn');
+            const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
+            const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
+            const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
+            const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
+            const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
+
+            // --- DATA ---
+            const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
+            Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
+
+            // --- AUTHENTICATION & DATA FUNCTIONS ---
+            function toggleAuthMode() {
+                isSignUp = !isSignUp;
+                authError.textContent = '';
+                authForm.reset();
+                authTitle.textContent = isSignUp ? 'Create a New Account' : 'Login to Your Account';
+                authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Login';
+                authToggleText.innerHTML = isSignUp
+                    ? `Already have an account? <span class="toggle-auth-link">Login</span>`
+                    : `Don't have an account? <span class="toggle-auth-link">Sign Up</span>`;
+            }
+
+            async function fetchNotes() {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    vocabulary = [];
+                    return;
+                }
+                const { data, error } = await supabaseClient
+                    .from('notes')
+                    .select('term, definition, term_lang')
+                    .eq('user_id', user.id);
+                if (error) {
+                    console.error('Error fetching notes:', error);
+                    vocabulary = [];
+                } else {
+                    vocabulary = data.map((note, index) => ({
+                        lang1: note.term,
+                        lang2: note.definition,
+                        originalIndex: index,
+                    }));
+                }
+            }
+            
+            function parseCSV(csvData) {
+                const parsed = [];
+                const lines = csvData.split(/\r\n|\n/);
+                
+                // Skip header row if it exists
+                const startIndex = lines.length > 0 && lines[0].toLowerCase().includes('word') ? 1 : 0;
+
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line === '') continue;
+                    
+                    const parts = [];
+                    let currentField = '';
+                    let inQuotedField = false;
+                    
+                    for (let j = 0; j < line.length; j++) {
+                        const char = line[j];
+                        if (char === '"') {
+                            if (inQuotedField && j + 1 < line.length && line[j + 1] === '"') {
+                                currentField += '"';
+                                j++; 
+                            } else {
+                                inQuotedField = !inQuotedField;
+                            }
+                        } else if (char === ',' && !inQuotedField) {
+                            parts.push(currentField.trim());
+                            currentField = '';
+                        } else {
+                            currentField += char;
+                        }
+                    }
+                    parts.push(currentField.trim()); 
+
+                    if (parts.length >= 2 && parts[0] && parts[1]) {
+                        parsed.push({
+                            lang1: parts[0],
+                            lang2: parts[1]
+                        });
+                    }
+                }
+                return parsed;
+            }
+
+async function saveNotes(notesToSave) {
+    console.log('saveNotes called with:', notesToSave);
+
+    const userResult = await supabaseClient.auth.getUser();
+    console.log('userResult:', userResult);
+
+    const user = userResult?.data?.user;
+    if (!user) {
+        uploadStatus.textContent = 'You must be logged in to save notes.';
+        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        return false;
+    }
+
+    const notesWithUser = notesToSave.map(note => ({
+        user_id: user.id,
+        term: note.lang1,
+        definition: note.lang2,
+        term_lang: csvUploadedTargetLanguage,
+        definition_lang: 'en'
+    }));
+    console.log('Inserting into supabase:', notesWithUser);
+
+    const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
+    console.log('Supabase insert result:', data, error);
+
+    if (error) {
+        console.error('Error saving notes:', error);
+        uploadStatus.textContent = 'Error saving notes: ' + error.message;
+        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+        return false;
+    }
+    return true;
+}
+            async function handleFileUpload(droppedFile = null) {
+                console.log('handleFileUpload called'); // <--- add
+                const file = droppedFile || (csvFileInput.files.length > 0 ? csvFileInput.files[0] : null);
+                if (!file) {
+                    uploadStatus.textContent = 'Please select or drop a CSV file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                    return;
+                }
+                
+                if (!(file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv"))) {
+                    uploadStatus.textContent = 'Invalid file type. Please use a CSV file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                    return;
+                }
+                
+                csvUploadedTargetLanguage = targetLanguageSelector.value;
+                uploadStatus.textContent = 'Processing CSV file...';
+                uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
+                
+                const reader = new FileReader();
+                reader.onload = async function(event) {
+                    try {
+                         console.log('FileReader loaded:', event.target.result.slice(0,100)); // <--- add preview
+                        const parsedNotes = parseCSV(event.target.result);
+                           console.log('Parsed notes:', parsedNotes); // <--- add
+                        if (parsedNotes.length > 0) {
+                            uploadStatus.textContent = 'Saving notes to your account...';
+                            uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
+                            const success = await saveNotes(parsedNotes);
+                            if (success) {
+                                await fetchNotes();
+                                uploadStatus.textContent = `Successfully saved ${parsedNotes.length} new notes!`;
+                                uploadStatus.className = 'text-sm text-green-600 mt-2 h-5';
+                                isEssentialsMode = false;
+                                setTimeout(() => {
+                                    uploadSection.classList.add('hidden');
+                                    showGameSelection();
+                                }, 1500);
+                            }
+                        } else {
+                            uploadStatus.textContent = 'No vocabulary found. Check file format.';
+                            uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                        }
+                    } catch (error) {
+                        uploadStatus.textContent = 'Error processing CSV file.';
+                        uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                        console.error("Error processing CSV:", error);
+                    }
+                };
+                reader.onerror = () => {
+                    uploadStatus.textContent = 'Error reading file.';
+                    uploadStatus.className = 'text-sm text-red-600 mt-2 h-5';
+                };
+                reader.readAsText(file);
+            }
+
+            // --- UI & NAVIGATION ---
+            function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
+            function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
+            function showMainSelection() { 
+                mainSelectionSection.classList.remove('hidden'); 
+                [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => el && el.classList.add('hidden')); 
+                isEssentialsMode = false; 
+            }
+            function showGameSelection() {
+                if (!isEssentialsMode) {
+                    activeTargetStudyLanguage = csvUploadedTargetLanguage; 
+                } 
+                [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, partSelectionContainer, gameArea].forEach(el => el.classList.add('hidden'));
+                hideAllGames();
+                gameSelectionSection.classList.remove('hidden');
+                fillInTheBlanksBtn.classList.toggle('hidden', !isEssentialsMode); 
+                findTheWordsBtn.classList.remove('hidden'); 
+                const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
+                if (activeVocab.length === 0) { 
+                    noVocabularyMessage.classList.remove('hidden'); 
+                    gameButtonsContainer.classList.add('hidden'); 
+                } else { 
+                    noVocabularyMessage.classList.add('hidden'); 
+                    gameButtonsContainer.classList.remove('hidden'); 
+                }
+            }
+            function populateEssentialsCategoryButtons() { 
+                essentialsCategoryButtonsContainer.innerHTML = ''; 
+                Object.keys(essentialsVocabularyData).forEach(categoryKey => { 
+                    const button = document.createElement('button'); 
+                    button.className = 'btn essentials-category-btn p-3 sm:p-4 text-sm sm:text-md'; 
+                    button.textContent = categoryKey; 
+                    button.addEventListener('click', () => { 
+                        currentEssentialsCategoryName = categoryKey; 
+                        isEssentialsMode = true; 
+                        if (categoryKey.toLowerCase().includes("(en-es)")) { 
+                            activeTargetStudyLanguage = 'es-ES'; 
+                        } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
+                            activeTargetStudyLanguage = 'fr-FR'; 
+                        } else { 
+                            activeTargetStudyLanguage = 'en-US'; 
+                        } 
+                        currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({
+                            ...item, 
+                            originalIndex: index, 
+                            correctCount: item.correctCount || 0 
+                        })); 
+                        essentialsOptionsTitle.textContent = `Category: ${categoryKey}`; 
+                        essentialsCategorySelectionSection.classList.add('hidden'); 
+                        essentialsCategoryOptionsSection.classList.remove('hidden'); 
+                    }); 
+                    essentialsCategoryButtonsContainer.appendChild(button); 
+                }); 
+            }
+            
+            function showPartSelection(gameType) {
+                const sourceForParts = isEssentialsMode ? currentVocabularyPart : vocabulary;
+                if (sourceForParts.length === 0) { 
+                    noVocabularyMessage.classList.remove('hidden'); 
+                    gameArea.classList.remove('hidden'); 
+                    [partSelectionContainer, matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage].forEach(el => el.classList.add('hidden')); 
+                    return; 
+                }
+                gameTitle.textContent = gameType.charAt(0).toUpperCase() + gameType.slice(1).replace(/([A-Z])/g, ' $1');
+                [uploadSection, gameSelectionSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, mainSelectionSection].forEach(el => el.classList.add('hidden'));
+                gameArea.classList.remove('hidden');
+                partSelectionContainer.classList.remove('hidden');
+                hideAllGames();
+                partButtonsContainer.innerHTML = '';
+                const numParts = Math.ceil(sourceForParts.length / ITEMS_PER_PART);
+                const fullMixButton = document.createElement('button');
+                fullMixButton.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
+                fullMixButton.textContent = `Full Mix (${sourceForParts.length} items)`;
+                fullMixButton.addEventListener('click', () => { 
+                    currentVocabularyPart = [...sourceForParts]; 
+                    currentPartName = "Full Mix"; 
+                    startGame(gameType); 
+                });
+                partButtonsContainer.appendChild(fullMixButton);
+                if (!isEssentialsMode && numParts > 1 && sourceForParts.length > ITEMS_PER_PART) {
+                    for (let i = 0; i < numParts; i++) {
+                        const start = i * ITEMS_PER_PART;
+                        const end = start + ITEMS_PER_PART;
+                        const partVocab = sourceForParts.slice(start, end);
+                        if (partVocab.length === 0) continue;
+                        const button = document.createElement('button');
+                        button.className = 'btn part-selection-btn p-3 sm:p-4 text-sm sm:text-md';
+                        button.textContent = `Part ${i + 1} (Items ${start + 1}-${Math.min(end, sourceForParts.length)})`;
+                        button.addEventListener('click', () => { 
+                            currentVocabularyPart = partVocab; 
+                            currentPartName = `Part ${i + 1}`; 
+                            startGame(gameType); 
+                        });
+                        partButtonsContainer.appendChild(button);
+                    }
+                }
+            }
+            
+            function startGame(gameType) {
+                if (!audioInitialized) initializeAudio();
+                partSelectionContainer.classList.add('hidden');
+                resetGameStats();
+                switch (gameType) {
+                    case 'matching': initMatchingGame(); break;
+                    case 'multipleChoice': initMultipleChoiceGame(); break;
+                    case 'typeTranslation': initTypeTranslationGame(); break;
+                    case 'talkToMe': initTalkToMeGame(); break;
+                    case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
+                    case 'findTheWords': initFindTheWordsGame(); break;
+                }
+            }
+
+            // --- HELPER & CORE GAME MECHANICS ---
+            function shuffleArray(array) { 
+                const newArray = [...array]; 
+                for (let i = newArray.length - 1; i > 0; i--) { 
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; 
+                } 
+                return newArray; 
+            }
+            function normalizeText(text) { 
+                return text.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,""); 
+            }
+            function updateScoreDisplay() { 
+                currentScoreDisplay.textContent = `Score: ${currentScore}`; 
+                maxScoreDisplay.textContent = `Max Score: ${sessionMaxScore}`; 
+            }
+            function setupMistakeTracker() { 
+                mistakeTrackerDiv.innerHTML = ''; 
+                for (let i = 0; i < MAX_MISTAKES; i++) { 
+                    const capybaraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); 
+                    capybaraSvg.setAttribute("viewBox", "0 0 60 60"); 
+                    capybaraSvg.setAttribute("fill", "currentColor"); 
+                    capybaraSvg.classList.add("capybara-life-icon"); 
+                    capybaraSvg.innerHTML = ` <path d="M30,15 C18,15 10,23 10,33 C10,43 15,50 22,52 C20,48 20,42 23,40 C25,38 28,38 30,39 C32,38 35,38 37,40 C40,42 40,48 38,52 C45,50 50,43 50,33 C50,23 42,15 30,15 Z M22,28 A2,2 0 0,1 24,30 A2,2 0 0,1 22,32 A2,2 0 0,1 20,30 A2,2 0 0,1 22,28 Z M38,28 A2,2 0 0,1 40,30 A2,2 0 0,1 38,32 A2,2 0 0,1 36,30 A2,2 0 0,1 38,28 Z M30,42 C28,42 27,41 27,40 C27,39 28,38 30,38 C32,38 33,39 33,40 C33,41 32,42 30,42 Z"></path> <ellipse cx="23" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <ellipse cx="37" cy="25" rx="3" ry="2" fill="#4a2c2a"/> <path d="M28,33 Q30,35 32,33" stroke="#4a2c2a" stroke-width="1.5" fill="none" /> `; 
+                    mistakeTrackerDiv.appendChild(capybaraSvg); 
+                } 
+            }
+            function updateMistakeDisplay() { 
+                const icons = mistakeTrackerDiv.querySelectorAll('.capybara-life-icon'); 
+                icons.forEach((icon, index) => icon.classList.toggle('mistake', index < MAX_MISTAKES - mistakesRemaining)); 
+            }
+            function resetGameStats() { 
+                mistakesRemaining = MAX_MISTAKES; 
+                updateScoreDisplay(); 
+                setupMistakeTracker(); 
+                gameOverMessage.classList.add('hidden'); 
+            }
+            
+            // --- SPEECH & AUDIO ---
+            function initializeAudio() {
+                if (audioInitialized) return;
+                audioInitialized = true;
+                console.log("Audio initialized");
+            }
+
+            function speakText(text, lang) {
+                return new Promise((resolve) => {
+                    if ('speechSynthesis' in window && text) {
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = lang;
+                        utterance.onend = resolve;
+                        utterance.onerror = () => resolve();
+                        window.speechSynthesis.speak(utterance);
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+
+            function initSpeechRecognition() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition) {
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = false;
+                    recognition.lang = 'en-US';
+                    recognition.interimResults = false;
+                    recognition.maxAlternatives = 1;
+
+                    recognition.onresult = (event) => {
+                        const speechResult = event.results[0][0].transcript;
+                        talkToMeRecognizedText.textContent = speechResult;
+                        checkSpeechAnswer(speechResult);
+                    };
+                    recognition.onerror = (event) => { 
+                        speechApiStatus.textContent = `Error: ${event.error}`; 
+                        stopListening(); 
+                    };
+                    recognition.onend = () => { 
+                        if (isListening) stopListening(); 
+                    };
+                } else {
+                    speechApiStatus.textContent = "Browser doesn't support speech recognition.";
+                    if(listenBtn) listenBtn.disabled = true;
+                }
+            }
+
+            // --- GAME LOGIC FUNCTIONS ---
+            function initMatchingGame() {
+                let gameVocab = shuffleArray(currentVocabularyPart).slice(0, ITEMS_PER_SUB_ROUND);
+                pairsToMatch = gameVocab.length;
+                let cards = [];
+                gameVocab.forEach((item, index) => {
+                    cards.push({ id: index, type: 'lang1', text: item.lang1 });
+                    cards.push({ id: index, type: 'lang2', text: item.lang2 });
+                });
+
+                matchingGameContainer.classList.remove('hidden');
+                matchingGrid.innerHTML = '';
+                shuffleArray(cards).forEach(cardData => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'game-card card p-2';
+                    cardElement.textContent = cardData.text;
+                    cardElement.dataset.id = cardData.id;
+                    cardElement.addEventListener('click', () => handleMatchCardClick(cardElement));
+                    matchingGrid.appendChild(cardElement);
+                });
+            }
+
+            function handleMatchCardClick(cardElement) {
+                if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
+                if (!selectedMatchCard) {
+                    selectedMatchCard = cardElement;
+                    cardElement.classList.add('selected-match');
+                } else {
+                    if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
+                        [selectedMatchCard, cardElement].forEach(el => {
+                            el.classList.add('matched');
+                            el.classList.remove('selected-match');
+                        });
+                        matchedPairs++;
+                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
+                    } else {
+                        [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
+                        setTimeout(() => {
+                            [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
+                            selectedMatchCard = null;
+                        }, 400);
+                    }
+                    if (selectedMatchCard) selectedMatchCard = null;
+                }
+            }
+
+            function initMultipleChoiceGame() {
+                let mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentMcqIndex = 0;
+                multipleChoiceGameContainer.classList.remove('hidden');
+                displayNextMcq(mcqGameActiveVocab);
+            }
+
+            function displayNextMcq(gameVocab) {
+                if (currentMcqIndex >= gameVocab.length) {
+                    mcqQuestion.textContent = "Part Complete!";
+                    mcqOptions.innerHTML = '';
+                    return;
+                }
+                const currentItem = gameVocab[currentMcqIndex];
+                mcqQuestion.textContent = currentItem.lang1;
+                let options = [currentItem.lang2, ...shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3).map(v => v.lang2)];
+                mcqOptions.innerHTML = '';
+                shuffleArray(options).forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn mcq-option-btn';
+                    btn.textContent = opt;
+                    btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
+                    mcqOptions.appendChild(btn);
+                });
+            }
+
+            function checkMcqAnswer(button, isCorrect, item) {
+                if (mcqAnswered) return;
+                mcqAnswered = true;
+                button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
+                if (!isCorrect) {
+                    mcqFeedback.textContent = `Correct: ${item.lang2}`;
+                    mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
+                        if (btn.textContent === item.lang2) btn.classList.add('correct-answer');
+                    });
+                }
+                nextMcqBtn.classList.remove('hidden');
+            }
+
+            function initTypeTranslationGame() {
+                let typeTransGameActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTypeTranslationIndex = 0;
+                typeTranslationGameContainer.classList.remove('hidden');
+                displayNextTypeTranslation(typeTransGameActiveVocab);
+            }
+
+            function displayNextTypeTranslation(gameVocab) {
+                if (currentTypeTranslationIndex >= gameVocab.length) {
+                    typeTranslationPhrase.textContent = "Part Complete!";
+                    typeTranslationInput.style.display = 'none';
+                    return;
+                }
+                const item = gameVocab[currentTypeTranslationIndex];
+                typeTranslationPhrase.textContent = item.lang2;
+                typeTranslationInput.value = '';
+                typeTranslationFeedback.textContent = '';
+                nextTypeTranslationBtn.classList.add('hidden');
+            }
+
+            function checkTypeTranslation() {
+                const item = currentVocabularyPart[currentTypeTranslationIndex];
+                const isCorrect = typeTranslationInput.value.trim().toLowerCase() === item.lang1.toLowerCase();
+                typeTranslationFeedback.textContent = isCorrect ? "Correct!" : `Correct: ${item.lang1}`;
+                nextTypeTranslationBtn.classList.remove('hidden');
+            }
+
+            function initFillInTheBlanksGame() {
+                fillInTheBlanksGameContainer.classList.remove('hidden');
+                fillInTheBlanksSentence.textContent = "Fill in the blanks is not yet implemented.";
+            }
+
+            function initTalkToMeGame() {
+                talkToMeGameContainer.classList.remove('hidden');
+                let talkToMeActiveVocab = shuffleArray(currentVocabularyPart);
+                currentTalkToMeIndex = 0;
+                displayNextTalkToMe(talkToMeActiveVocab);
+            }
+
+            function displayNextTalkToMe(gameVocab) {
+                if (currentTalkToMeIndex >= gameVocab.length) {
+                    talkToMePhraseText.textContent = "Part Complete!";
+                    return;
+                }
+                const item = gameVocab[currentTalkToMeIndex];
+                talkToMePhraseText.textContent = item.lang1;
+                talkToMeRecognizedText.textContent = "...";
+                talkToMeFeedback.textContent = "";
+                nextTalkToMeBtn.classList.add('hidden');
+            }
+
+            function startListening() {
+                if (!recognition || isListening) return;
+                recognition.lang = activeTargetStudyLanguage;
+                recognition.start();
+                isListening = true;
+                listenBtnText.textContent = 'Listening...';
+            }
+
+            function stopListening() {
+                if (!recognition || !isListening) return;
+                recognition.stop();
+                isListening = false;
+                listenBtnText.textContent = 'Start Listening';
+            }
+
+            function checkSpeechAnswer(spokenText) {
+                const item = currentVocabularyPart[currentTalkToMeIndex];
+                const isCorrect = normalizeText(spokenText) === normalizeText(item.lang1);
+                talkToMeFeedback.textContent = isCorrect ? "Correct!" : "Not quite, try again.";
+                nextTalkToMeBtn.classList.remove('hidden');
+            }
+
+            function initFindTheWordsGame() {
+    findTheWordsGameContainer.classList.remove('hidden');
+    findWordsSessionPool = shuffleArray(currentVocabularyPart);
+    currentFindWordsRound = 0;
+    startFindTheWordsRound(findWordsSessionPool);
+}
+
+            // Helper: Speak the three target words, respecting current language
+async function speakFindTheWordsTargets(words, lang) {
+    for (const w of words) {
+        await speakText(w.lang1, lang);
+        await new Promise(res => setTimeout(res, 350));
+    }
+}
+
+// Call this when starting a round or when replay is requested
+async function startFindTheWordsRound(pool) {
+    if (currentFindWordsRound >= MAX_FIND_WORDS_ROUNDS || pool.length < WORDS_PER_FIND_WORDS_TARGET) {
+        findTheWordsInstructions.textContent = "Game Complete!";
+        findTheWordsGrid.innerHTML = '';
+        return;
+    }
+    currentFindWordsRound++;
+    findWordsTargetWords = pool.splice(0, WORDS_PER_FIND_WORDS_TARGET);
+    let distractors = shuffleArray(vocabulary.filter(v => !findWordsTargetWords.includes(v))).slice(0, WORDS_PER_FIND_WORDS_DISPLAY - WORDS_PER_FIND_WORDS_TARGET);
+    let findWordsCurrentChoices = shuffleArray([...findWordsTargetWords, ...distractors]);
+    findTheWordsGrid.innerHTML = '';
+    findWordsCurrentChoices.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'game-card card p-2';
+        card.textContent = item.lang1;
+        card.setAttribute('data-lang', activeTargetStudyLanguage);
+        card.onclick = () => {
+            speakText(item.lang1, card.getAttribute('data-lang'));
+            toggleFindWordSelection(card, item);
+        };
+        findTheWordsGrid.appendChild(card);
+    });
+    findTheWordsRoundCounter.textContent = `Round: ${currentFindWordsRound}/${MAX_FIND_WORDS_ROUNDS}`;
+    await speakFindTheWordsTargets(findWordsTargetWords, activeTargetStudyLanguage);
+}
+
+            function toggleFindWordSelection(card, item) {
+                card.classList.toggle('selected-find-word');
+                const index = findWordsSelectedWords.findIndex(i => i.lang1 === item.lang1);
+                if (index > -1) findWordsSelectedWords.splice(index, 1);
+                else findWordsSelectedWords.push(item);
+                sendFindTheWordsBtn.disabled = findWordsSelectedWords.length === 0;
+            }
+
+            function checkFindTheWordsAnswer() {
+                const correctCount = findWordsSelectedWords.filter(s => findWordsTargetWords.includes(s)).length;
+                findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length}.`;
+                nextFindTheWordsRoundBtn.classList.remove('hidden');
+            }
+
+            // --- EVENT LISTENERS ---
+            authToggleText.addEventListener('click', (e) => { if (e.target.matches('.toggle-auth-link')) { e.preventDefault(); toggleAuthMode(); } });
+            authForm.addEventListener('submit', async (e) => { 
+                e.preventDefault(); 
+                const email = document.getElementById('emailInput').value.trim(); 
+                const password = document.getElementById('passwordInput').value.trim(); 
+                authError.textContent = ''; 
+                try { 
+                    if (isSignUp) { 
+                        const { error } = await supabaseClient.auth.signUp({ email, password }); 
+                        if (error) { 
+                            authError.textContent = error.message; 
+                        } else { 
+                            alert('Sign up successful! Please check your email to confirm your account.'); 
+                            toggleAuthMode(); 
+                        } 
+                    } else { 
+                        const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); 
+                        if (error) { 
+                            authError.textContent = error.message; 
+                        } 
+                    } 
+                } catch (err) { 
+                    authError.textContent = 'Unexpected error. Try again.'; 
+                    console.error(err); 
+                } 
+            });
+            googleLoginBtn.addEventListener('click', async () => { 
+                const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google' }); 
+                if (error) { authError.textContent = error.message; } 
+            });
+            logoutBtn.addEventListener('click', async () => { 
+                try {
+                    await supabaseClient.auth.signOut(); 
+                    window.location.reload(); 
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // Force reload anyway
+                    window.location.reload();
+                }
+            });
+            
+            addNotesBtn.addEventListener('click', showMainSelection);
+            showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
+            backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
+            showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
+            backToMainSelectionFromEssentialsBtn.addEventListener('click', showMainSelection);
+            backToEssentialsCategoriesBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); });
+            reviewEssentialsCategoryBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); gameArea.classList.remove('hidden'); startGame('matching'); });
+            playGamesWithEssentialsBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); showGameSelection(); });
+            backToGameSelectionBtn.addEventListener('click', showGameSelection);
+            backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
+            matchingBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('matching'); });
+            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('multipleChoice'); });
+            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('typeTranslation'); });
+            talkToMeBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('talkToMe'); });
+            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('fillInTheBlanks'); });
+            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('findTheWords'); });
+            uploadBtn.addEventListener('click', () => handleFileUpload());
+            csvFileInput.addEventListener('change', () => handleFileUpload());
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover-active'); });
+            dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); });
+            dropZone.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover-active'); if (e.dataTransfer.files && e.dataTransfer.files.length > 0) { handleFileUpload(e.dataTransfer.files[0]); } });
+
+            // Game specific event listeners
+            if (checkTypeTranslationBtn) checkTypeTranslationBtn.addEventListener('click', checkTypeTranslation);
+            if (listenBtn) listenBtn.addEventListener('click', startListening);
+            if (sendFindTheWordsBtn) sendFindTheWordsBtn.addEventListener('click', checkFindTheWordsAnswer);
+            if (nextMcqBtn) nextMcqBtn.addEventListener('click', () => { 
+                mcqAnswered = false; 
+                currentMcqIndex++; 
+                displayNextMcq(currentVocabularyPart); 
+                nextMcqBtn.classList.add('hidden'); 
+            });
+            if (nextTypeTranslationBtn) nextTypeTranslationBtn.addEventListener('click', () => { 
+                typeTranslationAnswered = false; 
+                currentTypeTranslationIndex++; 
+                displayNextTypeTranslation(currentVocabularyPart); 
+                nextTypeTranslationBtn.classList.add('hidden'); 
+            });
+            if (nextTalkToMeBtn) nextTalkToMeBtn.addEventListener('click', () => { 
+                currentTalkToMeIndex++; 
+                displayNextTalkToMe(currentVocabularyPart); 
+                nextTalkToMeBtn.classList.add('hidden'); 
+            });
+
+            // Replay button for TTS
+replayFindTheWordsAudioBtn.onclick = () => speakFindTheWordsTargets(findWordsTargetWords, activeTargetStudyLanguage);
+
+// Next round button
+nextFindTheWordsRoundBtn.onclick = () => startFindTheWordsRound(findWordsSessionPool);
+
+// Update card language tags if the selector changes
+if (languageSelectorInGame) {
+    languageSelectorInGame.addEventListener('change', (e) => {
+        activeTargetStudyLanguage = e.target.value;
+        document.querySelectorAll('#findTheWordsGrid .game-card').forEach(card => {
+            card.setAttribute('data-lang', activeTargetStudyLanguage);
+        });
+    });
+}
+
+            // --- SPEECH & AUDIO ---
+            // === PATCHED AUDIO LOGIC ===
+            let backgroundMusicSynth, correctMatchSynth, incorrectBuzzSynth, notebookLostSynth, musicPart;
+            let musicPlaying = false;
+            let hearItOutLoudEnabled = false;
+
+            function initializeAudio() {
+                if (audioInitialized) return;
+                Tone.start().then(() => {
+                    audioInitialized = true;
+                    backgroundMusicSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }, volume: -28 }).toDestination();
+                    const vivaldiSpringMotif = [ 
+                        { time: "0:0", note: "E4", duration: "4n" }, { time: "0:1", note: "E4", duration: "4n" }, { time: "0:2", note: "E4", duration: "4n" }, { time: "0:3", note: "C#5", duration: "4n" },
+                        { time: "1:0", note: "D#5", duration: "4n" }, { time: "1:1", note: "D#5", duration: "4n" }, { time: "1:2", note: "D#5", duration: "4n" }, { time: "1:3", note: "B4", duration: "4n" },
+                        { time: "2:0", note: "E4", duration: "4n" }, { time: "2:1", note: "E4", duration: "4n" }, { time: "2:2", note: "E4", duration: "4n" }, { time: "2:3", note: "C#5", duration: "4n" },
+                        { time: "3:0", note: "D#5", duration: "4n" }, { time: "3:1", note: "D#5", duration: "4n" }, { time: "3:2", note: "B4", duration: "4n" }, { time: "3:3", note: "E4", duration: "4n" }
+                    ];
+                    musicPart = new Tone.Part((time, value) => backgroundMusicSynth.triggerAttackRelease(value.note, value.duration, time), vivaldiSpringMotif).start(0);
+                    musicPart.loop = true; musicPart.loopEnd = "4m";
+                    correctMatchSynth = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.2 }, volume: -12 }).toDestination();
+                    incorrectBuzzSynth = new Tone.NoiseSynth ({ noise: { type: "pink" }, envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }, volume: -18 }).toDestination();
+                    notebookLostSynth = new Tone.MonoSynth({ oscillator: { type: "sawtooth" }, filter: { Q: 2, type: "lowpass", rolloff: -24 }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.3 }, filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.2, baseFrequency: 200, octaves: 2 }, volume: -15 }).toDestination();
+                    updateMusicButton();
+                    if(musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start();
+                    else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause();
+                }).catch(e => console.error("Failed to start audio context:", e));
+            }
+
+            function toggleMusic() {
+                if (!audioInitialized) { initializeAudio(); musicPlaying = !musicPlaying; return; }
+                musicPlaying = !musicPlaying;
+                if (musicPlaying && Tone.Transport.state !== "started") Tone.Transport.start();
+                else if (!musicPlaying && Tone.Transport.state === "started") Tone.Transport.pause();
+                updateMusicButton();
+            }
+            function updateMusicButton() { 
+                if (musicPlaying) { 
+                    musicIconOn.classList.remove('hidden'); 
+                    musicIconOff.classList.add('hidden'); 
+                    musicStatusText.textContent = "Music: ON"; 
+                } else { 
+                    musicIconOn.classList.add('hidden'); 
+                    musicIconOff.classList.remove('hidden'); 
+                    musicStatusText.textContent = "Music: OFF"; 
+                } 
+            }
+            function playCorrectMatchSound() { if (audioInitialized && correctMatchSynth) { correctMatchSynth.triggerAttackRelease("C5", "8n", Tone.now()); correctMatchSynth.triggerAttackRelease("G5", "4n", Tone.now() + 0.12); } }
+            function playIncorrectSound() {  if (audioInitialized && incorrectBuzzSynth) { incorrectBuzzSynth.triggerAttackRelease("0.2n"); } }
+            function playNotebookLostSound() { if (audioInitialized && notebookLostSynth) { notebookLostSynth.triggerAttackRelease("C3", "0.3n"); } }
+
+            function speakText(text, lang) {
+                return new Promise((resolve) => {
+                    if ('speechSynthesis' in window && text) {
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = lang || activeTargetStudyLanguage || 'en-US';
+                        utterance.onend = resolve;
+                        utterance.onerror = () => resolve();
+                        window.speechSynthesis.speak(utterance);
+                    } else {
+                        resolve();
+                    }
+                });
+            }
+
+            // --- PATCH: TTS on click for games ---
+            // (You can further expand this to other games as needed)
+            // Example: In Matching Game, speak on click
+            function handleMatchCardClick(cardElement) {
+                if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
+                // Speak if enabled and this is a target language card
+                if (hearItOutLoudEnabled && cardElement.classList.contains('game-card')) {
+                    speakText(cardElement.textContent, activeTargetStudyLanguage);
+                }
+                if (!selectedMatchCard) {
+                    selectedMatchCard = cardElement;
+                    cardElement.classList.add('selected-match');
+                } else {
+                    if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
+                        [selectedMatchCard, cardElement].forEach(el => {
+                            el.classList.add('matched');
+                            el.classList.remove('selected-match');
+                        });
+                        playCorrectMatchSound();
+                        matchedPairs++;
+                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
+                    } else {
+                        [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
+                        playIncorrectSound();
+                        setTimeout(() => {
+                            [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
+                            selectedMatchCard = null;
+                        }, 400);
+                    }
+                    if (selectedMatchCard) selectedMatchCard = null;
+                }
+            }
+
+            // --- PATCH: TTS in MCQ ---
+            function displayNextMcq(gameVocab) {
+                if (currentMcqIndex >= gameVocab.length) {
+                    mcqQuestion.textContent = "Part Complete!";
+                    mcqOptions.innerHTML = '';
+                    return;
+                }
+                const currentItem = gameVocab[currentMcqIndex];
+                mcqQuestion.textContent = currentItem.lang1;
+                mcqQuestion.onclick = () => {
+                    if (hearItOutLoudEnabled) speakText(currentItem.lang1, activeTargetStudyLanguage);
+                };
+                let options = [currentItem.lang2, ...shuffleArray(vocabulary.filter(v => v.lang1 !== currentItem.lang1)).slice(0, 3).map(v => v.lang2)];
+                mcqOptions.innerHTML = '';
+                shuffleArray(options).forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn mcq-option-btn';
+                    btn.textContent = opt;
+                    btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
+                    btn.onauxclick = btn.ondblclick = () => { // right click or double click
+                        if (hearItOutLoudEnabled) speakText(opt, activeTargetStudyLanguage);
+                    };
+                    mcqOptions.appendChild(btn);
+                });
+            }
+
+            // --- PATCH: TTS in Type Translation ---
+            function displayNextTypeTranslation(gameVocab) {
+                if (currentTypeTranslationIndex >= gameVocab.length) {
+                    typeTranslationPhrase.textContent = "Part Complete!";
+                    typeTranslationInput.style.display = 'none';
+                    return;
+                }
+                const item = gameVocab[currentTypeTranslationIndex];
+                typeTranslationPhrase.textContent = item.lang2;
+                typeTranslationPhrase.onclick = () => {
+                    if (hearItOutLoudEnabled) speakText(item.lang2, 'en-US');
+                };
+                typeTranslationInput.value = '';
+                typeTranslationFeedback.textContent = '';
+                nextTypeTranslationBtn.classList.add('hidden');
+            }
+
+            // --- PATCH: Music button ---
+            musicToggleBtn.addEventListener('click', toggleMusic);
+
+            // --- PATCH: Hear it out loud toggle ---
+            hearItOutLoudToggleBtn.addEventListener('click', () => {
+                hearItOutLoudEnabled = !hearItOutLoudEnabled;
+                updateHearItOutLoudButton();
+            });
+            function updateHearItOutLoudButton() {
+                if (hearItOutLoudToggleBtn && hearItOutLoudBtnText) {
+                    hearItOutLoudBtnText.textContent = `Hear: ${hearItOutLoudEnabled ? 'ON' : 'OFF'}`;
+                    hearItOutLoudToggleBtn.classList.toggle('active', hearItOutLoudEnabled); 
+                }
+            }
+
+            // --- PATCH: Also call initializeAudio() on all game buttons (already present in your code, leave as is) ---
+
+
+            // --- INITIALIZATION ---
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (session) {
+                    loginSection.classList.add('hidden');
+                    appContent.classList.remove('hidden');
+                    await fetchNotes();
+                    if (vocabulary.length > 0) {
+                        showGameSelection();
+                    } else {
+                        showMainSelection();
+                    }
+                } else {
+                    loginSection.classList.remove('hidden');
+                    appContent.classList.add('hidden');
+                    vocabulary = [];
+                }
+            });
+
+            showMainSelection(); 
+            setupMistakeTracker(); 
+            updateScoreDisplay();
+            initSpeechRecognition();
+        });
+//Beta with sound effects but no voice
+        
+    </script>
 </body>
 </html>
