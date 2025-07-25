@@ -190,7 +190,7 @@
                         vocabulary = [];
                         return false;
                     }
-                    console.log('fetchNotes: User found, fetching notes for user:', user.id);
+                    console.log('fetchNotes: ✅ User found, fetching notes for user:', user.id, 'email:', user.email);
 
                     console.log('fetchNotes: Executing database query...');
                     const { data, error } = await supabaseClient
@@ -199,6 +199,9 @@
                         .eq('user_id', user.id);
 
                     console.log('fetchNotes: Database query completed. Error:', error, 'Data count:', data ? data.length : 0);
+                    if (data && data.length > 0) {
+                        console.log('fetchNotes: ✅ Found notes! Sample entries:', data.slice(0, 3));
+                    }
 
                     if (error) {
                         console.error('fetchNotes: Error fetching notes:', error);
@@ -535,6 +538,10 @@ async function saveNotes(notesToSave) {
                 
                 // Check for duplicates in existing vocabulary
                 const newNotes = [];
+                const duplicateNotes = [];
+                
+                console.log('Checking for duplicates against', vocabulary.length, 'existing vocabulary entries...');
+                
                 for (const note of notesToSave) {
                     const exists = vocabulary.some(v => 
                         v.lang1.toLowerCase().trim() === note.lang1.toLowerCase().trim() && 
@@ -543,13 +550,20 @@ async function saveNotes(notesToSave) {
                     
                     if (!exists) {
                         newNotes.push(note);
-                        console.log('New note will be saved:', note.lang1, '-', note.lang2);
+                        console.log('✅ New note will be saved:', note.lang1, '-', note.lang2);
                     } else {
-                        console.log('Duplicate detected, skipping:', note.lang1, '-', note.lang2);
+                        duplicateNotes.push(note);
+                        console.log('❌ Duplicate detected, skipping:', note.lang1, '-', note.lang2);
                     }
                 }
                 
-                console.log('Total notes to save:', notesToSave.length, 'New unique notes:', newNotes.length);
+                console.log('📊 Summary: Total notes to process:', notesToSave.length, '| New unique notes:', newNotes.length, '| Duplicates found:', duplicateNotes.length);
+                
+                // Show user feedback about duplicates
+                if (duplicateNotes.length > 0) {
+                    const duplicateList = duplicateNotes.map(note => `"${note.lang1} - ${note.lang2}"`).join(', ');
+                    alert(`Found ${duplicateNotes.length} duplicate(s) that already exist in your vocabulary:\n\n${duplicateList}\n\nThese will not be saved again.`);
+                }
                 
                 if (newNotes.length === 0) {
                     console.log('All notes already exist in database');
@@ -1400,6 +1414,7 @@ if (languageSelectorInGame) {
 
                     if (session) {
                         console.log('User session found, setting up app...');
+                        console.log('Session details:', { userId: session.user?.id, email: session.user?.email });
                         isAuthenticating = true; // Prevent file upload during auth
                         
                         // Clear any existing file input to prevent unwanted triggers
@@ -1416,16 +1431,25 @@ if (languageSelectorInGame) {
                             console.log('fetchNotes completed, hasNotes:', hasNotes, 'vocabulary.length:', vocabulary.length);
                             console.log('csvUploadedTargetLanguage is now:', csvUploadedTargetLanguage);
 
-                            // More robust check - if we have vocabulary at all, show games
-                            if (vocabulary && vocabulary.length > 0) {
-                                console.log('User has existing vocabulary (' + vocabulary.length + ' notes), showing game selection');
+                            // More robust check - wait a moment for UI to settle
+                            await new Promise(resolve => setTimeout(resolve, 100));
+
+                            // Enhanced check for existing vocabulary
+                            if (vocabulary && Array.isArray(vocabulary) && vocabulary.length > 0) {
+                                console.log('✅ User has existing vocabulary (' + vocabulary.length + ' notes), redirecting to game selection');
+                                console.log('Sample vocabulary entries:', vocabulary.slice(0, 3));
+                                
+                                // Ensure we're not in essentials mode for user's own vocabulary
+                                isEssentialsMode = false;
+                                
                                 showGameSelection();
                             } else {
-                                console.log('User has no vocabulary, showing main selection (upload section)');
+                                console.log('❌ User has no vocabulary, showing main selection (upload section)');
+                                console.log('Vocabulary state:', { vocabulary, length: vocabulary?.length, type: typeof vocabulary });
                                 showMainSelection();
                             }
                         } catch (error) {
-                            console.error('Error during app initialization:', error);
+                            console.error('❌ Error during app initialization:', error);
                             console.error('Error stack:', error.stack);
                             // Fallback to main selection on error
                             console.log('Falling back to main selection due to error');
