@@ -128,7 +128,7 @@
             let liveNotesData = [], notepadContent = '', autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
 
             // --- ELEMENT SELECTORS ---
-            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
+            const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
             
             // Live Notes elements
             const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
@@ -172,6 +172,11 @@
                     }
 
                     console.log('🔐 fetchNotes: Getting user authentication...');
+                    console.log('🔐 fetchNotes: Supabase client status:', { 
+                        hasClient: !!supabaseClient, 
+                        hasAuth: !!supabaseClient?.auth, 
+                        hasGetUser: !!supabaseClient?.auth?.getUser 
+                    });
                     
                     // Add timeout to prevent hanging on auth.getUser()
                     let authResult;
@@ -185,6 +190,7 @@
                         console.log('🔐 fetchNotes: Auth call completed successfully');
                     } catch (timeoutError) {
                         console.error('❌ fetchNotes: Auth timeout or error:', timeoutError);
+                        console.error('❌ fetchNotes: Error details:', timeoutError.message, timeoutError.stack);
                         if (retryCount === 0) {
                             console.log('🔄 fetchNotes: Retrying due to auth timeout...');
                             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -195,6 +201,12 @@
                     }
                     
                     const { data: { user }, error: userError } = authResult;
+                    console.log('🔐 fetchNotes: Auth result:', { 
+                        hasUser: !!user, 
+                        userId: user?.id, 
+                        userEmail: user?.email,
+                        userError: userError
+                    });
 
                     if (userError) {
                         console.error('❌ fetchNotes: Error getting user:', userError);
@@ -1658,6 +1670,32 @@ async function startFindTheWordsRound(pool) {
                     showMainSelection();
                 }
             });
+
+            // Add refresh vocabulary button functionality
+            if (refreshVocabBtn) {
+                refreshVocabBtn.addEventListener('click', async () => {
+                    console.log('🔄 Manual vocabulary refresh requested');
+                    refreshVocabBtn.disabled = true;
+                    refreshVocabBtn.textContent = '⏳ Refreshing...';
+                    
+                    try {
+                        const hasNotes = await fetchNotes();
+                        if (hasNotes) {
+                            alert(`Successfully loaded ${vocabulary.length} notes from database!`);
+                        } else {
+                            alert('No notes found in database or refresh failed. Please check the console for details.');
+                        }
+                    } catch (error) {
+                        console.error('💥 Manual refresh error:', error);
+                        alert('Refresh failed: ' + error.message);
+                    } finally {
+                        refreshVocabBtn.disabled = false;
+                        refreshVocabBtn.textContent = '🔄 Refresh';
+                    }
+                });
+            } else {
+                console.error('Refresh vocabulary button not found in DOM');
+            }
             
             // Live Notes event listeners
             liveNotesBtn.addEventListener('click', initializeLiveNotes);
