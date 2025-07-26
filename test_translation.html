@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Translation Test</title>
+</head>
+<body>
+    <h1>MyMemory Translation API Test</h1>
+    <button onclick="testTranslation()">Test Translation</button>
+    <div id="result"></div>
+
+    <script>
+        async function translateText(text, langPair) {
+            if (!text.trim()) return '';
+            const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+            
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                if (data.responseData) {
+                    return data.responseData.translatedText;
+                } else {
+                    return "Translation failed.";
+                }
+            } catch (error) {
+                console.error('Translation API error:', error);
+                return "Translation error.";
+            }
+        }
+
+        async function testTranslation() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing translation...';
+            
+            try {
+                const translation = await translateText('hello', 'en|es');
+                result.innerHTML = `Translation of "hello" (en|es): ${translation}`;
+            } catch (error) {
+                result.innerHTML = `Error: ${error}`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -403,6 +403,8 @@ async function fetchNotes() {
     // Live Notes state
     let liveNotesData = [], notepadContent = '', autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
     let autoAdvanceTimer = null; // Timer for 7-second auto-advance
+    let currentTranslationSuggestion = null; // Store current translation suggestion
+    let translationTimeout = null; // Timeout for translation requests
 
     // --- ELEMENT SELECTORS ---
     const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
@@ -717,6 +719,14 @@ async function fetchNotes() {
             autoAdvanceTimer = null;
         }
         
+        if (translationTimeout) {
+            clearTimeout(translationTimeout);
+            translationTimeout = null;
+        }
+        
+        // Hide any translation suggestion
+        hideTranslationSuggestion();
+        
         // Save any pending changes before closing
         if (pendingChanges) {
             saveLiveNotes();
@@ -734,6 +744,19 @@ async function fetchNotes() {
         if (autoAdvanceTimer) {
             clearTimeout(autoAdvanceTimer);
             autoAdvanceTimer = null;
+        }
+        
+        // Check for dash and trigger translation
+        const cursorPosition = event.target.selectionStart;
+        const currentValue = event.target.value;
+        const charBeforeCursor = currentValue.charAt(cursorPosition - 1);
+        
+        // If user just typed a dash, check for translation opportunity
+        if (charBeforeCursor === '-' || charBeforeCursor === '–' || charBeforeCursor === '—') {
+            handleDashTranslation(currentValue, cursorPosition);
+        } else {
+            // Hide any existing translation suggestion if user continues typing
+            hideTranslationSuggestion();
         }
         
         // Parse content and update data
@@ -761,8 +784,13 @@ async function fetchNotes() {
             autoAdvanceTimer = null;
         }
         
-        // Handle Enter key to auto-advance
+        // Handle Enter key - accept translation if suggestion is shown
         if (event.key === 'Enter') {
+            if (currentTranslationSuggestion) {
+                event.preventDefault(); // Prevent new line
+                acceptTranslation();
+                return;
+            }
             // Natural behavior - just update counts
             setTimeout(() => {
                 parseNotepadContent();
@@ -770,8 +798,18 @@ async function fetchNotes() {
             }, 10);
         }
         
+        // Handle Escape key - dismiss translation suggestion
+        if (event.key === 'Escape' && currentTranslationSuggestion) {
+            event.preventDefault();
+            hideTranslationSuggestion();
+            return;
+        }
+        
         // Handle deletions - trigger immediate save to reflect deletions in database
         if (event.key === 'Backspace' || event.key === 'Delete') {
+            // Hide translation suggestion if user is deleting
+            hideTranslationSuggestion();
+            
             setTimeout(() => {
                 if (pendingChanges) {
                     saveLiveNotes();
@@ -1155,6 +1193,217 @@ async function fetchNotes() {
             liveNotesTextarea.focus();
         }
     }
+
+    // --- LIVE TRANSLATION FUNCTIONS ---
+    async function translateText(text, langPair) {
+        if (!text.trim()) return ''; // Don't translate empty text
+        const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+        
+        try {
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+            if (data.responseData) {
+                return data.responseData.translatedText;
+            } else {
+                return "Translation failed.";
+            }
+        } catch (error) {
+            console.error('Translation API error:', error);
+            return "Translation error.";
+        }
+    }
+
+    function showTranslationSuggestion(text, translation, cursorPosition) {
+        // Remove any existing suggestion
+        hideTranslationSuggestion();
+
+        const textarea = liveNotesTextarea;
+        const suggestionElement = document.createElement('div');
+        suggestionElement.id = 'translationSuggestion';
+        
+        suggestionElement.style.cssText = `
+            position: fixed;
+            background: #eff6ff;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            z-index: 1000;
+            min-width: 250px;
+            max-width: 350px;
+            font-family: 'Inter', sans-serif;
+        `;
+
+        suggestionElement.innerHTML = `
+            <div class="flex justify-between items-start gap-2 mb-2">
+                <span class="text-sm font-medium text-blue-800">🤖 Auto-translation:</span>
+                <button id="dismissTranslationBtn" class="text-red-500 hover:text-red-700 font-bold text-lg leading-none cursor-pointer">×</button>
+            </div>
+            <div class="bg-white border border-blue-200 rounded p-2 mb-3">
+                <div class="text-xs text-gray-500 mb-1">Original: <span class="font-medium text-gray-700">${text}</span></div>
+                <div class="text-sm font-medium text-gray-900">${translation}</div>
+            </div>
+            <div class="flex gap-2">
+                <button id="acceptTranslationBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm font-medium cursor-pointer transition-colors">
+                    ✓ Accept (Enter)
+                </button>
+                <button id="dismissTranslationBtn2" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-2 rounded text-sm font-medium cursor-pointer transition-colors">
+                    × Dismiss (Esc)
+                </button>
+            </div>
+        `;
+
+        // Position the suggestion relative to the textarea
+        const rect = textarea.getBoundingClientRect();
+        const modalRect = liveNotesModal.getBoundingClientRect();
+        
+        // Position it to the right of the textarea if there's space, otherwise below
+        const spaceOnRight = window.innerWidth - rect.right;
+        if (spaceOnRight > 350) {
+            suggestionElement.style.left = (rect.right + 10) + 'px';
+            suggestionElement.style.top = (rect.top + 50) + 'px';
+        } else {
+            suggestionElement.style.left = (rect.left + 20) + 'px';
+            suggestionElement.style.top = (rect.bottom - 100) + 'px';
+        }
+
+        // Ensure it doesn't go off screen
+        if (parseInt(suggestionElement.style.left) + 350 > window.innerWidth) {
+            suggestionElement.style.left = (window.innerWidth - 360) + 'px';
+        }
+        if (parseInt(suggestionElement.style.top) < 10) {
+            suggestionElement.style.top = '10px';
+        }
+
+        document.body.appendChild(suggestionElement);
+
+        // Store current suggestion data
+        currentTranslationSuggestion = {
+            text: text,
+            translation: translation,
+            cursorPosition: cursorPosition,
+            element: suggestionElement
+        };
+
+        // Add event listeners
+        const acceptBtn = document.getElementById('acceptTranslationBtn');
+        const dismissBtn1 = document.getElementById('dismissTranslationBtn');
+        const dismissBtn2 = document.getElementById('dismissTranslationBtn2');
+
+        acceptBtn.addEventListener('click', acceptTranslation);
+        dismissBtn1.addEventListener('click', hideTranslationSuggestion);
+        dismissBtn2.addEventListener('click', hideTranslationSuggestion);
+
+        console.log(`💡 Showing translation suggestion: "${text}" → "${translation}"`);
+    }
+
+    function hideTranslationSuggestion() {
+        const existing = document.getElementById('translationSuggestion');
+        if (existing) {
+            existing.remove();
+        }
+        currentTranslationSuggestion = null;
+    }
+
+    function acceptTranslation() {
+        if (!currentTranslationSuggestion) return;
+
+        const { text, translation, cursorPosition } = currentTranslationSuggestion;
+        const textarea = liveNotesTextarea;
+        const currentValue = textarea.value;
+        
+        // Find the position of the text that was translated
+        const beforeCursor = currentValue.substring(0, cursorPosition);
+        const lastDashIndex = beforeCursor.lastIndexOf(' - ');
+        
+        if (lastDashIndex !== -1) {
+            // Replace the content after the dash with the translation
+            const beforeDash = currentValue.substring(0, lastDashIndex + 3); // Include " - "
+            const afterCursor = currentValue.substring(cursorPosition);
+            const newValue = beforeDash + translation + afterCursor;
+            
+            textarea.value = newValue;
+            
+            // Position cursor after the translation
+            const newCursorPos = beforeDash.length + translation.length;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+            textarea.focus();
+            
+            // Update content and trigger parsing
+            notepadContent = newValue;
+            parseNotepadContent();
+            updateLineAndParsedCounts();
+            updateSaveStatus();
+            pendingChanges = true;
+        }
+
+        hideTranslationSuggestion();
+    }
+
+    async function handleDashTranslation(text, cursorPosition) {
+        // Clear any existing timeout
+        if (translationTimeout) {
+            clearTimeout(translationTimeout);
+        }
+
+        // Get the current line and word before the dash
+        const beforeCursor = text.substring(0, cursorPosition);
+        const lines = beforeCursor.split('\n');
+        const currentLine = lines[lines.length - 1];
+        
+        // Check if this line contains a dash and extract the word before it
+        const dashMatch = currentLine.match(/^(.+?)\s*-\s*$/);
+        if (dashMatch) {
+            const wordToTranslate = dashMatch[1].trim();
+            if (wordToTranslate) {
+                const selectedLanguage = liveNotesLanguageSelector.value;
+                let langPair;
+                
+                // Determine translation direction based on selected language
+                // The user types a word and gets translation to the target language they're learning
+                if (selectedLanguage === 'en-GB' || selectedLanguage === 'en-US') {
+                    // Learning English - assume input could be Spanish/French/etc and translate to English
+                    // Try multiple source languages, prioritize Spanish
+                    langPair = 'es|en';
+                } else if (selectedLanguage === 'es-ES') {
+                    // Learning Spanish - translate from English to Spanish
+                    langPair = 'en|es';
+                } else if (selectedLanguage === 'fr-FR') {
+                    // Learning French - translate from English to French
+                    langPair = 'en|fr';
+                } else if (selectedLanguage === 'de-DE') {
+                    // Learning German - translate from English to German
+                    langPair = 'en|de';
+                } else if (selectedLanguage === 'pt-PT') {
+                    // Learning Portuguese - translate from English to Portuguese
+                    langPair = 'en|pt';
+                } else if (selectedLanguage === 'nl-NL') {
+                    // Learning Dutch - translate from English to Dutch
+                    langPair = 'en|nl';
+                } else {
+                    // Default to English to Spanish
+                    langPair = 'en|es';
+                }
+
+                // Set a timeout to avoid too many API calls
+                translationTimeout = setTimeout(async () => {
+                    try {
+                        console.log(`🔄 Translating "${wordToTranslate}" using language pair: ${langPair}`);
+                        const translation = await translateText(wordToTranslate, langPair);
+                        if (translation && translation !== 'Translation failed.' && translation !== 'Translation error.' && translation.toLowerCase() !== wordToTranslate.toLowerCase()) {
+                            console.log(`✅ Translation result: "${translation}"`);
+                            showTranslationSuggestion(wordToTranslate, translation, cursorPosition);
+                        } else {
+                            console.log(`❌ No valid translation found for "${wordToTranslate}"`);
+                        }
+                    } catch (error) {
+                        console.error('Translation error:', error);
+                    }
+                }, 500); // Wait 500ms before making the API call
+            }
+        }
+    }
+
     function showLanguageSelectionModal(file = null) {
         return new Promise((resolve, reject) => {
             const modal = document.getElementById('csvLanguageModal');
