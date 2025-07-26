@@ -926,6 +926,27 @@
                         </p>
                     </div>
                     
+                    <!-- Language Selection for Live Notes -->
+                    <div class="mb-4">
+                        <label for="liveNotesLanguageSelector" class="block mb-2 text-sm font-medium text-gray-900">Select Target Language (for first words in each line):</label>
+                        <select id="liveNotesLanguageSelector" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block w-full p-2.5">
+                            <option value="en-US" selected>English (US)</option>
+                            <option value="en-GB">English (UK)</option>
+                            <option value="es-ES">Español (España)</option>
+                            <option value="es-MX">Español (México)</option>
+                            <option value="fr-FR">Français (France)</option>
+                            <option value="de-DE">Deutsch (German)</option>
+                            <option value="it-IT">Italiano (Italian)</option>
+                            <option value="pt-PT">Português (Portugal)</option>
+                            <option value="ja-JP">日本語 (Japanese)</option>
+                            <option value="ko-KR">한국어 (Korean)</option>
+                            <option value="zh-CN">中文 (简体 Chinese)</option>
+                            <option value="nl-NL">Nederlands (Dutch)</option>
+                            <option value="ru-RU">Русский (Russian)</option>
+                            <option value="ar-SA">العربية (Arabic)</option>
+                        </select>
+                    </div>
+                    
                     <div class="mb-3">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-lg font-semibold text-gray-700">📝 Your Notepad</h3>
@@ -956,6 +977,29 @@ Use a dash (-) to separate words from their translations."
                             spellcheck="false"
                         ></textarea>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Language Selection Modal for CSV Upload -->
+    <div id="csvLanguageModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1000;">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">What language are you learning?</h3>
+                <div class="mt-2 px-7 py-3">
+                    <div class="space-y-2">
+                        <button id="csvLangEnglish" class="w-full btn btn-primary">English</button>
+                        <button id="csvLangFrench" class="w-full btn btn-primary">French</button>
+                        <button id="csvLangGerman" class="w-full btn btn-primary">German</button>
+                        <button id="csvLangPortuguese" class="w-full btn btn-primary">Portuguese</button>
+                        <button id="csvLangDutch" class="w-full btn btn-primary">Dutch</button>
+                    </div>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="csvLanguageCancelBtn" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
