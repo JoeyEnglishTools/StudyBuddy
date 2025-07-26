@@ -291,6 +291,25 @@ async function fetchNotes() {
             console.log('🔐 Enforcing sign out on other devices for user:', user.id);
             console.log('🔐 New session ID:', newSessionId);
             
+            // Check if there's an existing active session
+            const { data: existingProfile } = await supabaseClient
+                .from('profiles')
+                .select('active_session_id, last_active')
+                .eq('id', user.id)
+                .single();
+            
+            const hasOtherActiveSession = existingProfile && 
+                existingProfile.active_session_id && 
+                existingProfile.active_session_id !== localStorage.getItem('current_session_id');
+            
+            if (hasOtherActiveSession) {
+                // Show non-rigid message about other sessions
+                const lastActiveTime = existingProfile.last_active ? 
+                    new Date(existingProfile.last_active).toLocaleString() : 'unknown time';
+                
+                alert(`📱 Multi-Device Login Detected\n\nYou have other login sessions open on different devices.\nLast activity: ${lastActiveTime}\n\nThose sessions will be automatically disabled to ensure proper app functionality. You can continue using StudyBuddy normally on this device.`);
+            }
+            
             // Update the profiles table with new session info
             const { error } = await supabaseClient
                 .from('profiles')
@@ -547,6 +566,7 @@ async function fetchNotes() {
         // Add event listeners to notepad
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
         liveNotesTextarea.addEventListener('keydown', handleNotepadKeydown);
+        liveNotesTextarea.addEventListener('click', handleNotepadClick);
         
         // Initialize display counters and status
         updateLineAndParsedCounts();
@@ -560,24 +580,75 @@ async function fetchNotes() {
         liveNotesTextarea.focus();
     }
     
+    function handleNotepadClick(event) {
+        const textarea = event.target;
+        const cursorPosition = textarea.selectionStart;
+        const content = textarea.value;
+        
+        // Find the line where the user clicked
+        const beforeCursor = content.substring(0, cursorPosition);
+        const lines = content.split('\n');
+        
+        let charCount = 0;
+        let clickedLineIndex = 0;
+        let clickedLine = '';
+        
+        for (let i = 0; i < lines.length; i++) {
+            const lineLength = lines[i].length + 1; // +1 for newline
+            if (charCount + lineLength > cursorPosition) {
+                clickedLineIndex = i;
+                clickedLine = lines[i];
+                break;
+            }
+            charCount += lineLength;
+        }
+        
+        if (!clickedLine.trim()) return;
+        
+        // Normalize symbols in the line
+        const normalizedLine = normalizeSymbolsInText(clickedLine);
+        
+        // Check if the line contains a dash separator
+        const dashMatches = normalizedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+        if (!dashMatches) return;
+        
+        const targetWord = dashMatches[1].trim();
+        const positionInLine = cursorPosition - charCount;
+        const dashIndex = normalizedLine.indexOf('-');
+        
+        // Check if user clicked on the target word (before the dash)
+        if (positionInLine <= dashIndex && targetWord) {
+            // Get the current language setting for pronunciation
+            const languageSelector = document.getElementById('liveNotesLanguageSelector');
+            const selectedLanguage = languageSelector ? languageSelector.value : 'en-GB';
+            
+            console.log('🔊 Speaking word from Live Notes:', targetWord, 'in language:', selectedLanguage);
+            speakText(targetWord, selectedLanguage);
+        }
+    }
+    
     async function initializeLiveNotesLanguage() {
         const liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector');
         
         // Check if we have a stored learning language from CSV upload
         const storedLanguage = localStorage.getItem('learning_language');
+        const keepPreference = localStorage.getItem('live_notes_keep_preference') === 'true';
         
-        if (storedLanguage) {
-            // Use the stored language from CSV upload
+        if (storedLanguage && keepPreference) {
+            // Use the stored language and user wants to keep it
             liveNotesLanguageSelector.value = storedLanguage;
-            console.log('🌐 Using stored learning language for Live Notes:', storedLanguage);
+            console.log('🌐 Using stored learning language for Live Notes (kept preference):', storedLanguage);
         } else {
-            // No CSV language found, prompt user to select one
+            // Show the Live Notes language selection modal on top
             try {
-                const selectedLanguage = await showLanguageSelectionModal();
-                liveNotesLanguageSelector.value = selectedLanguage;
-                // Store it for future use
-                localStorage.setItem('learning_language', selectedLanguage);
-                console.log('🌐 Selected and stored learning language for Live Notes:', selectedLanguage);
+                const result = await showLiveNotesLanguageModal();
+                liveNotesLanguageSelector.value = result.language;
+                
+                // Store the language and preference setting
+                localStorage.setItem('learning_language', result.language);
+                localStorage.setItem('live_notes_keep_preference', result.keepPreference.toString());
+                
+                console.log('🌐 Selected learning language for Live Notes:', result.language, 'Keep preference:', result.keepPreference);
             } catch (error) {
                 if (error === 'cancelled') {
                     // User cancelled, close Live Notes
@@ -589,6 +660,49 @@ async function fetchNotes() {
                 liveNotesLanguageSelector.value = 'en-GB';
             }
         }
+    }
+    
+    function showLiveNotesLanguageModal() {
+        return new Promise((resolve, reject) => {
+            const modal = document.getElementById('liveNotesLanguageModal');
+            const englishBtn = document.getElementById('liveNotesLangEnglish');
+            const frenchBtn = document.getElementById('liveNotesLangFrench');
+            const germanBtn = document.getElementById('liveNotesLangGerman');
+            const spanishBtn = document.getElementById('liveNotesLangSpanish');
+            const portugueseBtn = document.getElementById('liveNotesLangPortuguese');
+            const dutchBtn = document.getElementById('liveNotesLangDutch');
+            const cancelBtn = document.getElementById('liveNotesLanguageCancelBtn');
+            const keepPreferenceCheckbox = document.getElementById('keepLanguagePreference');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                englishBtn.removeEventListener('click', handleEnglish);
+                frenchBtn.removeEventListener('click', handleFrench);
+                germanBtn.removeEventListener('click', handleGerman);
+                spanishBtn.removeEventListener('click', handleSpanish);
+                portugueseBtn.removeEventListener('click', handlePortuguese);
+                dutchBtn.removeEventListener('click', handleDutch);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            const handleEnglish = () => { cleanup(); resolve({ language: 'en-GB', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handleFrench = () => { cleanup(); resolve({ language: 'fr-FR', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handleGerman = () => { cleanup(); resolve({ language: 'de-DE', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handleSpanish = () => { cleanup(); resolve({ language: 'es-ES', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handlePortuguese = () => { cleanup(); resolve({ language: 'pt-PT', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handleDutch = () => { cleanup(); resolve({ language: 'nl-NL', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handleCancel = () => { cleanup(); reject('cancelled'); };
+
+            englishBtn.addEventListener('click', handleEnglish);
+            frenchBtn.addEventListener('click', handleFrench);
+            germanBtn.addEventListener('click', handleGerman);
+            spanishBtn.addEventListener('click', handleSpanish);
+            portugueseBtn.addEventListener('click', handlePortuguese);
+            dutchBtn.addEventListener('click', handleDutch);
+            cancelBtn.addEventListener('click', handleCancel);
+
+            modal.classList.remove('hidden');
+        });
     }
     
     function closeLiveNotes() {
@@ -666,6 +780,16 @@ async function fetchNotes() {
         }
     }
     
+    function normalizeSymbolsInText(text) {
+        // Convert underscores, arrows, dots between words to dashes
+        // Handle various types of arrows and dots
+        return text
+            .replace(/[\u2192\u2190\u2194\u21d2\u21d0\u21d4\u2794\u27f6\u27f5\u27f7]/g, '-') // Various arrows
+            .replace(/[_·•\.]{1,3}/g, '-') // Underscores, dots, middle dots
+            .replace(/\s*-\s*/g, ' - ') // Normalize dash spacing
+            .replace(/(-){2,}/g, '-'); // Remove multiple consecutive dashes
+    }
+    
     function parseNotepadContentForSaving() {
         // Get textarea and current cursor position
         const textarea = document.getElementById('liveNotesTextarea');
@@ -694,8 +818,11 @@ async function fetchNotes() {
             // Skip the current line being typed and empty lines
             if (index === currentLineIndex || line.trim() === '') return;
             
-            const trimmedLine = line.trim();
+            let trimmedLine = line.trim();
             if (trimmedLine === '') return;
+            
+            // Normalize symbols first
+            trimmedLine = normalizeSymbolsInText(trimmedLine);
             
             // Look for dash separator (-, –, —)
             const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
@@ -707,7 +834,9 @@ async function fetchNotes() {
                     completedData.push({
                         targetLang: word,
                         translation: translation,
-                        saved: false
+                        lineNumber: index,
+                        saved: false,
+                        wasEdited: index < currentLineIndex // Mark as edited if it's before current line
                     });
                 }
             }
@@ -720,9 +849,12 @@ async function fetchNotes() {
         const lines = notepadContent.split('\n').filter(line => line.trim() !== '');
         liveNotesData = [];
         
-        lines.forEach(line => {
-            const trimmedLine = line.trim();
+        lines.forEach((line, index) => {
+            let trimmedLine = line.trim();
             if (trimmedLine === '') return;
+            
+            // Normalize symbols first
+            trimmedLine = normalizeSymbolsInText(trimmedLine);
             
             // Look for dash separator (-, –, —)
             const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
@@ -734,6 +866,7 @@ async function fetchNotes() {
                     liveNotesData.push({
                         targetLang: word,
                         translation: translation,
+                        lineNumber: index,
                         saved: false
                     });
                 }
@@ -853,7 +986,9 @@ async function fetchNotes() {
             .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
             .map(note => ({
                 lang1: note.targetLang.trim(),
-                lang2: note.translation.trim()
+                lang2: note.translation.trim(),
+                lineNumber: note.lineNumber, // Track line number for replacements
+                isEdit: note.wasEdited || false // Track if this is an edit to existing content
             }));
         
         console.log('💾 saveLiveNotes: Prepared notes for saving:', {
@@ -867,66 +1002,96 @@ async function fetchNotes() {
             return;
         }
         
-        // Check for duplicates in existing vocabulary
+        // Separate new notes and edited notes
         const newNotes = [];
+        const editedNotes = [];
         const duplicateNotes = [];
         
-        console.log('🔍 saveLiveNotes: Checking for duplicates against', vocabulary.length, 'existing vocabulary entries...');
+        console.log('🔍 saveLiveNotes: Processing notes for new, edited, and duplicates...');
         
         for (const note of notesToSave) {
             // Normalize text for comparison - remove spaces and convert to lowercase
             const normalizeForComparison = (text) => text.toLowerCase().replace(/\s+/g, '').trim();
-            
             const noteWordNormalized = normalizeForComparison(note.lang1);
             
-            // Check if this word already exists (ignoring spaces as requested)
-            const exists = vocabulary.some(v => {
+            // Find existing vocabulary item
+            const existingVocabItem = vocabulary.find(v => {
                 const vocabWordNormalized = normalizeForComparison(v.lang1);
                 return vocabWordNormalized === noteWordNormalized;
             });
             
-            if (!exists) {
-                newNotes.push(note);
-                console.log('✅ saveLiveNotes: New note will be saved:', note.lang1, '-', note.lang2);
-            } else {
+            if (existingVocabItem && note.isEdit) {
+                // This is an edit to an existing row - replace it
+                editedNotes.push({
+                    ...note,
+                    originalTerm: existingVocabItem.lang1,
+                    originalDefinition: existingVocabItem.lang2
+                });
+                console.log('✏️ saveLiveNotes: Edit detected, will replace:', existingVocabItem.lang1, '->', note.lang1);
+            } else if (existingVocabItem && !note.isEdit) {
+                // This is a duplicate of existing content
                 duplicateNotes.push(note);
                 console.log('❌ saveLiveNotes: Duplicate detected, skipping:', note.lang1, '-', note.lang2);
+            } else {
+                // This is a new note
+                newNotes.push(note);
+                console.log('✅ saveLiveNotes: New note will be saved:', note.lang1, '-', note.lang2);
             }
         }
         
         console.log('📊 saveLiveNotes: Summary:', {
             totalNotesToProcess: notesToSave.length,
             newUniqueNotes: newNotes.length,
+            editedNotes: editedNotes.length,
             duplicatesFound: duplicateNotes.length
         });
+        
+        // Process edited notes first (delete old, insert new)
+        if (editedNotes.length > 0) {
+            console.log('🔄 saveLiveNotes: Processing', editedNotes.length, 'edited notes...');
+            for (const editedNote of editedNotes) {
+                // Delete the old entry
+                await deleteNoteFromDatabase(editedNote.originalTerm);
+                // Add the new version to newNotes for insertion
+                newNotes.push({
+                    lang1: editedNote.lang1,
+                    lang2: editedNote.lang2
+                });
+            }
+        }
         
         // Show user feedback about duplicates only on manual save
         if (duplicateNotes.length > 0 && isManualSave) {
             const duplicateList = duplicateNotes.map(note => `"${note.lang1}"`).join(', ');
             if (newNotes.length > 0) {
-                alert(`Found ${duplicateNotes.length} duplicate(s) that won't be saved: ${duplicateList}\n\nSaving ${newNotes.length} new word(s).`);
+                alert(`Found ${duplicateNotes.length} duplicate(s) that won't be saved: ${duplicateList}\n\nSaving ${newNotes.length} new/updated word(s).`);
             } else {
                 alert(`All ${duplicateNotes.length} word(s) already exist in your vocabulary: ${duplicateList}\n\nNothing to save.`);
             }
         }
         
         if (newNotes.length === 0) {
-            console.log('⚠️ saveLiveNotes: All notes already exist in database');
+            console.log('⚠️ saveLiveNotes: No new or edited notes to save');
             pendingChanges = false;
             updateSaveStatus();
             return;
         }
         
         // Save to database
-        console.log('💾 saveLiveNotes: Calling saveNotes with', newNotes.length, 'new notes...');
+        console.log('💾 saveLiveNotes: Calling saveNotes with', newNotes.length, 'new/updated notes...');
         const success = await saveNotes(newNotes);
         
         if (success) {
-            console.log(`✅ saveLiveNotes: Successfully saved ${newNotes.length} new notes`);
+            const totalProcessed = newNotes.length + editedNotes.length;
+            console.log(`✅ saveLiveNotes: Successfully saved ${totalProcessed} notes (${newNotes.length - editedNotes.length} new, ${editedNotes.length} updated)`);
             
             // Show user feedback only on manual save
             if (isManualSave) {
-                alert(`Successfully saved ${newNotes.length} new vocabulary notes!`);
+                const newCount = newNotes.length - editedNotes.length;
+                const message = editedNotes.length > 0 ? 
+                    `Successfully saved ${newCount} new and updated ${editedNotes.length} vocabulary notes!` :
+                    `Successfully saved ${newCount} new vocabulary notes!`;
+                alert(message);
             }
             
             // Mark saved notes
@@ -948,6 +1113,34 @@ async function fetchNotes() {
                 saveStatus.textContent = 'Save failed';
                 saveStatus.className = 'text-sm text-red-600';
             }
+        }
+    }
+    
+    // Helper function to delete a note from the database
+    async function deleteNoteFromDatabase(term) {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                console.error('No authenticated user found for deletion');
+                return false;
+            }
+            
+            const { error } = await supabaseClient
+                .from('notes')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('term', term);
+                
+            if (error) {
+                console.error('Error deleting note:', error);
+                return false;
+            }
+            
+            console.log('✅ Successfully deleted note:', term);
+            return true;
+        } catch (err) {
+            console.error('Unexpected error deleting note:', err);
+            return false;
         }
     }
     
@@ -2015,15 +2208,36 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                     console.log('Logout button clicked');
 
                     try {
-                        console.log('Attempting to sign out...');
-                        const { error } = await supabaseClient.auth.signOut(); 
+                        console.log('Attempting to sign out and clear all sessions...');
+                        
+                        // Get current user before signing out
+                        const { data: { user } } = await supabaseClient.auth.getUser();
+                        
+                        if (user) {
+                            // Clear the active session from the database
+                            console.log('Clearing active session from database...');
+                            await supabaseClient
+                                .from('profiles')
+                                .update({ 
+                                    active_session_id: null,
+                                    last_active: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                                })
+                                .eq('id', user.id);
+                        }
+                        
+                        // Sign out from Supabase (clears all sessions)
+                        const { error } = await supabaseClient.auth.signOut({ scope: 'global' }); 
 
                         if (error) {
                             console.error('Logout error from Supabase:', error);
                         } else {
-                            console.log('Successfully signed out from Supabase');
+                            console.log('Successfully signed out from all sessions');
                         }
 
+                        // Clear all local storage
+                        localStorage.removeItem('current_session_id');
+                        localStorage.removeItem('learning_language');
+                        
                         // Clear local state regardless of Supabase response
                         vocabulary = [];
                         isEssentialsMode = false;
@@ -2035,6 +2249,7 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                     } catch (error) {
                         console.error('Unexpected logout error:', error);
                         // Force reload anyway to ensure clean state
+                        localStorage.clear();
                         vocabulary = [];
                         window.location.reload();
                     }
