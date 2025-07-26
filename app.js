@@ -236,7 +236,7 @@ async function fetchNotes() {
       return {
         lang1: note.term,
         lang2: note.definition,
-        term_lang: note.term_lang || 'en-US', // Include language info
+        term_lang: note.term_lang || 'en-GB', // Include language info
         originalIndex: index,
         correctCount: 0
       };
@@ -372,7 +372,7 @@ async function fetchNotes() {
 
     // --- STATE & CONSTANTS ---
     const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
-    let vocabulary = [], csvUploadedTargetLanguage = "en-US", activeTargetStudyLanguage = "en-US", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
+    let vocabulary = [], csvUploadedTargetLanguage = "en-GB", activeTargetStudyLanguage = "en-GB", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
     let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
     let isEssentialsMode = false, currentEssentialsCategoryName = "";
     let audioInitialized = false;
@@ -494,7 +494,7 @@ async function fetchNotes() {
                 definition: note.lang2,
                 term_lang: (liveNotesLanguageSelector && !liveNotesModal?.classList.contains('hidden')) 
                           ? liveNotesLanguageSelector.value 
-                          : csvUploadedTargetLanguage || 'en-US',
+                          : csvUploadedTargetLanguage || 'en-GB',
                 definition_lang: 'en'
             }));
             console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
@@ -586,7 +586,7 @@ async function fetchNotes() {
                 }
                 console.error('Error selecting language:', error);
                 // Fall back to default
-                liveNotesLanguageSelector.value = 'en-US';
+                liveNotesLanguageSelector.value = 'en-GB';
             }
         }
     }
@@ -627,12 +627,12 @@ async function fetchNotes() {
         updateLineAndParsedCounts();
         updateSaveStatus();
         
-        // Auto-save while writing (save every 2 seconds when there are changes)
+        // Auto-save while writing (save every 20 seconds when there are changes)
         setTimeout(() => {
             if (pendingChanges) {
                 saveLiveNotes();
             }
-        }, 2000);
+        }, 20000);
         
         // Start 7-second timer for auto-advance to next line
         autoAdvanceTimer = setTimeout(() => {
@@ -664,6 +664,56 @@ async function fetchNotes() {
                 }
             }, 500); // Small delay to allow content processing
         }
+    }
+    
+    function parseNotepadContentForSaving() {
+        // Get textarea and current cursor position
+        const textarea = document.getElementById('liveNotesTextarea');
+        const cursorPosition = textarea.selectionStart;
+        const content = textarea.value;
+        
+        // Split content into lines
+        const lines = content.split('\n');
+        
+        // Find which line the cursor is on
+        let charCount = 0;
+        let currentLineIndex = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+            charCount += lines[i].length + 1; // +1 for newline character
+            if (charCount > cursorPosition) {
+                currentLineIndex = i;
+                break;
+            }
+        }
+        
+        // Parse only complete lines (exclude current line being typed)
+        const completedData = [];
+        
+        lines.forEach((line, index) => {
+            // Skip the current line being typed and empty lines
+            if (index === currentLineIndex || line.trim() === '') return;
+            
+            const trimmedLine = line.trim();
+            if (trimmedLine === '') return;
+            
+            // Look for dash separator (-, –, —)
+            const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+            if (dashMatches) {
+                const word = dashMatches[1].trim();
+                const translation = dashMatches[2].trim();
+                
+                if (word && translation) {
+                    completedData.push({
+                        targetLang: word,
+                        translation: translation,
+                        saved: false
+                    });
+                }
+            }
+        });
+        
+        return completedData;
     }
     
     function parseNotepadContent() {
@@ -786,20 +836,20 @@ async function fetchNotes() {
         }
     }
     
-    async function saveLiveNotes() {
+    async function saveLiveNotes(isManualSave = false) {
         console.log('💾 saveLiveNotes: Starting live notes save process...');
         
-        // Parse current content to ensure we have the latest data
-        parseNotepadContent();
-        console.log('💾 saveLiveNotes: Parsed notepad content, found', liveNotesData.length, 'notes');
+        // Parse only completed lines (not the current line being typed)
+        const completedNotesData = parseNotepadContentForSaving();
+        console.log('💾 saveLiveNotes: Parsed completed lines, found', completedNotesData.length, 'completed notes');
         
-        if (liveNotesData.length === 0) {
-            console.log('💾 saveLiveNotes: No notes to save');
+        if (completedNotesData.length === 0) {
+            console.log('💾 saveLiveNotes: No completed notes to save');
             return;
         }
         
         // Filter and prepare notes for saving
-        const notesToSave = liveNotesData
+        const notesToSave = completedNotesData
             .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
             .map(note => ({
                 lang1: note.targetLang.trim(),
@@ -807,7 +857,7 @@ async function fetchNotes() {
             }));
         
         console.log('💾 saveLiveNotes: Prepared notes for saving:', {
-            originalCount: liveNotesData.length,
+            originalCount: completedNotesData.length,
             validCount: notesToSave.length,
             sampleNotes: notesToSave.slice(0, 2)
         });
@@ -850,8 +900,8 @@ async function fetchNotes() {
             duplicatesFound: duplicateNotes.length
         });
         
-        // Show user feedback about duplicates
-        if (duplicateNotes.length > 0) {
+        // Show user feedback about duplicates only on manual save
+        if (duplicateNotes.length > 0 && isManualSave) {
             const duplicateList = duplicateNotes.map(note => `"${note.lang1}"`).join(', ');
             if (newNotes.length > 0) {
                 alert(`Found ${duplicateNotes.length} duplicate(s) that won't be saved: ${duplicateList}\n\nSaving ${newNotes.length} new word(s).`);
@@ -874,11 +924,13 @@ async function fetchNotes() {
         if (success) {
             console.log(`✅ saveLiveNotes: Successfully saved ${newNotes.length} new notes`);
             
-            // Show user feedback
-            alert(`Successfully saved ${newNotes.length} new vocabulary notes!`);
+            // Show user feedback only on manual save
+            if (isManualSave) {
+                alert(`Successfully saved ${newNotes.length} new vocabulary notes!`);
+            }
             
             // Mark saved notes
-            liveNotesData.forEach(note => {
+            completedNotesData.forEach(note => {
                 note.saved = true;
             });
             
@@ -932,7 +984,7 @@ async function fetchNotes() {
                 cancelBtn.removeEventListener('click', handleCancel);
             };
 
-            const handleEnglish = () => { cleanup(); resolve('en-US'); };
+            const handleEnglish = () => { cleanup(); resolve('en-GB'); };
             const handleFrench = () => { cleanup(); resolve('fr-FR'); };
             const handleGerman = () => { cleanup(); resolve('de-DE'); };
             const handleSpanish = () => { cleanup(); resolve('es-ES'); };
@@ -1163,7 +1215,8 @@ async function fetchNotes() {
             deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded';
             deleteBtn.innerHTML = '✕';
             deleteBtn.title = 'Delete note';
-            deleteBtn.addEventListener('click', () => {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent event bubbling
                 console.log('🗑️ populateNotesList: Delete button clicked for note:', note);
                 deleteNote(originalIndex, note);
             });
@@ -1196,7 +1249,7 @@ async function fetchNotes() {
                 if (!isDragging) return;
                 const diffX = startX - currentX;
                 
-                if (diffX > 100) {
+                if (diffX > 150) {  // Increased threshold for more complete swipe
                     console.log('📱 populateNotesList: Swipe delete triggered for note:', note);
                     deleteNote(originalIndex, note);
                 } else {
@@ -1259,7 +1312,7 @@ async function fetchNotes() {
         }
     }
     
-    function speakText(text, lang = 'en-US') {
+    function speakText(text, lang = 'en-GB') {
         if ('speechSynthesis' in window) {
             // Cancel any ongoing speech
             window.speechSynthesis.cancel();
@@ -1357,7 +1410,7 @@ async function fetchNotes() {
                 } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
                     activeTargetStudyLanguage = 'fr-FR'; 
                 } else { 
-                    activeTargetStudyLanguage = 'en-US'; 
+                    activeTargetStudyLanguage = 'en-GB'; 
                 } 
                 currentVocabularyPart = essentialsVocabularyData[categoryKey].map((item, index) => ({
                     ...item, 
@@ -1493,7 +1546,7 @@ async function fetchNotes() {
                 if (SpeechRecognition) {
                     recognition = new SpeechRecognition();
                     recognition.continuous = false;
-                    recognition.lang = 'en-US';
+                    recognition.lang = 'en-GB';
                     recognition.interimResults = false;
                     recognition.maxAlternatives = 1;
 
@@ -1527,7 +1580,14 @@ async function fetchNotes() {
 
                 matchingGameContainer.classList.remove('hidden');
                 matchingGrid.innerHTML = '';
-                languageSelectionInGameContainer.classList.remove('hidden');
+                
+                // Only show language selector if no language is defined
+                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                    languageSelectionInGameContainer.classList.remove('hidden');
+                } else {
+                    languageSelectionInGameContainer.classList.add('hidden');
+                }
+                
                 hearItOutLoudToggleBtn.classList.remove('hidden');
                 shuffleArray(cards).forEach(cardData => {
                     const cardElement = document.createElement('div');
@@ -1558,6 +1618,14 @@ async function fetchNotes() {
                             el.classList.remove('selected-match');
                         });
                         playCorrectMatchSound();
+                        
+                        // Add 5 points for correct match
+                        currentScore += 5;
+                        if (currentScore > sessionMaxScore) {
+                            sessionMaxScore = currentScore;
+                        }
+                        updateScoreDisplay();
+                        
                         matchedPairs++;
                         if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
                     } else {
@@ -1576,7 +1644,14 @@ async function fetchNotes() {
                 let mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
                 currentMcqIndex = 0;
                 multipleChoiceGameContainer.classList.remove('hidden');
-                languageSelectionInGameContainer.classList.remove('hidden');
+                
+                // Only show language selector if no language is defined
+                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                    languageSelectionInGameContainer.classList.remove('hidden');
+                } else {
+                    languageSelectionInGameContainer.classList.add('hidden');
+                }
+                
                 hearItOutLoudToggleBtn.classList.remove('hidden');
                 displayNextMcq(mcqGameActiveVocab);
             }
@@ -1605,7 +1680,7 @@ async function fetchNotes() {
                     btn.onclick = () => checkMcqAnswer(btn, opt === currentItem.lang2, currentItem);
                     // Add TTS for options when double-clicked or right-clicked
                     btn.ondblclick = () => {
-                        if (hearItOutLoudEnabled) speakText(opt, 'en-US'); // Options are in user's language
+                        if (hearItOutLoudEnabled) speakText(opt, 'en-GB'); // Options are in user's language
                     };
                     mcqOptions.appendChild(btn);
                 });
@@ -1628,7 +1703,14 @@ async function fetchNotes() {
                 let typeTransGameActiveVocab = shuffleArray(currentVocabularyPart);
                 currentTypeTranslationIndex = 0;
                 typeTranslationGameContainer.classList.remove('hidden');
-                languageSelectionInGameContainer.classList.remove('hidden');
+                
+                // Only show language selector if no language is defined
+                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                    languageSelectionInGameContainer.classList.remove('hidden');
+                } else {
+                    languageSelectionInGameContainer.classList.add('hidden');
+                }
+                
                 hearItOutLoudToggleBtn.classList.remove('hidden');
                 displayNextTypeTranslation(typeTransGameActiveVocab);
             }
@@ -1644,7 +1726,7 @@ async function fetchNotes() {
 
                 // Add click-to-speak functionality to the phrase (user's language)
                 typeTranslationPhrase.onclick = () => {
-                    if (hearItOutLoudEnabled) speakText(item.lang2, 'en-US');
+                    if (hearItOutLoudEnabled) speakText(item.lang2, 'en-GB');
                 };
                 typeTranslationPhrase.classList.add('speakable-question');
 
@@ -1662,14 +1744,28 @@ async function fetchNotes() {
 
             function initFillInTheBlanksGame() {
                 fillInTheBlanksGameContainer.classList.remove('hidden');
-                languageSelectionInGameContainer.classList.remove('hidden');
+                
+                // Only show language selector if no language is defined
+                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                    languageSelectionInGameContainer.classList.remove('hidden');
+                } else {
+                    languageSelectionInGameContainer.classList.add('hidden');
+                }
+                
                 hearItOutLoudToggleBtn.classList.remove('hidden');
                 fillInTheBlanksSentence.textContent = "Fill in the blanks is not yet implemented.";
             }
 
             function initTalkToMeGame() {
                 talkToMeGameContainer.classList.remove('hidden');
-                languageSelectionInGameContainer.classList.remove('hidden');
+                
+                // Only show language selector if no language is defined
+                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                    languageSelectionInGameContainer.classList.remove('hidden');
+                } else {
+                    languageSelectionInGameContainer.classList.add('hidden');
+                }
+                
                 hearItOutLoudToggleBtn.classList.remove('hidden');
                 let talkToMeActiveVocab = shuffleArray(currentVocabularyPart);
                 currentTalkToMeIndex = 0;
@@ -1742,7 +1838,14 @@ async function fetchNotes() {
 
             function initFindTheWordsGame() {
                 findTheWordsGameContainer.classList.remove('hidden');
-                languageSelectionInGameContainer.classList.remove('hidden');
+                
+                // Only show language selector if no language is defined
+                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                    languageSelectionInGameContainer.classList.remove('hidden');
+                } else {
+                    languageSelectionInGameContainer.classList.add('hidden');
+                }
+                
                 hearItOutLoudToggleBtn.classList.remove('hidden');
                 findWordsSessionPool = shuffleArray(currentVocabularyPart);
                 currentFindWordsRound = 0;
@@ -1903,7 +2006,11 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
             });
             // Ensure logout button is properly initialized with error handling
             if (logoutBtn) {
-                logoutBtn.addEventListener('click', async (e) => { 
+                // Remove any existing listeners first to prevent duplicates
+                logoutBtn.replaceWith(logoutBtn.cloneNode(true));
+                const newLogoutBtn = document.getElementById('logoutBtn');
+                
+                newLogoutBtn.addEventListener('click', async (e) => { 
                     e.preventDefault();
                     console.log('Logout button clicked');
 
@@ -1978,7 +2085,7 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
             newLineBtn.addEventListener('click', addNewNoteLine);
             previousLineBtn.addEventListener('click', goToPreviousLine);
             clearAllBtn.addEventListener('click', clearAllLiveNotes);
-            manualSaveBtn.addEventListener('click', saveLiveNotes);
+            manualSaveBtn.addEventListener('click', () => saveLiveNotes(true));
             
             // Notes Management event listeners
             const closeNotesManagementBtn = document.getElementById('closeNotesManagementBtn');
@@ -2086,7 +2193,7 @@ if (languageSelectorInGame) {
             // === PATCHED AUDIO LOGIC ===
             let backgroundMusicSynth, correctMatchSynth, incorrectBuzzSynth, notebookLostSynth, musicPart;
             let musicPlaying = false;
-            let hearItOutLoudEnabled = false;
+            let hearItOutLoudEnabled = true;
 
             function initializeAudio() {
                 if (audioInitialized) return;
@@ -2137,7 +2244,7 @@ if (languageSelectorInGame) {
                     if ('speechSynthesis' in window && text) {
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(text);
-                        utterance.lang = lang || activeTargetStudyLanguage || 'en-US';
+                        utterance.lang = lang || activeTargetStudyLanguage || 'en-GB';
                         utterance.onend = resolve;
                         utterance.onerror = () => resolve();
                         window.speechSynthesis.speak(utterance);
