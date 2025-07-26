@@ -541,6 +541,9 @@ async function fetchNotes() {
         pendingChanges = false;
         liveNotesTextarea.value = '';
         
+        // Initialize Live Notes language selector
+        initializeLiveNotesLanguage();
+        
         // Add event listeners to notepad
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
         liveNotesTextarea.addEventListener('keydown', handleNotepadKeydown);
@@ -555,6 +558,37 @@ async function fetchNotes() {
         // Show modal and focus
         liveNotesModal.classList.remove('hidden');
         liveNotesTextarea.focus();
+    }
+    
+    async function initializeLiveNotesLanguage() {
+        const liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector');
+        
+        // Check if we have a stored learning language from CSV upload
+        const storedLanguage = localStorage.getItem('learning_language');
+        
+        if (storedLanguage) {
+            // Use the stored language from CSV upload
+            liveNotesLanguageSelector.value = storedLanguage;
+            console.log('🌐 Using stored learning language for Live Notes:', storedLanguage);
+        } else {
+            // No CSV language found, prompt user to select one
+            try {
+                const selectedLanguage = await showLanguageSelectionModal();
+                liveNotesLanguageSelector.value = selectedLanguage;
+                // Store it for future use
+                localStorage.setItem('learning_language', selectedLanguage);
+                console.log('🌐 Selected and stored learning language for Live Notes:', selectedLanguage);
+            } catch (error) {
+                if (error === 'cancelled') {
+                    // User cancelled, close Live Notes
+                    closeLiveNotes();
+                    return;
+                }
+                console.error('Error selecting language:', error);
+                // Fall back to default
+                liveNotesLanguageSelector.value = 'en-US';
+            }
+        }
     }
     
     function closeLiveNotes() {
@@ -876,12 +910,13 @@ async function fetchNotes() {
             liveNotesTextarea.focus();
         }
     }
-    function showLanguageSelectionModal(file) {
+    function showLanguageSelectionModal(file = null) {
         return new Promise((resolve, reject) => {
             const modal = document.getElementById('csvLanguageModal');
             const englishBtn = document.getElementById('csvLangEnglish');
             const frenchBtn = document.getElementById('csvLangFrench');
             const germanBtn = document.getElementById('csvLangGerman');
+            const spanishBtn = document.getElementById('csvLangSpanish');
             const portugueseBtn = document.getElementById('csvLangPortuguese');
             const dutchBtn = document.getElementById('csvLangDutch');
             const cancelBtn = document.getElementById('csvLanguageCancelBtn');
@@ -891,6 +926,7 @@ async function fetchNotes() {
                 englishBtn.removeEventListener('click', handleEnglish);
                 frenchBtn.removeEventListener('click', handleFrench);
                 germanBtn.removeEventListener('click', handleGerman);
+                spanishBtn.removeEventListener('click', handleSpanish);
                 portugueseBtn.removeEventListener('click', handlePortuguese);
                 dutchBtn.removeEventListener('click', handleDutch);
                 cancelBtn.removeEventListener('click', handleCancel);
@@ -899,6 +935,7 @@ async function fetchNotes() {
             const handleEnglish = () => { cleanup(); resolve('en-US'); };
             const handleFrench = () => { cleanup(); resolve('fr-FR'); };
             const handleGerman = () => { cleanup(); resolve('de-DE'); };
+            const handleSpanish = () => { cleanup(); resolve('es-ES'); };
             const handlePortuguese = () => { cleanup(); resolve('pt-PT'); };
             const handleDutch = () => { cleanup(); resolve('nl-NL'); };
             const handleCancel = () => { cleanup(); reject('cancelled'); };
@@ -906,6 +943,7 @@ async function fetchNotes() {
             englishBtn.addEventListener('click', handleEnglish);
             frenchBtn.addEventListener('click', handleFrench);
             germanBtn.addEventListener('click', handleGerman);
+            spanishBtn.addEventListener('click', handleSpanish);
             portugueseBtn.addEventListener('click', handlePortuguese);
             dutchBtn.addEventListener('click', handleDutch);
             cancelBtn.addEventListener('click', handleCancel);
@@ -940,6 +978,8 @@ async function fetchNotes() {
         try {
             csvUploadedTargetLanguage = await showLanguageSelectionModal(file);
             console.log('🌐 Selected language for CSV:', csvUploadedTargetLanguage);
+            // Store the selected language for Live Notes
+            localStorage.setItem('learning_language', csvUploadedTargetLanguage);
         } catch (error) {
             if (error === 'cancelled') {
                 uploadStatus.textContent = 'Upload cancelled.';
@@ -2146,11 +2186,15 @@ if (languageSelectorInGame) {
                         console.log('✅ Session details:', { userId: session.user?.id, email: session.user?.email });
                         isAuthenticating = true; // Prevent file upload during auth
                         
-                        // Add session validation check
-                        const isValidSession = await validateSessionIsActive();
-                        if (!isValidSession && event !== 'SIGNED_IN') {
-                            console.log('❌ Session validation failed, stopping app setup');
-                            return;
+                        // Add session validation check - but skip for fresh logins
+                        if (event !== 'SIGNED_IN') {
+                            const isValidSession = await validateSessionIsActive();
+                            if (!isValidSession) {
+                                console.log('❌ Session validation failed, stopping app setup');
+                                return;
+                            }
+                        } else {
+                            console.log('✅ Fresh login detected, skipping session validation');
                         }
                         
                         // Clear any existing file input to prevent unwanted triggers
