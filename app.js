@@ -358,14 +358,14 @@ async function fetchNotes() {
     }
 
     function setupSessionValidation() {
-        // Check session validity every minute
+        // Check session validity every 3 minutes
         setInterval(async () => {
             // Only check if user is logged in
             const { data } = await supabaseClient.auth.getSession();
             if (data.session) {
                 await validateSessionIsActive();
             }
-        }, 60000); // 60 seconds
+        }, 180000); // 180 seconds (3 minutes)
         
         console.log('✅ Session validation setup completed');
     }
@@ -383,6 +383,7 @@ async function fetchNotes() {
     
     // Live Notes state
     let liveNotesData = [], notepadContent = '', autoSaveTimer = null, autoSaveCountdown = 300, pendingChanges = false;
+    let autoAdvanceTimer = null; // Timer for 7-second auto-advance
 
     // --- ELEMENT SELECTORS ---
     const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
@@ -563,6 +564,11 @@ async function fetchNotes() {
             autoSaveTimer = null;
         }
         
+        if (autoAdvanceTimer) {
+            clearTimeout(autoAdvanceTimer);
+            autoAdvanceTimer = null;
+        }
+        
         // Save any pending changes before closing
         if (pendingChanges) {
             saveLiveNotes();
@@ -576,13 +582,37 @@ async function fetchNotes() {
         notepadContent = event.target.value;
         pendingChanges = true;
         
+        // Clear existing auto-advance timer
+        if (autoAdvanceTimer) {
+            clearTimeout(autoAdvanceTimer);
+            autoAdvanceTimer = null;
+        }
+        
         // Parse content and update data
         parseNotepadContent();
         updateLineAndParsedCounts();
         updateSaveStatus();
+        
+        // Auto-save while writing (save every 2 seconds when there are changes)
+        setTimeout(() => {
+            if (pendingChanges) {
+                saveLiveNotes();
+            }
+        }, 2000);
+        
+        // Start 7-second timer for auto-advance to next line
+        autoAdvanceTimer = setTimeout(() => {
+            addNewNoteLine();
+        }, 7000);
     }
     
     function handleNotepadKeydown(event) {
+        // Clear auto-advance timer on any keypress
+        if (autoAdvanceTimer) {
+            clearTimeout(autoAdvanceTimer);
+            autoAdvanceTimer = null;
+        }
+        
         // Handle Enter key to auto-advance
         if (event.key === 'Enter') {
             // Natural behavior - just update counts
@@ -590,6 +620,15 @@ async function fetchNotes() {
                 parseNotepadContent();
                 updateLineAndParsedCounts();
             }, 10);
+        }
+        
+        // Handle deletions - trigger immediate save to reflect deletions in database
+        if (event.key === 'Backspace' || event.key === 'Delete') {
+            setTimeout(() => {
+                if (pendingChanges) {
+                    saveLiveNotes();
+                }
+            }, 500); // Small delay to allow content processing
         }
     }
     
@@ -837,6 +876,44 @@ async function fetchNotes() {
             liveNotesTextarea.focus();
         }
     }
+    function showLanguageSelectionModal(file) {
+        return new Promise((resolve, reject) => {
+            const modal = document.getElementById('csvLanguageModal');
+            const englishBtn = document.getElementById('csvLangEnglish');
+            const frenchBtn = document.getElementById('csvLangFrench');
+            const germanBtn = document.getElementById('csvLangGerman');
+            const portugueseBtn = document.getElementById('csvLangPortuguese');
+            const dutchBtn = document.getElementById('csvLangDutch');
+            const cancelBtn = document.getElementById('csvLanguageCancelBtn');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                englishBtn.removeEventListener('click', handleEnglish);
+                frenchBtn.removeEventListener('click', handleFrench);
+                germanBtn.removeEventListener('click', handleGerman);
+                portugueseBtn.removeEventListener('click', handlePortuguese);
+                dutchBtn.removeEventListener('click', handleDutch);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            const handleEnglish = () => { cleanup(); resolve('en-US'); };
+            const handleFrench = () => { cleanup(); resolve('fr-FR'); };
+            const handleGerman = () => { cleanup(); resolve('de-DE'); };
+            const handlePortuguese = () => { cleanup(); resolve('pt-PT'); };
+            const handleDutch = () => { cleanup(); resolve('nl-NL'); };
+            const handleCancel = () => { cleanup(); reject('cancelled'); };
+
+            englishBtn.addEventListener('click', handleEnglish);
+            frenchBtn.addEventListener('click', handleFrench);
+            germanBtn.addEventListener('click', handleGerman);
+            portugueseBtn.addEventListener('click', handlePortuguese);
+            dutchBtn.addEventListener('click', handleDutch);
+            cancelBtn.addEventListener('click', handleCancel);
+
+            modal.classList.remove('hidden');
+        });
+    }
+
     async function handleFileUpload(droppedFile = null) {
         console.log('handleFileUpload called');
         
@@ -859,7 +936,21 @@ async function fetchNotes() {
             return;
         }
 
-        csvUploadedTargetLanguage = targetLanguageSelector.value;
+        // Show language selection modal
+        try {
+            csvUploadedTargetLanguage = await showLanguageSelectionModal(file);
+            console.log('🌐 Selected language for CSV:', csvUploadedTargetLanguage);
+        } catch (error) {
+            if (error === 'cancelled') {
+                uploadStatus.textContent = 'Upload cancelled.';
+                uploadStatus.className = 'text-sm text-gray-600 mt-2 h-5';
+                // Clear the file input
+                csvFileInput.value = '';
+                return;
+            }
+            throw error;
+        }
+
         uploadStatus.textContent = 'Processing CSV file...';
         uploadStatus.className = 'text-sm text-blue-600 mt-2 h-5';
 
@@ -1088,10 +1179,6 @@ async function fetchNotes() {
     }
     
     async function deleteNote(index, note) {
-        if (!confirm(`Delete "${note.lang1}" - "${note.lang2}"?`)) {
-            return;
-        }
-        
         try {
             // Delete from database
             if (supabaseClient) {
