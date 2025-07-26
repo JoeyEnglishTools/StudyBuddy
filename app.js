@@ -1212,7 +1212,7 @@ async function fetchNotes() {
             
             // Add delete button
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded';
+            deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn';
             deleteBtn.innerHTML = '✕';
             deleteBtn.title = 'Delete note';
             deleteBtn.addEventListener('click', (e) => {
