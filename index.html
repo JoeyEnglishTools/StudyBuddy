@@ -888,15 +888,30 @@
                     <div id="notesManagementExistingSection" class="mb-4">
                         <div class="flex justify-between items-center mb-3">
                             <h3 class="text-lg font-semibold text-gray-700">Your Notes (<span id="notesCount">0</span>)</h3>
-                            <div class="relative">
-                                <input type="text" id="notesSearchInput" placeholder="Search notes..." 
-                                       class="form-input text-sm py-2 pl-8 pr-3 w-64">
-                                <svg class="w-4 h-4 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" 
-                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
+                            <div class="flex gap-2 items-center">
+                                <div class="relative">
+                                    <input type="text" id="notesSearchInput" placeholder="Search notes..." 
+                                           class="form-input text-sm py-2 pl-8 pr-3 w-48">
+                                    <svg class="w-4 h-4 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" 
+                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                                <select id="timeFilterSelect" class="form-select text-sm py-2 px-3 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
+                                    <option value="all">All Notes</option>
+                                    <option value="today">Today</option>
+                                    <option value="week">Last Week</option>
+                                    <option value="month">Last Month</option>
+                                    <option value="3months">Last 3 Months</option>
+                                </select>
                             </div>
+                        </div>
+                        
+                        <!-- Quick Action Buttons -->
+                        <div class="flex gap-2 mb-3">
+                            <button id="studyFilteredNotesBtn" class="btn btn-outline text-sm py-1 px-3 hidden">🎮 Study Filtered Notes</button>
+                            <span id="filteredNotesCount" class="text-sm text-gray-600"></span>
                         </div>
                         
                         <div id="notesListContainer" class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
@@ -940,11 +955,19 @@
                         <p class="text-sm text-blue-800">
                             ✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
                             <br>Example: "hello - hola" or "good morning - buenos días"
-                            <br>🤖 <strong>NEW: Auto-translation!</strong> Type a word and add a dash - get instant translation suggestions!
                             <br>📢 <strong>Click on any word before the dash to hear it pronounced!</strong>
                             <br>Each line with word/phrase + dash + translation gets automatically saved.
                             <br><em>Symbols like _, ·, •, →, ← are automatically converted to dashes.</em>
                         </p>
+                        
+                        <!-- Auto-translate Preference -->
+                        <div class="mt-3 pt-3 border-t border-blue-200">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="enableAutoTranslateCheckbox" class="rounded border-blue-300 text-blue-600 focus:ring-blue-500">
+                                <span class="text-sm font-medium text-blue-800">🤖 Enable Auto-translation</span>
+                            </label>
+                            <p class="text-xs text-blue-600 mt-1 ml-6">Type a word and add a dash (-) to get instant translation suggestions!</p>
+                        </div>
                     </div>
                     
                     <!-- Language Selection for Live Notes -->
@@ -1050,6 +1073,37 @@ Use a dash (-) to separate words from their translations."
                 </div>
                 <div class="items-center px-4 py-3">
                     <button id="liveNotesLanguageCancelBtn" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-translate Language Selection Modal -->
+    <div id="autoTranslateLanguageModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1002;">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">🤖 Auto-translate Settings</h3>
+                <p class="text-sm text-gray-600 mb-4">Choose the language you want to translate TO when you type words and add a dash (-).</p>
+                <div class="mt-2 px-7 py-3">
+                    <div class="space-y-2">
+                        <button id="autoTranslateLangEnglish" class="w-full btn btn-primary">English</button>
+                        <button id="autoTranslateLangFrench" class="w-full btn btn-primary">French</button>
+                        <button id="autoTranslateLangGerman" class="w-full btn btn-primary">German</button>
+                        <button id="autoTranslateLangSpanish" class="w-full btn btn-primary">Spanish</button>
+                        <button id="autoTranslateLangPortuguese" class="w-full btn btn-primary">Portuguese</button>
+                        <button id="autoTranslateLangDutch" class="w-full btn btn-primary">Dutch</button>
+                    </div>
+                </div>
+                <div class="px-4 py-3">
+                    <label class="flex items-center justify-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" id="keepAutoTranslatePreference" class="rounded border-gray-300 text-teal-600 focus:ring-teal-500" checked>
+                        Set by default and never ask again
+                    </label>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="autoTranslateLanguageCancelBtn" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
                         Cancel
                     </button>
                 </div>
