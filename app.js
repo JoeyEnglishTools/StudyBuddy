@@ -192,7 +192,7 @@ async function fetchNotes() {
     // Create the actual query
     const queryPromise = supabaseClient
       .from('notes')
-      .select('term, definition, term_lang')
+      .select('term, definition, term_lang, created_at')
       .eq('user_id', user.id);
     
     // Race the query against the timeout
@@ -237,6 +237,7 @@ async function fetchNotes() {
         lang1: note.term,
         lang2: note.definition,
         term_lang: note.term_lang || 'en-GB', // Include language info
+        created_at: note.created_at, // Include timestamp for filtering
         originalIndex: index,
         correctCount: 0
       };
@@ -581,17 +582,30 @@ async function fetchNotes() {
 
     // --- LIVE NOTES FUNCTIONS ---
     async function initializeLiveNotes() {
-        // Clear existing content
-        notepadContent = '';
-        liveNotesData = [];
-        pendingChanges = false;
-        liveNotesTextarea.value = '';
-        
         // Show modal first
         liveNotesModal.classList.remove('hidden');
         
         // Initialize Live Notes language selector AFTER showing modal
         await initializeLiveNotesLanguage();
+        
+        // Initialize auto-translate functionality
+        await initializeAutoTranslate();
+        
+        // Try to restore previous Live Notes content from localStorage
+        const savedContent = localStorage.getItem('live_notes_content');
+        if (savedContent) {
+            liveNotesTextarea.value = savedContent;
+            notepadContent = savedContent;
+            parseNotepadContent();
+            console.log('📝 Restored Live Notes content from localStorage');
+        } else {
+            // Clear existing content if no saved content
+            notepadContent = '';
+            liveNotesData = [];
+            liveNotesTextarea.value = '';
+        }
+        
+        pendingChanges = false;
         
         // Add event listeners to notepad
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
@@ -691,6 +705,118 @@ async function fetchNotes() {
         }
     }
     
+    async function initializeAutoTranslate() {
+        const enableAutoTranslateCheckbox = document.getElementById('enableAutoTranslateCheckbox');
+        
+        // Check if auto-translate is enabled and if we have a stored preference
+        const autoTranslateEnabled = localStorage.getItem('auto_translate_enabled') === 'true';
+        const autoTranslateLanguage = localStorage.getItem('auto_translate_language');
+        const neverAskAgain = localStorage.getItem('auto_translate_never_ask') === 'true';
+        
+        // Set checkbox state
+        enableAutoTranslateCheckbox.checked = autoTranslateEnabled;
+        
+        // Add event listener for checkbox changes
+        enableAutoTranslateCheckbox.addEventListener('change', async (event) => {
+            const isEnabled = event.target.checked;
+            
+            if (isEnabled) {
+                // User wants to enable auto-translate
+                if (autoTranslateLanguage && neverAskAgain) {
+                    // Use stored preference
+                    localStorage.setItem('auto_translate_enabled', 'true');
+                    console.log('🤖 Auto-translate enabled with stored language:', autoTranslateLanguage);
+                } else {
+                    // Show language selection modal
+                    try {
+                        const result = await showAutoTranslateLanguageModal();
+                        localStorage.setItem('auto_translate_enabled', 'true');
+                        localStorage.setItem('auto_translate_language', result.language);
+                        localStorage.setItem('auto_translate_never_ask', result.neverAskAgain.toString());
+                        console.log('🤖 Auto-translate enabled with language:', result.language, 'Never ask again:', result.neverAskAgain);
+                    } catch (error) {
+                        if (error === 'cancelled') {
+                            // User cancelled, uncheck the checkbox
+                            enableAutoTranslateCheckbox.checked = false;
+                            return;
+                        }
+                        console.error('Error selecting auto-translate language:', error);
+                        enableAutoTranslateCheckbox.checked = false;
+                    }
+                }
+            } else {
+                // User wants to disable auto-translate
+                localStorage.setItem('auto_translate_enabled', 'false');
+                hideTranslationSuggestion(); // Hide any active suggestions
+                console.log('🤖 Auto-translate disabled');
+            }
+        });
+    }
+    
+    function showAutoTranslateLanguageModal() {
+        return new Promise((resolve, reject) => {
+            const modal = document.getElementById('autoTranslateLanguageModal');
+            const englishBtn = document.getElementById('autoTranslateLangEnglish');
+            const frenchBtn = document.getElementById('autoTranslateLangFrench');
+            const germanBtn = document.getElementById('autoTranslateLangGerman');
+            const spanishBtn = document.getElementById('autoTranslateLangSpanish');
+            const portugueseBtn = document.getElementById('autoTranslateLangPortuguese');
+            const dutchBtn = document.getElementById('autoTranslateLangDutch');
+            const cancelBtn = document.getElementById('autoTranslateLanguageCancelBtn');
+            const neverAskCheckbox = document.getElementById('keepAutoTranslatePreference');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                englishBtn.removeEventListener('click', handleEnglish);
+                frenchBtn.removeEventListener('click', handleFrench);
+                germanBtn.removeEventListener('click', handleGerman);
+                spanishBtn.removeEventListener('click', handleSpanish);
+                portugueseBtn.removeEventListener('click', handlePortuguese);
+                dutchBtn.removeEventListener('click', handleDutch);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            const handleEnglish = () => {
+                cleanup();
+                resolve({ language: 'en-GB', neverAskAgain: neverAskCheckbox.checked });
+            };
+            const handleFrench = () => {
+                cleanup();
+                resolve({ language: 'fr-FR', neverAskAgain: neverAskCheckbox.checked });
+            };
+            const handleGerman = () => {
+                cleanup();
+                resolve({ language: 'de-DE', neverAskAgain: neverAskCheckbox.checked });
+            };
+            const handleSpanish = () => {
+                cleanup();
+                resolve({ language: 'es-ES', neverAskAgain: neverAskCheckbox.checked });
+            };
+            const handlePortuguese = () => {
+                cleanup();
+                resolve({ language: 'pt-PT', neverAskAgain: neverAskCheckbox.checked });
+            };
+            const handleDutch = () => {
+                cleanup();
+                resolve({ language: 'nl-NL', neverAskAgain: neverAskCheckbox.checked });
+            };
+            const handleCancel = () => {
+                cleanup();
+                reject('cancelled');
+            };
+
+            englishBtn.addEventListener('click', handleEnglish);
+            frenchBtn.addEventListener('click', handleFrench);
+            germanBtn.addEventListener('click', handleGerman);
+            spanishBtn.addEventListener('click', handleSpanish);
+            portugueseBtn.addEventListener('click', handlePortuguese);
+            dutchBtn.addEventListener('click', handleDutch);
+            cancelBtn.addEventListener('click', handleCancel);
+
+            modal.classList.remove('hidden');
+        });
+    }
+    
     function showLiveNotesLanguageModal() {
         return new Promise((resolve, reject) => {
             const modal = document.getElementById('liveNotesLanguageModal');
@@ -773,6 +899,9 @@ async function fetchNotes() {
         notepadContent = event.target.value;
         pendingChanges = true;
         
+        // Save content to localStorage for persistence
+        localStorage.setItem('live_notes_content', notepadContent);
+        
         // Clear existing auto-advance timer
         if (autoAdvanceTimer) {
             clearTimeout(autoAdvanceTimer);
@@ -819,11 +948,13 @@ async function fetchNotes() {
         // 1. User is on the last line
         // 2. The current line doesn't contain a complete word-dash-translation pattern
         // 3. User is not in the middle of existing text
+        // 4. There's some content that isn't just whitespace
         const isOnLastLine = cursorLine === lines.length - 1;
         const lineHasCompletePattern = /^.+\s*[-–—]\s*.+$/.test(currentLineText.trim());
         const isAtEndOfLine = cursorPosition >= currentValue.lastIndexOf('\n') + currentLineText.length;
+        const hasIncompleteContent = currentLineText.trim().length > 0 && !lineHasCompletePattern;
         
-        if (isOnLastLine && !lineHasCompletePattern && isAtEndOfLine) {
+        if (isOnLastLine && hasIncompleteContent && isAtEndOfLine) {
             // Start 7-second timer for auto-advance to next line
             autoAdvanceTimer = setTimeout(() => {
                 addNewNoteLine();
@@ -932,20 +1063,24 @@ async function fetchNotes() {
                 const translation = dashMatches[2].trim();
                 
                 if (word && translation) {
-                    // Mark as edited if:
-                    // 1. It's not the current line being typed AND has complete content
-                    // 2. OR if it's the current line but has complete word-dash-translation pattern
                     const isCurrentLine = index === currentLineIndex;
                     const hasCompletePattern = dashMatches && word && translation;
-                    const isCompleteEdit = !isCurrentLine || (isCurrentLine && hasCompletePattern);
                     
-                    completedData.push({
-                        targetLang: word,
-                        translation: translation,
-                        lineNumber: index,
-                        saved: false,
-                        wasEdited: isCompleteEdit && index < lines.length - 1 // Consider it an edit if it's not the last line
-                    });
+                    // Allow saving if:
+                    // 1. It's not the current line (completed previous lines)
+                    // 2. OR it's the current line but has a complete pattern (single pair completion)
+                    // 3. OR it's the current line and user manually triggered save
+                    const shouldSave = !isCurrentLine || (isCurrentLine && hasCompletePattern);
+                    
+                    if (shouldSave) {
+                        completedData.push({
+                            targetLang: word,
+                            translation: translation,
+                            lineNumber: index,
+                            saved: false,
+                            wasEdited: !isCurrentLine || (isCurrentLine && index < lines.length - 1) // Consider it an edit if it's not the last line or not currently being typed
+                        });
+                    }
                 }
             }
         });
@@ -1211,6 +1346,10 @@ async function fetchNotes() {
             updateSaveStatus();
             updateLineAndParsedCounts();
             
+            // Clear localStorage content since it's been saved
+            localStorage.removeItem('live_notes_content');
+            console.log('🧹 Live Notes content cleared from localStorage after successful save');
+            
             // Refresh vocabulary
             console.log('🔄 saveLiveNotes: Refreshing vocabulary from database...');
             await fetchNotes();
@@ -1416,6 +1555,12 @@ async function fetchNotes() {
     }
 
     async function handleDashTranslation(text, cursorPosition) {
+        // Check if auto-translate is enabled
+        const autoTranslateEnabled = localStorage.getItem('auto_translate_enabled') === 'true';
+        if (!autoTranslateEnabled) {
+            return; // Auto-translate is disabled, do nothing
+        }
+
         // Clear any existing timeout
         if (translationTimeout) {
             clearTimeout(translationTimeout);
@@ -1431,29 +1576,30 @@ async function fetchNotes() {
         if (dashMatch) {
             const wordToTranslate = dashMatch[1].trim();
             if (wordToTranslate) {
-                const selectedLanguage = liveNotesLanguageSelector.value;
+                // Get the auto-translate target language
+                const autoTranslateLanguage = localStorage.getItem('auto_translate_language') || 'es-ES';
                 let langPair;
                 
-                // Determine translation direction based on selected language
-                // The user types a word and gets translation to the target language they're learning
-                if (selectedLanguage === 'en-GB' || selectedLanguage === 'en-US') {
-                    // Learning English - assume input could be Spanish/French/etc and translate to English
+                // Determine translation direction based on auto-translate target language
+                // The user types a word and gets translation to the target language they selected
+                if (autoTranslateLanguage === 'en-GB' || autoTranslateLanguage === 'en-US') {
+                    // Translating TO English - assume input could be Spanish/French/etc
                     // Try multiple source languages, prioritize Spanish
                     langPair = 'es|en';
-                } else if (selectedLanguage === 'es-ES') {
-                    // Learning Spanish - translate from English to Spanish
+                } else if (autoTranslateLanguage === 'es-ES') {
+                    // Translating TO Spanish - translate from English to Spanish
                     langPair = 'en|es';
-                } else if (selectedLanguage === 'fr-FR') {
-                    // Learning French - translate from English to French
+                } else if (autoTranslateLanguage === 'fr-FR') {
+                    // Translating TO French - translate from English to French
                     langPair = 'en|fr';
-                } else if (selectedLanguage === 'de-DE') {
-                    // Learning German - translate from English to German
+                } else if (autoTranslateLanguage === 'de-DE') {
+                    // Translating TO German - translate from English to German
                     langPair = 'en|de';
-                } else if (selectedLanguage === 'pt-PT') {
-                    // Learning Portuguese - translate from English to Portuguese
+                } else if (autoTranslateLanguage === 'pt-PT') {
+                    // Translating TO Portuguese - translate from English to Portuguese
                     langPair = 'en|pt';
-                } else if (selectedLanguage === 'nl-NL') {
-                    // Learning Dutch - translate from English to Dutch
+                } else if (autoTranslateLanguage === 'nl-NL') {
+                    // Translating TO Dutch - translate from English to Dutch
                     langPair = 'en|nl';
                 } else {
                     // Default to English to Spanish
@@ -1463,7 +1609,7 @@ async function fetchNotes() {
                 // Set a timeout to avoid too many API calls
                 translationTimeout = setTimeout(async () => {
                     try {
-                        console.log(`🔄 Translating "${wordToTranslate}" using language pair: ${langPair}`);
+                        console.log(`🔄 Translating "${wordToTranslate}" using language pair: ${langPair} (Auto-translate: ${autoTranslateLanguage})`);
                         const translation = await translateText(wordToTranslate, langPair);
                         if (translation && translation !== 'Translation failed.' && translation !== 'Translation error.' && translation.toLowerCase() !== wordToTranslate.toLowerCase()) {
                             console.log(`✅ Translation result: "${translation}"`);
@@ -1640,13 +1786,33 @@ async function fetchNotes() {
             console.log('📚 initializeNotesManagement: Search functionality setup complete');
         }
         
+        // Setup time filter functionality
+        const timeFilterSelect = document.getElementById('timeFilterSelect');
+        const studyFilteredNotesBtn = document.getElementById('studyFilteredNotesBtn');
+        
+        if (timeFilterSelect) {
+            timeFilterSelect.addEventListener('change', filterNotes);
+            console.log('📚 initializeNotesManagement: Time filter functionality setup complete');
+        }
+        
+        if (studyFilteredNotesBtn) {
+            studyFilteredNotesBtn.addEventListener('click', () => {
+                const filteredVocab = getFilteredVocabulary();
+                if (filteredVocab.length > 0) {
+                    // Close notes management and start matching game with filtered notes
+                    closeNotesManagement();
+                    startFilteredMatchingGame(filteredVocab);
+                }
+            });
+        }
+        
         // Show modal
         notesManagementModal.classList.remove('hidden');
         console.log('📚 initializeNotesManagement: Modal shown');
     }
     
-    function populateNotesList(searchTerm = '') {
-        console.log('📝 populateNotesList: Starting with searchTerm:', searchTerm);
+    function populateNotesList(searchTerm = '', timeFilter = 'all') {
+        console.log('📝 populateNotesList: Starting with searchTerm:', searchTerm, 'timeFilter:', timeFilter);
         console.log('📝 populateNotesList: Current vocabulary state:', {
             vocabularyLength: vocabulary.length,
             vocabularyType: typeof vocabulary,
@@ -1656,6 +1822,8 @@ async function fetchNotes() {
         
         const notesList = document.getElementById('notesList');
         const noNotesMessage = document.getElementById('noNotesMessage');
+        const studyFilteredNotesBtn = document.getElementById('studyFilteredNotesBtn');
+        const filteredNotesCount = document.getElementById('filteredNotesCount');
         
         if (!notesList) {
             console.error('❌ populateNotesList: notesList element not found');
@@ -1665,20 +1833,64 @@ async function fetchNotes() {
         // Clear existing content
         notesList.innerHTML = '';
         
-        // Filter vocabulary based on search term
+        // Filter vocabulary based on search term and time filter
         const filteredVocab = vocabulary.filter(note => {
-            if (!searchTerm) return true;
-            const term = searchTerm.toLowerCase();
-            return note.lang1.toLowerCase().includes(term) || 
-                   note.lang2.toLowerCase().includes(term);
+            // Apply search filter
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                if (!note.lang1.toLowerCase().includes(term) && !note.lang2.toLowerCase().includes(term)) {
+                    return false;
+                }
+            }
+            
+            // Apply time filter
+            if (timeFilter !== 'all' && note.created_at) {
+                const noteDate = new Date(note.created_at);
+                const now = new Date();
+                const timeDiff = now - noteDate;
+                
+                switch (timeFilter) {
+                    case 'today':
+                        return timeDiff <= 24 * 60 * 60 * 1000; // 1 day
+                    case 'week':
+                        return timeDiff <= 7 * 24 * 60 * 60 * 1000; // 7 days
+                    case 'month':
+                        return timeDiff <= 30 * 24 * 60 * 60 * 1000; // 30 days
+                    case '3months':
+                        return timeDiff <= 90 * 24 * 60 * 60 * 1000; // 90 days
+                    default:
+                        return true;
+                }
+            }
+            
+            return true;
         });
         
         console.log('📝 populateNotesList: Filtered vocabulary:', {
             originalCount: vocabulary.length,
             filteredCount: filteredVocab.length,
             searchTerm,
+            timeFilter,
             sampleFiltered: filteredVocab.slice(0, 2)
         });
+        
+        // Update filtered notes count and study button
+        if (filteredNotesCount) {
+            if (timeFilter !== 'all' || searchTerm) {
+                filteredNotesCount.textContent = `Showing ${filteredVocab.length} notes`;
+                if (studyFilteredNotesBtn && filteredVocab.length > 0) {
+                    studyFilteredNotesBtn.classList.remove('hidden');
+                    studyFilteredNotesBtn.textContent = `🎮 Play Matching Game (${filteredVocab.length} words)`;
+                } else if (studyFilteredNotesBtn) {
+                    studyFilteredNotesBtn.classList.add('hidden');
+                }
+            } else {
+                filteredNotesCount.textContent = '';
+                if (studyFilteredNotesBtn) {
+                    studyFilteredNotesBtn.classList.add('hidden');
+                }
+            }
+        }
         
         if (filteredVocab.length === 0) {
             console.log('📝 populateNotesList: No filtered vocabulary, showing no notes message');
@@ -1717,19 +1929,32 @@ async function fetchNotes() {
                 </div>
             `;
             
-            // Add click-to-speak functionality
             noteContent.addEventListener('click', (e) => {
                 if (e.target.classList.contains('click-to-speak')) {
-                    const text = e.target.dataset.text;
-                    const lang = e.target.dataset.lang;
-                    console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
-                    speakText(text, lang);
+                    // Only allow clicking on target language (first word)
+                    if (e.target.dataset.text === note.lang1) {
+                        const text = e.target.dataset.text;
+                        const lang = e.target.dataset.lang;
+                        console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
+                        speakText(text, lang);
+                    }
                 }
+            });
+            
+            // Add edit button
+            const editBtn = document.createElement('button');
+            editBtn.className = 'ml-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded edit-btn';
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Edit note';
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                console.log('✏️ populateNotesList: Edit button clicked for note:', note);
+                editNote(originalIndex, note);
             });
             
             // Add delete button
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'ml-3 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn';
+            deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn';
             deleteBtn.innerHTML = '✕';
             deleteBtn.title = 'Delete note';
             deleteBtn.addEventListener('click', (e) => {
@@ -1739,6 +1964,7 @@ async function fetchNotes() {
             });
             
             noteItem.appendChild(noteContent);
+            noteItem.appendChild(editBtn);
             noteItem.appendChild(deleteBtn);
             
             // Add swipe-to-delete for mobile
@@ -1784,8 +2010,62 @@ async function fetchNotes() {
     
     function filterNotes() {
         const notesSearchInput = document.getElementById('notesSearchInput');
+        const timeFilterSelect = document.getElementById('timeFilterSelect');
         const searchTerm = notesSearchInput ? notesSearchInput.value : '';
-        populateNotesList(searchTerm);
+        const timeFilter = timeFilterSelect ? timeFilterSelect.value : 'all';
+        populateNotesList(searchTerm, timeFilter);
+    }
+    
+    function getFilteredVocabulary() {
+        const notesSearchInput = document.getElementById('notesSearchInput');
+        const timeFilterSelect = document.getElementById('timeFilterSelect');
+        const searchTerm = notesSearchInput ? notesSearchInput.value : '';
+        const timeFilter = timeFilterSelect ? timeFilterSelect.value : 'all';
+        
+        return vocabulary.filter(note => {
+            // Apply search filter
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                if (!note.lang1.toLowerCase().includes(term) && !note.lang2.toLowerCase().includes(term)) {
+                    return false;
+                }
+            }
+            
+            // Apply time filter
+            if (timeFilter !== 'all' && note.created_at) {
+                const noteDate = new Date(note.created_at);
+                const now = new Date();
+                const timeDiff = now - noteDate;
+                
+                switch (timeFilter) {
+                    case 'today':
+                        return timeDiff <= 24 * 60 * 60 * 1000; // 1 day
+                    case 'week':
+                        return timeDiff <= 7 * 24 * 60 * 60 * 1000; // 7 days
+                    case 'month':
+                        return timeDiff <= 30 * 24 * 60 * 60 * 1000; // 30 days
+                    case '3months':
+                        return timeDiff <= 90 * 24 * 60 * 60 * 1000; // 90 days
+                    default:
+                        return true;
+                }
+            }
+            
+            return true;
+        });
+    }
+    
+    function startFilteredMatchingGame(filteredVocab) {
+        // Store the filtered vocabulary for the game
+        window.filteredGameVocabulary = filteredVocab;
+        
+        // Navigate to game area
+        hideAllSections();
+        gameArea.classList.remove('hidden');
+        
+        // Set up matching game with filtered vocabulary
+        showSection('matching');
+        playMatchingGame(filteredVocab);
     }
     
     async function deleteNote(index, note) {
@@ -1827,6 +2107,127 @@ async function fetchNotes() {
             console.error('Error deleting note:', error);
             alert('Error deleting note');
         }
+    }
+    
+    function editNote(index, note) {
+        // Create edit modal
+        const editModal = document.createElement('div');
+        editModal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full';
+        editModal.style.zIndex = '1005';
+        
+        editModal.innerHTML = `
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 text-center">✏️ Edit Note</h3>
+                    <div class="mt-2 px-4 py-3">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Target Language Word/Phrase:</label>
+                            <input type="text" id="editTermInput" value="${note.lang1}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Definition/Translation:</label>
+                            <input type="text" id="editDefinitionInput" value="${note.lang2}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 px-4 py-3">
+                        <button id="saveEditBtn" class="flex-1 px-4 py-2 bg-teal-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            💾 Save Changes
+                        </button>
+                        <button id="cancelEditBtn" class="flex-1 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(editModal);
+        
+        const termInput = document.getElementById('editTermInput');
+        const definitionInput = document.getElementById('editDefinitionInput');
+        const saveBtn = document.getElementById('saveEditBtn');
+        const cancelBtn = document.getElementById('cancelEditBtn');
+        
+        // Focus on term input
+        termInput.focus();
+        termInput.select();
+        
+        const cleanup = () => {
+            document.body.removeChild(editModal);
+        };
+        
+        cancelBtn.addEventListener('click', cleanup);
+        
+        saveBtn.addEventListener('click', async () => {
+            const newTerm = termInput.value.trim();
+            const newDefinition = definitionInput.value.trim();
+            
+            if (!newTerm || !newDefinition) {
+                alert('Both fields must be filled out.');
+                return;
+            }
+            
+            try {
+                // Update in database if Supabase is available
+                if (supabaseClient) {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (user) {
+                        // Update the existing note
+                        const { error } = await supabaseClient
+                            .from('notes')
+                            .update({
+                                term: newTerm,
+                                definition: newDefinition
+                            })
+                            .eq('user_id', user.id)
+                            .eq('term', note.lang1)
+                            .eq('definition', note.lang2);
+                        
+                        if (error) {
+                            console.error('Error updating note in database:', error);
+                            alert('Error updating note in database');
+                            return;
+                        }
+                        
+                        console.log('✅ Note updated in database successfully');
+                    }
+                }
+                
+                // Update in local vocabulary array
+                if (index >= 0 && index < vocabulary.length) {
+                    vocabulary[index].lang1 = newTerm;
+                    vocabulary[index].lang2 = newDefinition;
+                }
+                
+                console.log('✅ Note updated locally:', { index, newTerm, newDefinition });
+                
+                // Refresh the notes list to show changes
+                const notesSearchInput = document.getElementById('notesSearchInput');
+                const currentSearchTerm = notesSearchInput ? notesSearchInput.value : '';
+                populateNotesList(currentSearchTerm);
+                
+                cleanup();
+                
+            } catch (error) {
+                console.error('Error editing note:', error);
+                alert('Error editing note');
+            }
+        });
+        
+        // Handle Enter key to save
+        termInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                definitionInput.focus();
+            }
+        });
+        
+        definitionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveBtn.click();
+            }
+        });
     }
     
     function speakText(text, lang = 'en-GB') {
