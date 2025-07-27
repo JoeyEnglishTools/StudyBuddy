@@ -392,6 +392,31 @@ async function fetchNotes() {
     // --- STATE & CONSTANTS ---
     const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
     let vocabulary = [], csvUploadedTargetLanguage = "en-GB", activeTargetStudyLanguage = "en-GB", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
+    
+    // Helper function to check if user has already defined a learning language
+    function hasDefinedLanguage() {
+        const storedLanguage = localStorage.getItem('learning_language');
+        const keepPreference = localStorage.getItem('live_notes_keep_preference') === 'true';
+        
+        // User has defined a language if:
+        // 1. They uploaded CSV with language selection, OR
+        // 2. They used Live Notes and chose to keep the preference
+        return (csvUploadedTargetLanguage && csvUploadedTargetLanguage !== 'en-GB') || 
+               (storedLanguage && keepPreference);
+    }
+    
+    // Helper function to get the current active language
+    function getCurrentActiveLanguage() {
+        const storedLanguage = localStorage.getItem('learning_language');
+        const keepPreference = localStorage.getItem('live_notes_keep_preference') === 'true';
+        
+        if (csvUploadedTargetLanguage && csvUploadedTargetLanguage !== 'en-GB') {
+            return csvUploadedTargetLanguage;
+        } else if (storedLanguage && keepPreference) {
+            return storedLanguage;
+        }
+        return 'en-GB'; // Default
+    }
     let currentVocabularyPart = [], currentPartName = "", mistakesRemaining = 3, currentScore = 0, sessionMaxScore = 0;
     let isEssentialsMode = false, currentEssentialsCategoryName = "";
     let audioInitialized = false;
@@ -555,15 +580,18 @@ async function fetchNotes() {
     }
 
     // --- LIVE NOTES FUNCTIONS ---
-    function initializeLiveNotes() {
+    async function initializeLiveNotes() {
         // Clear existing content
         notepadContent = '';
         liveNotesData = [];
         pendingChanges = false;
         liveNotesTextarea.value = '';
         
-        // Initialize Live Notes language selector
-        initializeLiveNotesLanguage();
+        // Show modal first
+        liveNotesModal.classList.remove('hidden');
+        
+        // Initialize Live Notes language selector AFTER showing modal
+        await initializeLiveNotesLanguage();
         
         // Add event listeners to notepad
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
@@ -577,8 +605,7 @@ async function fetchNotes() {
         // Start auto-save timer
         startAutoSaveTimer();
         
-        // Show modal and focus
-        liveNotesModal.classList.remove('hidden');
+        // Focus on textarea
         liveNotesTextarea.focus();
     }
     
@@ -746,13 +773,15 @@ async function fetchNotes() {
             autoAdvanceTimer = null;
         }
         
-        // Check for dash and trigger translation
+        // Check for dash and trigger translation - include symbols that get converted to dashes
         const cursorPosition = event.target.selectionStart;
         const currentValue = event.target.value;
         const charBeforeCursor = currentValue.charAt(cursorPosition - 1);
         
-        // If user just typed a dash, check for translation opportunity
-        if (charBeforeCursor === '-' || charBeforeCursor === '–' || charBeforeCursor === '—') {
+        // If user just typed a dash or symbol that converts to dash, check for translation opportunity
+        if (charBeforeCursor === '-' || charBeforeCursor === '–' || charBeforeCursor === '—' || 
+            charBeforeCursor === '_' || charBeforeCursor === '·' || charBeforeCursor === '•' || 
+            charBeforeCursor === '=' || charBeforeCursor === '→' || charBeforeCursor === '←') {
             handleDashTranslation(currentValue, cursorPosition);
         } else {
             // Hide any existing translation suggestion if user continues typing
@@ -771,10 +800,32 @@ async function fetchNotes() {
             }
         }, 20000);
         
-        // Start 7-second timer for auto-advance to next line
-        autoAdvanceTimer = setTimeout(() => {
-            addNewNoteLine();
-        }, 7000);
+        // Only start 7-second timer for auto-advance if user is not editing existing text
+        // Check if user is at the end of text and on a new/empty line
+        const lines = currentValue.split('\n');
+        const cursorLine = getCurrentLineFromCursor(currentValue, cursorPosition);
+        const currentLineText = lines[cursorLine] || '';
+        
+        // Only auto-advance if:
+        // 1. User is on the last line
+        // 2. The current line doesn't contain a complete word-dash-translation pattern
+        // 3. User is not in the middle of existing text
+        const isOnLastLine = cursorLine === lines.length - 1;
+        const lineHasCompletePattern = /^.+\s*[-–—]\s*.+$/.test(currentLineText.trim());
+        const isAtEndOfLine = cursorPosition >= currentValue.lastIndexOf('\n') + currentLineText.length;
+        
+        if (isOnLastLine && !lineHasCompletePattern && isAtEndOfLine) {
+            // Start 7-second timer for auto-advance to next line
+            autoAdvanceTimer = setTimeout(() => {
+                addNewNoteLine();
+            }, 7000);
+        }
+    }
+    
+    function getCurrentLineFromCursor(text, cursorPosition) {
+        const beforeCursor = text.substring(0, cursorPosition);
+        const lines = beforeCursor.split('\n');
+        return lines.length - 1;
     }
     
     function handleNotepadKeydown(event) {
@@ -1222,13 +1273,13 @@ async function fetchNotes() {
         suggestionElement.id = 'translationSuggestion';
         
         suggestionElement.style.cssText = `
-            position: fixed;
+            position: absolute;
             background: #eff6ff;
             border: 2px solid #3b82f6;
             border-radius: 8px;
             padding: 12px;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-            z-index: 1000;
+            z-index: 1002;
             min-width: 250px;
             max-width: 350px;
             font-family: 'Inter', sans-serif;
@@ -1253,29 +1304,34 @@ async function fetchNotes() {
             </div>
         `;
 
-        // Position the suggestion relative to the textarea
-        const rect = textarea.getBoundingClientRect();
-        const modalRect = liveNotesModal.getBoundingClientRect();
+        // Position the suggestion within the Live Notes container
+        const liveNotesContainer = document.getElementById('liveNotesContainer');
+        liveNotesContainer.style.position = 'relative'; // Ensure container has relative positioning
         
-        // Position it to the right of the textarea if there's space, otherwise below
-        const spaceOnRight = window.innerWidth - rect.right;
-        if (spaceOnRight > 350) {
-            suggestionElement.style.left = (rect.right + 10) + 'px';
-            suggestionElement.style.top = (rect.top + 50) + 'px';
+        // Position relative to the textarea within the container
+        const textareaRect = textarea.getBoundingClientRect();
+        const containerRect = liveNotesContainer.getBoundingClientRect();
+        
+        // Calculate position relative to container
+        const relativeLeft = textareaRect.left - containerRect.left;
+        const relativeTop = textareaRect.top - containerRect.top;
+        
+        // Position to the right of the textarea if there's space, otherwise below
+        const containerWidth = liveNotesContainer.offsetWidth;
+        const suggestionWidth = 350;
+        
+        if (relativeLeft + textareaRect.width + suggestionWidth + 20 < containerWidth) {
+            // Position to the right
+            suggestionElement.style.left = (relativeLeft + textareaRect.width + 10) + 'px';
+            suggestionElement.style.top = (relativeTop + 50) + 'px';
         } else {
-            suggestionElement.style.left = (rect.left + 20) + 'px';
-            suggestionElement.style.top = (rect.bottom - 100) + 'px';
+            // Position below
+            suggestionElement.style.left = (relativeLeft + 20) + 'px';
+            suggestionElement.style.top = (relativeTop + textareaRect.height - 50) + 'px';
         }
 
-        // Ensure it doesn't go off screen
-        if (parseInt(suggestionElement.style.left) + 350 > window.innerWidth) {
-            suggestionElement.style.left = (window.innerWidth - 360) + 'px';
-        }
-        if (parseInt(suggestionElement.style.top) < 10) {
-            suggestionElement.style.top = '10px';
-        }
-
-        document.body.appendChild(suggestionElement);
+        // Append to the Live Notes container instead of body
+        liveNotesContainer.appendChild(suggestionElement);
 
         // Store current suggestion data
         currentTranslationSuggestion = {
@@ -2024,10 +2080,12 @@ async function fetchNotes() {
                 matchingGrid.innerHTML = '';
                 
                 // Only show language selector if no language is defined
-                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
                 } else {
                     languageSelectionInGameContainer.classList.add('hidden');
+                    // Use the current active language
+                    activeTargetStudyLanguage = getCurrentActiveLanguage();
                 }
                 
                 hearItOutLoudToggleBtn.classList.remove('hidden');
@@ -2088,10 +2146,12 @@ async function fetchNotes() {
                 multipleChoiceGameContainer.classList.remove('hidden');
                 
                 // Only show language selector if no language is defined
-                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
                 } else {
                     languageSelectionInGameContainer.classList.add('hidden');
+                    // Use the current active language
+                    activeTargetStudyLanguage = getCurrentActiveLanguage();
                 }
                 
                 hearItOutLoudToggleBtn.classList.remove('hidden');
@@ -2147,10 +2207,12 @@ async function fetchNotes() {
                 typeTranslationGameContainer.classList.remove('hidden');
                 
                 // Only show language selector if no language is defined
-                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
                 } else {
                     languageSelectionInGameContainer.classList.add('hidden');
+                    // Use the current active language
+                    activeTargetStudyLanguage = getCurrentActiveLanguage();
                 }
                 
                 hearItOutLoudToggleBtn.classList.remove('hidden');
@@ -2188,10 +2250,12 @@ async function fetchNotes() {
                 fillInTheBlanksGameContainer.classList.remove('hidden');
                 
                 // Only show language selector if no language is defined
-                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
                 } else {
                     languageSelectionInGameContainer.classList.add('hidden');
+                    // Use the current active language
+                    activeTargetStudyLanguage = getCurrentActiveLanguage();
                 }
                 
                 hearItOutLoudToggleBtn.classList.remove('hidden');
@@ -2202,10 +2266,12 @@ async function fetchNotes() {
                 talkToMeGameContainer.classList.remove('hidden');
                 
                 // Only show language selector if no language is defined
-                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
                 } else {
                     languageSelectionInGameContainer.classList.add('hidden');
+                    // Use the current active language
+                    activeTargetStudyLanguage = getCurrentActiveLanguage();
                 }
                 
                 hearItOutLoudToggleBtn.classList.remove('hidden');
@@ -2282,10 +2348,12 @@ async function fetchNotes() {
                 findTheWordsGameContainer.classList.remove('hidden');
                 
                 // Only show language selector if no language is defined
-                if (!csvUploadedTargetLanguage || csvUploadedTargetLanguage === '') {
+                if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
                 } else {
                     languageSelectionInGameContainer.classList.add('hidden');
+                    // Use the current active language
+                    activeTargetStudyLanguage = getCurrentActiveLanguage();
                 }
                 
                 hearItOutLoudToggleBtn.classList.remove('hidden');
