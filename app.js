@@ -751,6 +751,12 @@ async function fetchNotes() {
             translationTimeout = null;
         }
         
+        // Clear auto-save timeout
+        if (window.autoSaveTimeout) {
+            clearTimeout(window.autoSaveTimeout);
+            window.autoSaveTimeout = null;
+        }
+        
         // Hide any translation suggestion
         hideTranslationSuggestion();
         
@@ -793,12 +799,15 @@ async function fetchNotes() {
         updateLineAndParsedCounts();
         updateSaveStatus();
         
-        // Auto-save while writing (save every 20 seconds when there are changes)
-        setTimeout(() => {
+        // Debounced auto-save - clear existing timeout and set new one
+        if (window.autoSaveTimeout) {
+            clearTimeout(window.autoSaveTimeout);
+        }
+        window.autoSaveTimeout = setTimeout(() => {
             if (pendingChanges) {
                 saveLiveNotes();
             }
-        }, 20000);
+        }, 20000); // Auto-save after 20 seconds of inactivity
         
         // Only start 7-second timer for auto-advance if user is not editing existing text
         // Check if user is at the end of text and on a new/empty line
@@ -893,19 +902,22 @@ async function fetchNotes() {
         let currentLineIndex = 0;
         
         for (let i = 0; i < lines.length; i++) {
-            charCount += lines[i].length + 1; // +1 for newline character
-            if (charCount > cursorPosition) {
+            const lineStart = charCount;
+            const lineEnd = charCount + lines[i].length;
+            
+            if (cursorPosition >= lineStart && cursorPosition <= lineEnd) {
                 currentLineIndex = i;
                 break;
             }
+            charCount += lines[i].length + 1; // +1 for newline character
         }
         
-        // Parse only complete lines (exclude current line being typed)
+        // Parse all lines with content
         const completedData = [];
         
         lines.forEach((line, index) => {
-            // Skip the current line being typed and empty lines
-            if (index === currentLineIndex || line.trim() === '') return;
+            // Skip empty lines
+            if (line.trim() === '') return;
             
             let trimmedLine = line.trim();
             if (trimmedLine === '') return;
@@ -920,12 +932,19 @@ async function fetchNotes() {
                 const translation = dashMatches[2].trim();
                 
                 if (word && translation) {
+                    // Mark as edited if:
+                    // 1. It's not the current line being typed AND has complete content
+                    // 2. OR if it's the current line but has complete word-dash-translation pattern
+                    const isCurrentLine = index === currentLineIndex;
+                    const hasCompletePattern = dashMatches && word && translation;
+                    const isCompleteEdit = !isCurrentLine || (isCurrentLine && hasCompletePattern);
+                    
                     completedData.push({
                         targetLang: word,
                         translation: translation,
                         lineNumber: index,
                         saved: false,
-                        wasEdited: index < currentLineIndex // Mark as edited if it's before current line
+                        wasEdited: isCompleteEdit && index < lines.length - 1 // Consider it an edit if it's not the last line
                     });
                 }
             }
