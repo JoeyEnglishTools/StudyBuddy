@@ -152,131 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Replace the original fetchNotes function with this simplified version
-  // Enhanced fetchNotes function with guaranteed data population
+// Enhanced fetchNotes function with guaranteed data population - now deck-aware
 async function fetchNotes() {
-  console.log('🔍 FETCH STARTED: Beginning data fetch process');
-  
-  try {
-    // 1. Verify Supabase client is available
-    if (!supabaseClient) {
-      console.error('❌ No Supabase client available');
-      vocabulary = [];
-      return false;
-    }
-    
-    // 2. Get the authenticated user with extra validation
-    const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-    if (authError) {
-      console.error('❌ Authentication error:', authError);
-      vocabulary = [];
-      return false;
-    }
-    
-    const user = authData?.user;
-    if (!user || !user.id) {
-      console.error('❌ No valid user found in auth data:', authData);
-      vocabulary = [];
-      return false;
-    }
-    
-    console.log('✅ User authenticated:', user.id, user.email);
-    
-    // 3. Perform database query with explicit timeout handling
-    console.log('📡 Querying database for notes...');
-    
-    // Create a timeout promise to handle stalled queries
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database query timed out after 10 seconds')), 10000)
-    );
-    
-    // Create the actual query
-    const queryPromise = supabaseClient
-      .from('notes')
-      .select('term, definition, term_lang, created_at')
-      .eq('user_id', user.id);
-    
-    // Race the query against the timeout
-    const { data, error } = await Promise.race([
-      queryPromise,
-      timeoutPromise
-    ]);
-    
-    if (error) {
-      console.error('❌ Database error:', error);
-      vocabulary = [];
-      return false;
-    }
-    
-    // 4. Validate the returned data
-    if (!data) {
-      console.error('❌ No data returned from query');
-      vocabulary = [];
-      return false;
-    }
-    
-    console.log('📊 Raw data received:', data);
-    
-    // 5. Explicitly check the data structure
-    if (!Array.isArray(data)) {
-      console.error('❌ Data is not an array:', typeof data);
-      vocabulary = [];
-      return false;
-    }
-    
-    // 6. Map data with explicit property checks
-    console.log(`📝 Processing ${data.length} notes...`);
-    
-    const mappedVocabulary = data.map((note, index) => {
-      // Validate each note has required fields
-      if (!note.term || !note.definition) {
-        console.warn(`⚠️ Note at index ${index} is missing required fields:`, note);
-        return null;
-      }
-      
-      return {
-        lang1: note.term,
-        lang2: note.definition,
-        term_lang: note.term_lang || 'en-GB', // Include language info
-        created_at: note.created_at, // Include timestamp for filtering
-        originalIndex: index,
-        correctCount: 0
-      };
-    }).filter(item => item !== null); // Remove any invalid notes
-    
-    // 7. CRUCIAL: Explicitly assign to global vocabulary
-    console.log(`✅ Successfully mapped ${mappedVocabulary.length} vocabulary items`);
-    
-    window.vocabulary = mappedVocabulary; // Ensure global assignment
-    vocabulary = mappedVocabulary; // Local assignment
-    
-    // 8. Set language from first note if available
-    if (data.length > 0 && data[0].term_lang) {
-      csvUploadedTargetLanguage = data[0].term_lang;
-      console.log('🌐 Set language to:', csvUploadedTargetLanguage);
-    }
-    
-    // 9. Verify the vocabulary array is actually populated
-    console.log('🔍 FINAL VERIFICATION:', {
-      vocabularyLength: vocabulary.length,
-      isArray: Array.isArray(vocabulary),
-      sampleItems: vocabulary.slice(0, 2)
-    });
-    
-    return vocabulary.length > 0;
-  } catch (err) {
-    console.error('💥 Unexpected error in fetchNotes:', err);
-    console.error('Stack trace:', err.stack);
-    
-    // Try to recover with a direct global assignment
-    try {
-      window.vocabulary = [];
-      vocabulary = [];
-    } catch (e) {
-      console.error('Failed to reset vocabulary array:', e);
-    }
-    
-    return false;
-  }
+    // Use the new deck-aware function with current deck selection
+    return await fetchNotesByDeck(currentlySelectedDeckId);
 }
 
     // --- SESSION MANAGEMENT ---
@@ -390,9 +269,469 @@ async function fetchNotes() {
         console.log('✅ Session validation setup completed');
     }
 
+    // --- DECK MANAGEMENT FUNCTIONS ---
+    
+    // Ensure note_sets table exists and migrate existing notes
+    async function ensureNoteSetsTableExists() {
+        console.log('🔧 Ensuring note_sets table exists...');
+        
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return false;
+            
+            // Check if note_sets table exists by trying to query it
+            const { data: testDecks, error: testError } = await supabaseClient
+                .from('note_sets')
+                .select('id')
+                .limit(1);
+            
+            if (testError && testError.code === '42P01') {
+                // Table doesn't exist - this means we need to use the database as-is
+                // Since we can't create tables via API, we'll work without the deck structure initially
+                console.log('⚠️ note_sets table does not exist - working in compatibility mode');
+                return false;
+            }
+            
+            if (testError) {
+                console.error('❌ Error checking note_sets table:', testError);
+                return false;
+            }
+            
+            console.log('✅ note_sets table exists');
+            return true;
+            
+        } catch (err) {
+            console.error('💥 Error in ensureNoteSetsTableExists:', err);
+            return false;
+        }
+    }
+    
+    // Fetch all decks for the current user
+    async function fetchUserDecks() {
+        console.log('🗂️ Fetching user decks...');
+        
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                console.error('❌ No user authenticated');
+                return [];
+            }
+            
+            // Check if note_sets table exists first
+            const tableExists = await ensureNoteSetsTableExists();
+            if (!tableExists) {
+                // Return empty array if table doesn't exist - will trigger welcome modal
+                return [];
+            }
+            
+            const { data, error } = await supabaseClient
+                .from('note_sets')
+                .select('*, notes_count:notes(count)')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.error('❌ Error fetching decks:', error);
+                return [];
+            }
+            
+            // Process the count data
+            const decksWithCounts = data?.map(deck => ({
+                ...deck,
+                notes_count: deck.notes_count?.[0]?.count || 0
+            })) || [];
+            
+            console.log('✅ Fetched decks:', decksWithCounts);
+            return decksWithCounts;
+        } catch (err) {
+            console.error('💥 Error in fetchUserDecks:', err);
+            return [];
+        }
+    }
+    
+    // Create a new deck
+    async function createDeck(deckName, language) {
+        console.log('🆕 Creating new deck:', deckName, language);
+        
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                console.error('❌ No user authenticated');
+                return null;
+            }
+            
+            // Check if note_sets table exists
+            const tableExists = await ensureNoteSetsTableExists();
+            if (!tableExists) {
+                // If table doesn't exist, create a default deck record in localStorage for now
+                const defaultDeck = {
+                    id: 'default',
+                    name: deckName,
+                    language: language,
+                    user_id: user.id,
+                    created_at: new Date().toISOString(),
+                    notes_count: 0
+                };
+                
+                console.log('⚠️ Using compatibility mode - storing deck info locally');
+                localStorage.setItem('default_deck', JSON.stringify(defaultDeck));
+                return defaultDeck;
+            }
+            
+            const { data, error } = await supabaseClient
+                .from('note_sets')
+                .insert([{
+                    name: deckName,
+                    language: language,
+                    user_id: user.id,
+                    created_at: new Date().toISOString()
+                }])
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('❌ Error creating deck:', error);
+                return null;
+            }
+            
+            console.log('✅ Created deck:', data);
+            return data;
+        } catch (err) {
+            console.error('💥 Error in createDeck:', err);
+            return null;
+        }
+    }
+    
+    // Update the fetchNotes function to filter by deck
+    async function fetchNotesByDeck(deckId = null) {
+        console.log('🔍 FETCH STARTED: Beginning data fetch process for deck:', deckId);
+        
+        try {
+            // 1. Verify Supabase client is available
+            if (!supabaseClient) {
+                console.error('❌ No Supabase client available');
+                vocabulary = [];
+                return false;
+            }
+            
+            // 2. Get the authenticated user with extra validation
+            const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+            if (authError) {
+                console.error('❌ Authentication error:', authError);
+                vocabulary = [];
+                return false;
+            }
+            
+            const user = authData?.user;
+            if (!user || !user.id) {
+                console.error('❌ No valid user found in auth data:', authData);
+                vocabulary = [];
+                return false;
+            }
+            
+            console.log('✅ User authenticated:', user.id, user.email);
+            
+            // 3. Build query based on deck selection
+            let query = supabaseClient
+                .from('notes')
+                .select('term, definition, term_lang, created_at, note_set_id')
+                .eq('user_id', user.id);
+            
+            // Filter by deck if specified (but handle compatibility mode)
+            if (deckId && deckId !== 'default') {
+                query = query.eq('note_set_id', deckId);
+            } else if (deckId === 'default') {
+                // In compatibility mode, get notes without note_set_id
+                query = query.is('note_set_id', null);
+            }
+            
+            // Create a timeout promise to handle stalled queries
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Database query timed out after 10 seconds')), 10000)
+            );
+            
+            // Race the query against the timeout
+            const { data, error } = await Promise.race([
+                query,
+                timeoutPromise
+            ]);
+            
+            if (error) {
+                console.error('❌ Database error:', error);
+                vocabulary = [];
+                return false;
+            }
+            
+            // 4. Validate the returned data
+            if (!data) {
+                console.error('❌ No data returned from query');
+                vocabulary = [];
+                return false;
+            }
+            
+            console.log('📊 Raw data received:', data);
+            
+            // 5. Explicitly check the data structure
+            if (!Array.isArray(data)) {
+                console.error('❌ Data is not an array:', typeof data);
+                vocabulary = [];
+                return false;
+            }
+            
+            // 6. Map data with explicit property checks
+            console.log(`📝 Processing ${data.length} notes...`);
+            
+            const mappedVocabulary = data.map((note, index) => {
+                // Validate each note has required fields
+                if (!note.term || !note.definition) {
+                    console.warn(`⚠️ Note at index ${index} is missing required fields:`, note);
+                    return null;
+                }
+                
+                return {
+                    lang1: note.term,
+                    lang2: note.definition,
+                    term_lang: note.term_lang || 'en-GB', // Include language info
+                    created_at: note.created_at, // Include timestamp for filtering
+                    note_set_id: note.note_set_id, // Include deck info
+                    originalIndex: index,
+                    correctCount: 0
+                };
+            }).filter(item => item !== null); // Remove any invalid notes
+            
+            // 7. CRUCIAL: Explicitly assign to global vocabulary
+            console.log(`✅ Successfully mapped ${mappedVocabulary.length} vocabulary items`);
+            
+            window.vocabulary = mappedVocabulary; // Ensure global assignment
+            vocabulary = mappedVocabulary; // Local assignment
+            
+            // 8. Set language from first note if available
+            if (data.length > 0 && data[0].term_lang) {
+                csvUploadedTargetLanguage = data[0].term_lang;
+                console.log('🌐 Set language to:', csvUploadedTargetLanguage);
+            }
+            
+            // 9. Verify the vocabulary array is actually populated
+            console.log('🔍 FINAL VERIFICATION:', {
+                vocabularyLength: vocabulary.length,
+                isArray: Array.isArray(vocabulary),
+                sampleItems: vocabulary.slice(0, 2)
+            });
+            
+            return vocabulary.length > 0;
+        } catch (err) {
+            console.error('💥 Unexpected error in fetchNotesByDeck:', err);
+            console.error('Stack trace:', err.stack);
+            
+            // Try to recover with a direct global assignment
+            try {
+                window.vocabulary = [];
+                vocabulary = [];
+            } catch (e) {
+                console.error('Failed to reset vocabulary array:', e);
+            }
+            
+            return false;
+        }
+    }
+    
+    // Render the decks in the side panel
+    function renderDecks(decks) {
+        console.log('🎨 Rendering decks:', decks);
+        
+        const decksList = document.getElementById('decksList');
+        if (!decksList) return;
+        
+        decksList.innerHTML = '';
+        
+        if (decks.length === 0) {
+            decksList.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <p class="text-sm">No decks yet.</p>
+                    <p class="text-xs">Create your first deck above!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Group decks by language
+        const decksByLanguage = {};
+        decks.forEach(deck => {
+            const languageDisplay = getLanguageDisplayName(deck.language);
+            if (!decksByLanguage[languageDisplay]) {
+                decksByLanguage[languageDisplay] = [];
+            }
+            decksByLanguage[languageDisplay].push(deck);
+        });
+        
+        // Render each language group
+        Object.entries(decksByLanguage).forEach(([language, languageDecks]) => {
+            const languageGroup = document.createElement('div');
+            languageGroup.className = 'deck-language-group';
+            
+            languageGroup.innerHTML = `
+                <div class="deck-language-header">${language}</div>
+                ${languageDecks.map(deck => `
+                    <div class="deck-item ${deck.id === currentlySelectedDeckId ? 'active' : ''}" 
+                         data-deck-id="${deck.id}" 
+                         data-deck-name="${deck.name}"
+                         data-deck-language="${deck.language}">
+                        <svg class="deck-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                        </svg>
+                        <span class="deck-item-text">${deck.name}</span>
+                        <span class="deck-item-count">${deck.notes_count || 0}</span>
+                    </div>
+                `).join('')}
+            `;
+            
+            decksList.appendChild(languageGroup);
+        });
+        
+        // Add click listeners to deck items
+        decksList.querySelectorAll('.deck-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const deckId = item.getAttribute('data-deck-id');
+                const deckName = item.getAttribute('data-deck-name');
+                const deckLanguage = item.getAttribute('data-deck-language');
+                
+                await selectDeck(deckId, deckName, deckLanguage);
+            });
+        });
+    }
+    
+    // Select a deck and update the UI
+    async function selectDeck(deckId, deckName, deckLanguage) {
+        console.log('🎯 Selecting deck:', deckId, deckName, deckLanguage);
+        
+        // Update state
+        currentlySelectedDeckId = deckId;
+        csvUploadedTargetLanguage = deckLanguage;
+        activeTargetStudyLanguage = deckLanguage;
+        
+        // Update active deck visuals
+        document.querySelectorAll('.deck-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`[data-deck-id="${deckId}"]`)?.classList.add('active');
+        
+        // Fetch notes for this deck
+        await fetchNotesByDeck(deckId);
+        
+        // Close panel on mobile
+        if (window.innerWidth <= 768) {
+            toggleDeckPanel();
+        }
+        
+        console.log('✅ Deck selected and notes loaded');
+    }
+    
+    // Get display name for language code
+    function getLanguageDisplayName(languageCode) {
+        const languageMap = {
+            'en-GB': 'English',
+            'en-US': 'English',
+            'es-ES': 'Spanish',
+            'fr-FR': 'French',
+            'de-DE': 'German',
+            'it-IT': 'Italian',
+            'pt-PT': 'Portuguese',
+            'ja-JP': 'Japanese',
+            'ko-KR': 'Korean',
+            'zh-CN': 'Chinese',
+            'nl-NL': 'Dutch',
+            'ru-RU': 'Russian',
+            'ar-SA': 'Arabic'
+        };
+        return languageMap[languageCode] || languageCode;
+    }
+    
+    // Toggle the side panel
+    function toggleDeckPanel() {
+        const panel = document.getElementById('deckSidePanel');
+        const toggle = document.getElementById('deckSidePanelToggle');
+        const mainContent = document.getElementById('mainContent');
+        
+        isPanelOpen = !isPanelOpen;
+        
+        if (isPanelOpen) {
+            panel.classList.add('open');
+            toggle.classList.add('open');
+            if (window.innerWidth > 768) {
+                mainContent.classList.add('panel-open');
+            }
+        } else {
+            panel.classList.remove('open');
+            toggle.classList.remove('open');
+            mainContent.classList.remove('panel-open');
+        }
+    }
+    
+    // Initialize deck management
+    async function initializeDeckManagement() {
+        console.log('🏗️ Initializing deck management...');
+        
+        try {
+            // First check if we have a default deck from compatibility mode
+            const defaultDeckData = localStorage.getItem('default_deck');
+            if (defaultDeckData) {
+                const defaultDeck = JSON.parse(defaultDeckData);
+                console.log('🔄 Found default deck in compatibility mode:', defaultDeck);
+                userDecks = [defaultDeck];
+                renderDecks(userDecks);
+                await selectDeck(defaultDeck.id, defaultDeck.name, defaultDeck.language);
+                return;
+            }
+            
+            // Fetch user's decks
+            userDecks = await fetchUserDecks();
+            console.log('📚 User decks:', userDecks);
+            
+            if (userDecks.length === 0) {
+                // New user - show welcome modal
+                console.log('👋 New user detected - showing welcome modal');
+                showWelcomeModal();
+            } else {
+                // Existing user - render decks and auto-select first one
+                console.log('👤 Existing user - rendering decks');
+                renderDecks(userDecks);
+                
+                // Auto-select first deck
+                const firstDeck = userDecks[0];
+                await selectDeck(firstDeck.id, firstDeck.name, firstDeck.language);
+            }
+        } catch (err) {
+            console.error('💥 Error initializing deck management:', err);
+            // Fallback to show welcome modal on error
+            showWelcomeModal();
+        }
+    }
+    
+    // Show welcome modal for new users
+    function showWelcomeModal() {
+        const modal = document.getElementById('welcomeDeckModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    // Hide welcome modal
+    function hideWelcomeModal() {
+        const modal = document.getElementById('welcomeDeckModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
     // --- STATE & CONSTANTS ---
     const MAX_MISTAKES = 3, FAST_ANSWER_THRESHOLD = 5e3, POINTS_CORRECT_TALK_TO_ME = 5, POINTS_FAST_CORRECT = 10, POINTS_SLOW_CORRECT = 5, POINTS_INCORRECT = -10, ITEMS_PER_PART = 32, ITEMS_PER_SUB_ROUND = 8, MAX_GAME_ITEMS_FILL_BLANKS = 10, TEXT_TRUNCATE_LENGTH = 60, MAX_FIND_WORDS_ROUNDS = 5, WORDS_PER_FIND_WORDS_DISPLAY = 8, WORDS_PER_FIND_WORDS_TARGET = 3, FIND_WORDS_REQUIRED_VOCAB = 15;
     let vocabulary = [], csvUploadedTargetLanguage = "en-GB", activeTargetStudyLanguage = "en-GB", recognition, isListening = false, isSignUp = false, isAuthenticating = false;
+    
+    // --- DECK MANAGEMENT STATE ---
+    let currentlySelectedDeckId = null;
+    let userDecks = [];
+    let isPanelOpen = false;
     
     // Helper function to check if user has already defined a learning language
     function hasDefinedLanguage() {
@@ -542,7 +881,8 @@ async function fetchNotes() {
                 term_lang: (liveNotesLanguageSelector && !liveNotesModal?.classList.contains('hidden')) 
                           ? liveNotesLanguageSelector.value 
                           : csvUploadedTargetLanguage || 'en-GB',
-                definition_lang: 'en'
+                definition_lang: 'en',
+                note_set_id: currentlySelectedDeckId === 'default' ? null : currentlySelectedDeckId // Handle compatibility mode
             }));
             console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
             console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
@@ -566,6 +906,13 @@ async function fetchNotes() {
             }
             
             console.log('✅ saveNotes: Notes saved successfully');
+            
+            // Refresh the current deck's notes count
+            if (currentlySelectedDeckId) {
+                userDecks = await fetchUserDecks();
+                renderDecks(userDecks);
+            }
+            
             return true;
             
         } catch (err) {
@@ -611,6 +958,11 @@ async function fetchNotes() {
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
         liveNotesTextarea.addEventListener('keydown', handleNotepadKeydown);
         liveNotesTextarea.addEventListener('click', handleNotepadClick);
+        
+        // Add page visibility listeners to handle device lock/unlock
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleWindowFocus);
+        window.addEventListener('blur', handleWindowBlur);
         
         // Initialize display counters and status
         updateLineAndParsedCounts();
@@ -790,7 +1142,7 @@ async function fetchNotes() {
             };
             const handleSpanish = () => {
                 cleanup();
-                resolve({ language: 'es-ES', neverAskAgain: neverAskCheckbox.checked });
+                resolve({ language: 'es-US', neverAskAgain: neverAskCheckbox.checked });
             };
             const handlePortuguese = () => {
                 cleanup();
@@ -843,7 +1195,7 @@ async function fetchNotes() {
             const handleEnglish = () => { cleanup(); resolve({ language: 'en-GB', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleFrench = () => { cleanup(); resolve({ language: 'fr-FR', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleGerman = () => { cleanup(); resolve({ language: 'de-DE', keepPreference: keepPreferenceCheckbox.checked }); };
-            const handleSpanish = () => { cleanup(); resolve({ language: 'es-ES', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handleSpanish = () => { cleanup(); resolve({ language: 'es-US', keepPreference: keepPreferenceCheckbox.checked }); };
             const handlePortuguese = () => { cleanup(); resolve({ language: 'pt-PT', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleDutch = () => { cleanup(); resolve({ language: 'nl-NL', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleCancel = () => { cleanup(); reject('cancelled'); };
@@ -886,6 +1238,11 @@ async function fetchNotes() {
         // Hide any translation suggestion
         hideTranslationSuggestion();
         
+        // Remove visibility event listeners
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', handleWindowFocus);
+        window.removeEventListener('blur', handleWindowBlur);
+        
         // Save any pending changes before closing
         if (pendingChanges) {
             saveLiveNotes();
@@ -895,6 +1252,65 @@ async function fetchNotes() {
         liveNotesModal.classList.add('hidden');
     }
     
+    function setupAutoSaveTimer() {
+        // Clear existing timer
+        if (window.autoSaveTimeout) {
+            clearTimeout(window.autoSaveTimeout);
+        }
+        
+        // Set new timer
+        window.autoSaveTimeout = setTimeout(() => {
+            if (pendingChanges) {
+                saveLiveNotes();
+            }
+        }, 20000); // Auto-save after 20 seconds of inactivity
+    }
+
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            // Page became hidden (device locked, tab switched, etc.)
+            console.log('📱 Live Notes: Page became hidden, pausing auto-save timers');
+            if (window.autoSaveTimeout) {
+                clearTimeout(window.autoSaveTimeout);
+            }
+            if (autoAdvanceTimer) {
+                clearTimeout(autoAdvanceTimer);
+            }
+        } else {
+            // Page became visible again (device unlocked, tab focused, etc.)
+            console.log('📱 Live Notes: Page became visible, resuming auto-save functionality');
+            
+            // Save any pending changes immediately
+            if (pendingChanges) {
+                console.log('📱 Live Notes: Saving pending changes after visibility restore');
+                saveLiveNotes();
+            }
+            
+            // Restart auto-save timer with remaining time
+            if (liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
+                setupAutoSaveTimer();
+            }
+        }
+    }
+    
+    function handleWindowFocus() {
+        // Additional focus handler for better compatibility
+        if (liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
+            console.log('📱 Live Notes: Window focused, ensuring auto-save is active');
+            if (pendingChanges && !window.autoSaveTimeout) {
+                setupAutoSaveTimer();
+            }
+        }
+    }
+    
+    function handleWindowBlur() {
+        // Window lost focus - save any pending changes
+        if (pendingChanges && liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
+            console.log('📱 Live Notes: Window lost focus, saving pending changes');
+            saveLiveNotes();
+        }
+    }
+
     function handleNotepadInput(event) {
         notepadContent = event.target.value;
         pendingChanges = true;
@@ -932,11 +1348,7 @@ async function fetchNotes() {
         if (window.autoSaveTimeout) {
             clearTimeout(window.autoSaveTimeout);
         }
-        window.autoSaveTimeout = setTimeout(() => {
-            if (pendingChanges) {
-                saveLiveNotes();
-            }
-        }, 20000); // Auto-save after 20 seconds of inactivity
+        setupAutoSaveTimer();
         
         // Only start 7-second timer for auto-advance if user is not editing existing text
         // Check if user is at the end of text and on a new/empty line
@@ -1577,7 +1989,7 @@ async function fetchNotes() {
             const wordToTranslate = dashMatch[1].trim();
             if (wordToTranslate) {
                 // Get the auto-translate target language
-                const autoTranslateLanguage = localStorage.getItem('auto_translate_language') || 'es-ES';
+                const autoTranslateLanguage = localStorage.getItem('auto_translate_language') || 'es-US';
                 let langPair;
                 
                 // Determine translation direction based on auto-translate target language
@@ -1586,7 +1998,7 @@ async function fetchNotes() {
                     // Translating TO English - assume input could be Spanish/French/etc
                     // Try multiple source languages, prioritize Spanish
                     langPair = 'es|en';
-                } else if (autoTranslateLanguage === 'es-ES') {
+                } else if (autoTranslateLanguage === 'es-US') {
                     // Translating TO Spanish - translate from English to Spanish
                     langPair = 'en|es';
                 } else if (autoTranslateLanguage === 'fr-FR') {
@@ -1650,7 +2062,7 @@ async function fetchNotes() {
             const handleEnglish = () => { cleanup(); resolve('en-GB'); };
             const handleFrench = () => { cleanup(); resolve('fr-FR'); };
             const handleGerman = () => { cleanup(); resolve('de-DE'); };
-            const handleSpanish = () => { cleanup(); resolve('es-ES'); };
+            const handleSpanish = () => { cleanup(); resolve('es-US'); };
             const handlePortuguese = () => { cleanup(); resolve('pt-PT'); };
             const handleDutch = () => { cleanup(); resolve('nl-NL'); };
             const handleCancel = () => { cleanup(); reject('cancelled'); };
@@ -1877,7 +2289,21 @@ async function fetchNotes() {
         // Update filtered notes count and study button
         if (filteredNotesCount) {
             if (timeFilter !== 'all' || searchTerm) {
-                filteredNotesCount.textContent = `Showing ${filteredVocab.length} notes`;
+                let displayMessage = '';
+                
+                if (timeFilter !== 'all') {
+                    const timePeriodMap = {
+                        'today': 'last day',
+                        'week': 'last week', 
+                        'month': 'last month',
+                        '3months': 'last 3 months'
+                    };
+                    displayMessage = `Your notes over the ${timePeriodMap[timeFilter]} are ${filteredVocab.length}`;
+                } else if (searchTerm) {
+                    displayMessage = `Showing ${filteredVocab.length} notes`;
+                }
+                
+                filteredNotesCount.textContent = displayMessage;
                 if (studyFilteredNotesBtn && filteredVocab.length > 0) {
                     studyFilteredNotesBtn.classList.remove('hidden');
                     studyFilteredNotesBtn.textContent = `🎮 Play Matching Game (${filteredVocab.length} words)`;
@@ -2059,13 +2485,16 @@ async function fetchNotes() {
         // Store the filtered vocabulary for the game
         window.filteredGameVocabulary = filteredVocab;
         
+        // Set current vocabulary part to filtered vocab
+        currentVocabularyPart = filteredVocab;
+        
         // Navigate to game area
         hideAllSections();
         gameArea.classList.remove('hidden');
         
         // Set up matching game with filtered vocabulary
         showSection('matching');
-        playMatchingGame(filteredVocab);
+        initMatchingGame();
     }
     
     async function deleteNote(index, note) {
@@ -2231,14 +2660,44 @@ async function fetchNotes() {
     }
     
     function speakText(text, lang = 'en-GB') {
-        if ('speechSynthesis' in window) {
+        if ('speechSynthesis' in window && text) {
             // Cancel any ongoing speech
             window.speechSynthesis.cancel();
             
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang;
+            
+            // Ensure proper language mapping for better cross-browser support
+            if (lang === 'es-US' || lang === 'es-ES') {
+                // Force es-US for better pronunciation on Safari/Mac
+                utterance.lang = 'es-US';
+            } else if (lang === 'en-US' || lang === 'en-GB') {
+                // Force en-GB as default English
+                utterance.lang = 'en-GB';
+            } else {
+                utterance.lang = lang;
+            }
+            
             utterance.rate = 0.8;
             utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            // Additional Safari/Mac compatibility
+            if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+                utterance.rate = 0.9;
+                // Force voice selection for better pronunciation on Safari
+                const voices = window.speechSynthesis.getVoices();
+                if (utterance.lang.startsWith('es')) {
+                    const spanishVoice = voices.find(voice => 
+                        voice.lang.includes('es-US') || voice.lang.includes('es-MX') || voice.lang.includes('es')
+                    );
+                    if (spanishVoice) utterance.voice = spanishVoice;
+                } else if (utterance.lang.startsWith('en')) {
+                    const englishVoice = voices.find(voice => 
+                        voice.lang.includes('en-GB') || voice.lang.includes('en-US')
+                    );
+                    if (englishVoice) utterance.voice = englishVoice;
+                }
+            }
             
             window.speechSynthesis.speak(utterance);
         }
@@ -2324,7 +2783,7 @@ async function fetchNotes() {
                 currentEssentialsCategoryName = categoryKey; 
                 isEssentialsMode = true; 
                 if (categoryKey.toLowerCase().includes("(en-es)")) { 
-                    activeTargetStudyLanguage = 'es-ES'; 
+                    activeTargetStudyLanguage = 'es-US'; 
                 } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
                     activeTargetStudyLanguage = 'fr-FR'; 
                 } else { 
@@ -2488,7 +2947,35 @@ async function fetchNotes() {
 
             // --- GAME LOGIC FUNCTIONS ---
             function initMatchingGame() {
-                let gameVocab = shuffleArray(currentVocabularyPart).slice(0, ITEMS_PER_SUB_ROUND);
+                // Initialize round tracking for matching games
+                if (!window.matchingGameState) {
+                    window.matchingGameState = {
+                        currentRound: 1,
+                        totalRounds: 3,
+                        wrongMatches: [],
+                        bonusRoundActive: false,
+                        cardsPerRound: 6
+                    };
+                }
+                
+                startMatchingRound();
+            }
+            
+            function startMatchingRound() {
+                const gameState = window.matchingGameState;
+                let gameVocab;
+                
+                if (gameState.bonusRoundActive) {
+                    gameVocab = gameState.wrongMatches;
+                    matchingFeedback.textContent = `Bonus Round - Let's try those again!`;
+                } else {
+                    const startIndex = (gameState.currentRound - 1) * gameState.cardsPerRound;
+                    gameVocab = shuffleArray(currentVocabularyPart).slice(startIndex, startIndex + gameState.cardsPerRound);
+                    matchingFeedback.textContent = `Round ${gameState.currentRound} of ${gameState.totalRounds}`;
+                }
+                
+                matchedPairs = 0;
+                selectedMatchCard = null;
                 pairsToMatch = gameVocab.length;
                 let cards = [];
                 gameVocab.forEach((item, index) => {
@@ -2520,6 +3007,18 @@ async function fetchNotes() {
                 });
             }
 
+            function getCurrentMatchingVocab() {
+                const gameState = window.matchingGameState;
+                if (!gameState) return [];
+                
+                if (gameState.bonusRoundActive) {
+                    return gameState.wrongMatches;
+                } else {
+                    const startIndex = (gameState.currentRound - 1) * gameState.cardsPerRound;
+                    return currentVocabularyPart.slice(startIndex, startIndex + gameState.cardsPerRound);
+                }
+            }
+
             function handleMatchCardClick(cardElement) {
                 if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
 
@@ -2547,8 +3046,53 @@ async function fetchNotes() {
                         updateScoreDisplay();
                         
                         matchedPairs++;
-                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
+                        if (matchedPairs === pairsToMatch) {
+                            const gameState = window.matchingGameState;
+                            
+                            if (gameState.bonusRoundActive) {
+                                matchingFeedback.textContent = "Bonus Round Complete!";
+                                // Reset game state
+                                window.matchingGameState = null;
+                            } else if (gameState.currentRound < gameState.totalRounds) {
+                                gameState.currentRound++;
+                                matchingFeedback.textContent = `Round ${gameState.currentRound - 1} Complete!`;
+                                
+                                setTimeout(() => {
+                                    startMatchingRound();
+                                }, 2000);
+                            } else {
+                                // All regular rounds complete, check for bonus round
+                                if (gameState.wrongMatches.length > 0) {
+                                    gameState.bonusRoundActive = true;
+                                    matchingFeedback.textContent = "All rounds complete! Starting bonus round...";
+                                    
+                                    setTimeout(() => {
+                                        startMatchingRound();
+                                    }, 2000);
+                                } else {
+                                    matchingFeedback.textContent = "All rounds complete! Perfect game!";
+                                    window.matchingGameState = null;
+                                }
+                            }
+                        }
                     } else {
+                        // Track wrong matches for bonus round
+                        const gameState = window.matchingGameState;
+                        if (gameState && !gameState.bonusRoundActive) {
+                            // Find the vocabulary items for this mismatch
+                            const card1Id = parseInt(selectedMatchCard.dataset.id);
+                            const card2Id = parseInt(cardElement.dataset.id);
+                            
+                            // Add both items to wrong matches if not already there
+                            const currentVocab = getCurrentMatchingVocab();
+                            if (currentVocab[card1Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card1Id].lang1)) {
+                                gameState.wrongMatches.push(currentVocab[card1Id]);
+                            }
+                            if (currentVocab[card2Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card2Id].lang1)) {
+                                gameState.wrongMatches.push(currentVocab[card2Id]);
+                            }
+                        }
+                        
                         [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
                         playIncorrectSound();
                         setTimeout(() => {
@@ -2565,6 +3109,10 @@ async function fetchNotes() {
                 currentMcqIndex = 0;
                 multipleChoiceGameContainer.classList.remove('hidden');
                 
+                // Initialize wrong answers tracking
+                window.mcqWrongAnswers = [];
+                window.mcqBonusRoundActive = false;
+                
                 // Only show language selector if no language is defined
                 if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
@@ -2580,8 +3128,23 @@ async function fetchNotes() {
 
             function displayNextMcq(gameVocab) {
                 if (currentMcqIndex >= gameVocab.length) {
+                    // Check if we need a bonus round for wrong answers
+                    if (window.mcqWrongAnswers && window.mcqWrongAnswers.length > 0 && !window.mcqBonusRoundActive) {
+                        window.mcqBonusRoundActive = true;
+                        currentMcqIndex = 0;
+                        mcqQuestion.textContent = "Bonus Round - Let's try those again!";
+                        
+                        setTimeout(() => {
+                            displayNextMcq(window.mcqWrongAnswers);
+                        }, 2000);
+                        return;
+                    }
+                    
                     mcqQuestion.textContent = "Part Complete!";
                     mcqOptions.innerHTML = '';
+                    // Reset bonus round tracking
+                    window.mcqWrongAnswers = [];
+                    window.mcqBonusRoundActive = false;
                     return;
                 }
                 const currentItem = gameVocab[currentMcqIndex];
@@ -2612,13 +3175,38 @@ async function fetchNotes() {
                 if (mcqAnswered) return;
                 mcqAnswered = true;
                 button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
-                if (!isCorrect) {
+                
+                if (isCorrect) {
+                    // Play correct sound and auto-advance
+                    playCorrectMatchSound();
+                    currentScore += 5;
+                    if (currentScore > sessionMaxScore) {
+                        sessionMaxScore = currentScore;
+                    }
+                    updateScoreDisplay();
+                    
+                    // Auto-advance after 1.5 seconds
+                    setTimeout(() => {
+                        mcqAnswered = false; 
+                        currentMcqIndex++; 
+                        mcqFeedback.textContent = ''; // Clear any previous feedback
+                        displayNextMcq(currentVocabularyPart); 
+                        nextMcqBtn.classList.add('hidden');
+                    }, 1500);
+                } else {
+                    // Track wrong answer for bonus round
+                    if (!window.mcqWrongAnswers) window.mcqWrongAnswers = [];
+                    if (!window.mcqWrongAnswers.find(w => w.lang1 === item.lang1)) {
+                        window.mcqWrongAnswers.push(item);
+                    }
+                    
+                    playIncorrectSound();
                     mcqFeedback.textContent = `Correct: ${item.lang2}`;
                     mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
                         if (btn.textContent === item.lang2) btn.classList.add('correct-answer');
                     });
+                    nextMcqBtn.classList.remove('hidden');
                 }
-                nextMcqBtn.classList.remove('hidden');
             }
 
             function initTypeTranslationGame() {
@@ -2827,8 +3415,33 @@ async function startFindTheWordsRound(pool) {
 
             function checkFindTheWordsAnswer() {
                 const correctCount = findWordsSelectedWords.filter(s => findWordsTargetWords.includes(s)).length;
-                findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length}.`;
-                nextFindTheWordsRoundBtn.classList.remove('hidden');
+                const allCorrect = correctCount === WORDS_PER_FIND_WORDS_TARGET && findWordsSelectedWords.length === WORDS_PER_FIND_WORDS_TARGET;
+                
+                if (allCorrect) {
+                    playCorrectMatchSound();
+                    currentScore += 10; // Bonus points for finding all 3 words correctly
+                    if (currentScore > sessionMaxScore) {
+                        sessionMaxScore = currentScore;
+                    }
+                    updateScoreDisplay();
+                    
+                    findTheWordsFeedback.textContent = `Perfect! You found all ${correctCount} words!`;
+                    findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
+                    
+                    // Auto-advance to next round after 2 seconds
+                    setTimeout(() => {
+                        findWordsSelectedWords = [];
+                        startFindTheWordsRound(findWordsSessionPool);
+                        findTheWordsFeedback.textContent = '';
+                        findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base";
+                        nextFindTheWordsRoundBtn.classList.add('hidden');
+                    }, 2000);
+                } else {
+                    playIncorrectSound();
+                    findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length} correct words.`;
+                    findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                    nextFindTheWordsRoundBtn.classList.remove('hidden');
+                }
             }
 
             // --- EVENT LISTENERS ---
@@ -3265,6 +3878,10 @@ if (languageSelectorInGame) {
                         appContent.classList.remove('hidden');
 
                         try {
+                            // Initialize deck management first
+                            console.log('🗂️ Initializing deck management...');
+                            await initializeDeckManagement();
+                            
                             console.log('📊 Starting fetchNotes() call...');
                             console.log('📊 Current vocabulary state before fetch:', { 
                                 vocabularyLength: vocabulary.length, 
@@ -3410,5 +4027,72 @@ if (languageSelectorInGame) {
                     }
                 });
             }
+
+            // --- DECK MANAGEMENT EVENT LISTENERS ---
+            
+            // Side panel toggle
+            const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+            if (deckSidePanelToggle) {
+                deckSidePanelToggle.addEventListener('click', toggleDeckPanel);
+            }
+            
+            // New deck button
+            const newDeckBtn = document.getElementById('newDeckBtn');
+            if (newDeckBtn) {
+                newDeckBtn.addEventListener('click', showWelcomeModal);
+            }
+            
+            // Welcome modal create deck button
+            const createFirstDeckBtn = document.getElementById('createFirstDeckBtn');
+            if (createFirstDeckBtn) {
+                createFirstDeckBtn.addEventListener('click', async () => {
+                    const deckName = document.getElementById('welcomeDeckName')?.value.trim();
+                    const deckLanguage = document.getElementById('welcomeDeckLanguage')?.value;
+                    
+                    if (!deckName) {
+                        alert('Please enter a deck name.');
+                        return;
+                    }
+                    
+                    console.log('🆕 Creating first deck:', deckName, deckLanguage);
+                    
+                    const newDeck = await createDeck(deckName, deckLanguage);
+                    if (newDeck) {
+                        // Update state and UI
+                        userDecks = await fetchUserDecks();
+                        renderDecks(userDecks);
+                        await selectDeck(newDeck.id, newDeck.name, newDeck.language);
+                        
+                        // Hide welcome modal
+                        hideWelcomeModal();
+                        
+                        console.log('✅ First deck created and selected');
+                    } else {
+                        alert('Failed to create deck. Please try again.');
+                    }
+                });
+            }
+            
+            // Close deck panel when clicking outside (mobile)
+            document.addEventListener('click', (e) => {
+                const panel = document.getElementById('deckSidePanel');
+                const toggle = document.getElementById('deckSidePanelToggle');
+                
+                if (isPanelOpen && window.innerWidth <= 768) {
+                    if (!panel.contains(e.target) && !toggle.contains(e.target)) {
+                        toggleDeckPanel();
+                    }
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const mainContent = document.getElementById('mainContent');
+                if (window.innerWidth <= 768) {
+                    mainContent.classList.remove('panel-open');
+                } else if (isPanelOpen) {
+                    mainContent.classList.add('panel-open');
+                }
+            });
 
         });
