@@ -706,6 +706,22 @@
                 margin-left: 0;
             }
         }
+        
+        /* Tablet portrait mode - limit panel width to 40% */
+        @media (min-width: 769px) and (max-width: 1024px) and (orientation: portrait) {
+            #deckSidePanel {
+                width: 40%;
+                max-width: 400px;
+            }
+            
+            #deckSidePanelToggle.open {
+                left: 40%;
+            }
+            
+            .main-content.panel-open {
+                margin-left: 40%;
+            }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>

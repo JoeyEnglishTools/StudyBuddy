@@ -610,6 +610,11 @@ async function fetchNotes() {
         csvUploadedTargetLanguage = deckLanguage;
         activeTargetStudyLanguage = deckLanguage;
         
+        // Store selected deck for session persistence
+        localStorage.setItem('lastSelectedDeckId', deckId);
+        localStorage.setItem('lastSelectedDeckName', deckName);
+        localStorage.setItem('lastSelectedDeckLanguage', deckLanguage);
+        
         // Update active deck visuals
         document.querySelectorAll('.deck-item').forEach(item => {
             item.classList.remove('active');
@@ -618,6 +623,17 @@ async function fetchNotes() {
         
         // Fetch notes for this deck
         await fetchNotesByDeck(deckId);
+        
+        // Check if we should auto-trigger games (6+ words)
+        if (vocabulary && vocabulary.length >= 6) {
+            console.log('🎮 Auto-triggering games: Found', vocabulary.length, 'words');
+            // Show game selection automatically
+            setTimeout(() => {
+                if (typeof showGameSelection === 'function') {
+                    showGameSelection();
+                }
+            }, 500); // Small delay to ensure UI is ready
+        }
         
         // Close panel on mobile
         if (window.innerWidth <= 768) {
@@ -693,13 +709,25 @@ async function fetchNotes() {
                 console.log('👋 New user detected - showing welcome modal');
                 showWelcomeModal();
             } else {
-                // Existing user - render decks and auto-select first one
+                // Existing user - render decks and auto-select appropriate deck
                 console.log('👤 Existing user - rendering decks');
                 renderDecks(userDecks);
                 
-                // Auto-select first deck
-                const firstDeck = userDecks[0];
-                await selectDeck(firstDeck.id, firstDeck.name, firstDeck.language);
+                // Try to restore last selected deck, otherwise select first one
+                const lastSelectedDeckId = localStorage.getItem('lastSelectedDeckId');
+                let deckToSelect = userDecks[0]; // Default to first deck
+                
+                if (lastSelectedDeckId) {
+                    const lastDeck = userDecks.find(deck => deck.id === lastSelectedDeckId);
+                    if (lastDeck) {
+                        deckToSelect = lastDeck;
+                        console.log('🔄 Restoring last selected deck:', lastDeck.name);
+                    } else {
+                        console.log('⚠️ Last selected deck not found, using first deck');
+                    }
+                }
+                
+                await selectDeck(deckToSelect.id, deckToSelect.name, deckToSelect.language);
             }
         } catch (err) {
             console.error('💥 Error initializing deck management:', err);
@@ -1247,6 +1275,16 @@ async function fetchNotes() {
         if (pendingChanges) {
             saveLiveNotes();
         }
+        
+        // Check if we should auto-trigger games after closing Live Notes
+        setTimeout(() => {
+            if (vocabulary && vocabulary.length >= 6) {
+                console.log('🎮 Auto-triggering games after Live Notes: Found', vocabulary.length, 'words');
+                if (typeof showGameSelection === 'function') {
+                    showGameSelection();
+                }
+            }
+        }, 1000); // Delay to ensure save is complete
         
         // Hide modal
         liveNotesModal.classList.add('hidden');
@@ -2539,55 +2577,101 @@ async function fetchNotes() {
     }
     
     function editNote(index, note) {
-        // Create edit modal
-        const editModal = document.createElement('div');
-        editModal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full';
-        editModal.style.zIndex = '1005';
+        console.log('✏️ Starting inline edit for note:', note, 'at index:', index);
         
-        editModal.innerHTML = `
-            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                <div class="mt-3">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4 text-center">✏️ Edit Note</h3>
-                    <div class="mt-2 px-4 py-3">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Target Language Word/Phrase:</label>
-                            <input type="text" id="editTermInput" value="${note.lang1}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Definition/Translation:</label>
-                            <input type="text" id="editDefinitionInput" value="${note.lang2}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
-                        </div>
-                    </div>
-                    <div class="flex gap-2 px-4 py-3">
-                        <button id="saveEditBtn" class="flex-1 px-4 py-2 bg-teal-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-                            💾 Save Changes
-                        </button>
-                        <button id="cancelEditBtn" class="flex-1 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                            Cancel
-                        </button>
-                    </div>
+        // Find the note item in the DOM
+        const noteItems = document.querySelectorAll('.note-item');
+        let targetNoteItem = null;
+        
+        // Find the correct note item by matching the content
+        for (let item of noteItems) {
+            const noteContent = item.querySelector('.flex-1');
+            if (noteContent && noteContent.textContent.includes(note.lang1) && noteContent.textContent.includes(note.lang2)) {
+                targetNoteItem = item;
+                break;
+            }
+        }
+        
+        if (!targetNoteItem) {
+            console.error('❌ Could not find note item in DOM');
+            return;
+        }
+        
+        // Get the content div
+        const noteContent = targetNoteItem.querySelector('.flex-1');
+        const editBtn = targetNoteItem.querySelector('.edit-btn');
+        const deleteBtn = targetNoteItem.querySelector('.delete-btn');
+        
+        // Store original content
+        const originalContent = noteContent.innerHTML;
+        
+        // Replace content with input fields
+        noteContent.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="flex-1">
+                    <input type="text" id="editTermInput_${index}" value="${note.lang1}" 
+                           class="font-medium text-gray-900 border-b-2 border-teal-500 bg-transparent focus:outline-none focus:border-teal-700 mr-2"
+                           style="min-width: 120px;">
+                    <span class="text-gray-600 mx-2">—</span>
+                    <input type="text" id="editDefinitionInput_${index}" value="${note.lang2}" 
+                           class="text-gray-700 border-b-2 border-teal-500 bg-transparent focus:outline-none focus:border-teal-700"
+                           style="min-width: 120px;">
                 </div>
             </div>
         `;
         
-        document.body.appendChild(editModal);
+        // Replace edit button with save (floppy disk) button
+        editBtn.innerHTML = '💾';
+        editBtn.title = 'Save changes';
+        editBtn.className = 'ml-2 text-green-500 hover:text-green-700 hover:bg-green-50 p-2 rounded save-btn';
         
-        const termInput = document.getElementById('editTermInput');
-        const definitionInput = document.getElementById('editDefinitionInput');
-        const saveBtn = document.getElementById('saveEditBtn');
-        const cancelBtn = document.getElementById('cancelEditBtn');
+        // Hide delete button during edit
+        deleteBtn.style.display = 'none';
         
-        // Focus on term input
+        // Focus on the first input
+        const termInput = document.getElementById(`editTermInput_${index}`);
+        const definitionInput = document.getElementById(`editDefinitionInput_${index}`);
         termInput.focus();
         termInput.select();
         
-        const cleanup = () => {
-            document.body.removeChild(editModal);
+        // Handle Enter key to move between fields
+        termInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                definitionInput.focus();
+                definitionInput.select();
+            } else if (e.key === 'Escape') {
+                cancelEdit();
+            }
+        });
+        
+        definitionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                cancelEdit();
+            }
+        });
+        
+        // Function to cancel edit
+        const cancelEdit = () => {
+            noteContent.innerHTML = originalContent;
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Edit note';
+            editBtn.className = 'ml-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded edit-btn';
+            deleteBtn.style.display = 'block';
+            
+            // Re-attach original click listener to edit button
+            editBtn.removeEventListener('click', saveEdit);
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                editNote(index, note);
+            });
         };
         
-        cancelBtn.addEventListener('click', cleanup);
-        
-        saveBtn.addEventListener('click', async () => {
+        // Function to save edit
+        const saveEdit = async () => {
             const newTerm = termInput.value.trim();
             const newDefinition = definitionInput.value.trim();
             
@@ -2630,32 +2714,58 @@ async function fetchNotes() {
                 
                 console.log('✅ Note updated locally:', { index, newTerm, newDefinition });
                 
-                // Refresh the notes list to show changes
-                const notesSearchInput = document.getElementById('notesSearchInput');
-                const currentSearchTerm = notesSearchInput ? notesSearchInput.value : '';
-                populateNotesList(currentSearchTerm);
+                // Update the note object for future edits
+                note.lang1 = newTerm;
+                note.lang2 = newDefinition;
                 
-                cleanup();
+                // Update the display
+                noteContent.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="flex-1">
+                            <span class="font-medium text-gray-900 click-to-speak" data-text="${newTerm}" data-lang="${note.term_lang || csvUploadedTargetLanguage}">${newTerm}</span>
+                            <span class="text-gray-600 mx-2">—</span>
+                            <span class="text-gray-700 click-to-speak" data-text="${newDefinition}" data-lang="en">${newDefinition}</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Re-attach click listener for TTS
+                noteContent.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('click-to-speak')) {
+                        // Only allow clicking on target language (first word)
+                        if (e.target.dataset.text === newTerm) {
+                            const text = e.target.dataset.text;
+                            const lang = e.target.dataset.lang;
+                            console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
+                            speakText(text, lang);
+                        }
+                    }
+                });
+                
+                // Restore edit button
+                editBtn.innerHTML = '✏️';
+                editBtn.title = 'Edit note';
+                editBtn.className = 'ml-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded edit-btn';
+                deleteBtn.style.display = 'block';
+                
+                // Re-attach edit functionality
+                editBtn.removeEventListener('click', saveEdit);
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    editNote(index, note);
+                });
                 
             } catch (error) {
                 console.error('Error editing note:', error);
                 alert('Error editing note');
             }
-        });
+        };
         
-        // Handle Enter key to save
-        termInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                definitionInput.focus();
-            }
-        });
-        
-        definitionInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveBtn.click();
-            }
+        // Replace the click handler for the save button
+        editBtn.removeEventListener('click', editNote);
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveEdit();
         });
     }
     
