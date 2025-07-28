@@ -804,8 +804,8 @@ async function fetchNotes() {
     
     // Live Notes elements
     const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
-    const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
-    const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
+    const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), memoryTestBtn = document.getElementById("memoryTestBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
+    const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), memoryTestGameContainer = document.getElementById("memoryTestGame"), memoryTestGrid = document.getElementById("memoryTestGrid"), memoryTestInstructions = document.getElementById("memoryTestInstructions"), memoryTestFeedback = document.getElementById("memoryTestFeedback"), memoryTestLives = document.getElementById("memoryTestLives"), memoryTestTimer = document.getElementById("memoryTestTimer"), memoryTestTimerValue = document.getElementById("memoryTestTimerValue"), memoryTestRoundInfo = document.getElementById("memoryTestRoundInfo"), memoryTestRecording = document.getElementById("memoryTestRecording"), memoryTestRecognizedText = document.getElementById("memoryTestRecognizedText"), resetMemoryTestBtn = document.getElementById("resetMemoryTestBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
     const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
     const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
     const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
@@ -2821,7 +2821,7 @@ async function fetchNotes() {
     }
 
     // --- UI & NAVIGATION ---
-    function hideAllGames() { [matchingGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
+    function hideAllGames() { [matchingGameContainer, memoryTestGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
     function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
     function showMainSelection() { 
         // If user has existing vocabulary, skip main selection and go directly to games
@@ -2961,6 +2961,7 @@ async function fetchNotes() {
         resetGameStats();
         switch (gameType) {
             case 'matching': initMatchingGame(); break;
+            case 'memoryTest': initMemoryTestGame(); break;
             case 'multipleChoice': initMultipleChoiceGame(); break;
             case 'typeTranslation': initTypeTranslationGame(); break;
             case 'talkToMe': initTalkToMeGame(); break;
@@ -3212,6 +3213,360 @@ async function fetchNotes() {
                     }
                     if (selectedMatchCard) selectedMatchCard = null;
                 }
+            }
+
+            function initMemoryTestGame() {
+                // Initialize the Memory Test game state
+                if (!window.memoryTestGameState) {
+                    window.memoryTestGameState = {
+                        currentRound: 1,
+                        totalRounds: 3,
+                        cardsPerRound: [4, 6, 8], // Cards for each round
+                        lives: 3,
+                        wrongCards: [],
+                        bonusRoundActive: false,
+                        currentCard: null,
+                        recordingTimeoutId: null,
+                        cardAttempts: {}, // Track attempts per card ID
+                        roundCompletedCards: [] // Track completed cards for current round
+                    };
+                }
+                
+                startMemoryTestRound();
+            }
+            
+            function startMemoryTestRound() {
+                const gameState = window.memoryTestGameState;
+                let gameVocab;
+                
+                if (gameState.bonusRoundActive) {
+                    gameVocab = gameState.wrongCards;
+                    memoryTestFeedback.textContent = `Bonus Round - Let's try those again!`;
+                    memoryTestRoundInfo.textContent = `Bonus Round`;
+                } else {
+                    const cardsThisRound = gameState.cardsPerRound[gameState.currentRound - 1];
+                    gameVocab = shuffleArray(currentVocabularyPart).slice(0, cardsThisRound);
+                    memoryTestFeedback.textContent = `Round ${gameState.currentRound} of ${gameState.totalRounds}`;
+                    memoryTestRoundInfo.textContent = `Round ${gameState.currentRound}/${gameState.totalRounds}`;
+                }
+                
+                // Reset round-specific state
+                gameState.roundCompletedCards = [];
+                gameState.cardAttempts = {};
+                
+                memoryTestGameContainer.classList.remove('hidden');
+                memoryTestGrid.innerHTML = '';
+                
+                // Update lives display
+                updateMemoryTestLives();
+                
+                // Hide timer initially
+                memoryTestTimer.classList.add('hidden');
+                
+                // Only show language selector if no language is defined
+                if (!hasDefinedLanguage()) {
+                    languageSelectionInGameContainer.classList.remove('hidden');
+                } else {
+                    languageSelectionInGameContainer.classList.add('hidden');
+                    activeTargetStudyLanguage = getCurrentActiveLanguage();
+                }
+                
+                hearItOutLoudToggleBtn.classList.remove('hidden');
+                
+                // Create cards showing target language words
+                gameVocab.forEach((item, index) => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'memory-test-card card p-3';
+                    cardElement.textContent = item.lang2; // Show target language (user needs to say lang1)
+                    cardElement.dataset.id = index;
+                    cardElement.dataset.lang1 = item.lang1; // Expected answer
+                    cardElement.dataset.lang2 = item.lang2;
+                    cardElement.addEventListener('click', () => handleMemoryTestCardClick(cardElement));
+                    memoryTestGrid.appendChild(cardElement);
+                });
+            }
+            
+            function updateMemoryTestLives() {
+                const gameState = window.memoryTestGameState;
+                const livesContainer = memoryTestLives;
+                livesContainer.innerHTML = '';
+                
+                for (let i = 0; i < gameState.lives; i++) {
+                    const life = document.createElement('span');
+                    life.className = 'text-2xl';
+                    life.textContent = '🦫';
+                    livesContainer.appendChild(life);
+                }
+            }
+            
+            function handleMemoryTestCardClick(cardElement) {
+                const gameState = window.memoryTestGameState;
+                
+                // Don't allow clicking if already completed or recording
+                if (cardElement.classList.contains('completed') || 
+                    cardElement.classList.contains('recording') || 
+                    gameState.currentCard) {
+                    return;
+                }
+                
+                // Initialize attempts tracking for this card
+                const cardId = cardElement.dataset.id;
+                if (!gameState.cardAttempts[cardId]) {
+                    gameState.cardAttempts[cardId] = 0;
+                }
+                
+                // Check if this card has already been attempted 2 times
+                if (gameState.cardAttempts[cardId] >= 2) {
+                    return;
+                }
+                
+                gameState.currentCard = cardElement;
+                cardElement.classList.add('recording');
+                
+                // Show recording UI
+                memoryTestRecording.classList.remove('hidden');
+                memoryTestRecognizedText.textContent = '';
+                
+                // Start timer
+                startMemoryTestTimer();
+                
+                // Start speech recognition
+                startMemoryTestListening(cardElement);
+            }
+            
+            function startMemoryTestTimer() {
+                const gameState = window.memoryTestGameState;
+                memoryTestTimer.classList.remove('hidden');
+                let timeLeft = 5;
+                memoryTestTimerValue.textContent = timeLeft;
+                
+                const timerInterval = setInterval(() => {
+                    timeLeft--;
+                    memoryTestTimerValue.textContent = timeLeft;
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        memoryTestTimer.classList.add('hidden');
+                        
+                        // Time's up - treat as incorrect if still recording
+                        if (gameState.currentCard && gameState.currentCard.classList.contains('recording')) {
+                            handleMemoryTestIncorrect(gameState.currentCard, 'Time\'s up!');
+                        }
+                    }
+                }, 1000);
+                
+                // Store timer for potential cleanup
+                gameState.recordingTimeoutId = timerInterval;
+            }
+            
+            function startMemoryTestListening(cardElement) {
+                if (!recognition) {
+                    // Try to initialize if not already done
+                    initSpeechRecognition();
+                    if (!recognition) {
+                        memoryTestFeedback.textContent = "Speech recognition not available in this browser";
+                        handleMemoryTestIncorrect(cardElement, 'Speech recognition not available');
+                        return;
+                    }
+                }
+                
+                // Set recognition language to English (user needs to speak original language)
+                recognition.lang = 'en-GB';
+                
+                recognition.onresult = (event) => {
+                    const spokenText = event.results[0][0].transcript.toLowerCase().trim();
+                    memoryTestRecognizedText.textContent = `Heard: "${spokenText}"`;
+                    
+                    // Check if correct
+                    const expectedAnswer = cardElement.dataset.lang1.toLowerCase().trim();
+                    const isCorrect = spokenText === expectedAnswer || 
+                                    spokenText.includes(expectedAnswer) ||
+                                    expectedAnswer.includes(spokenText);
+                    
+                    if (isCorrect) {
+                        handleMemoryTestCorrect(cardElement);
+                    } else {
+                        handleMemoryTestIncorrect(cardElement, `Expected: "${expectedAnswer}"`);
+                    }
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    handleMemoryTestIncorrect(cardElement, 'Speech recognition error');
+                };
+                
+                recognition.onend = () => {
+                    // Recognition ended - cleanup if still recording
+                    if (cardElement.classList.contains('recording')) {
+                        stopMemoryTestRecording(cardElement);
+                    }
+                };
+                
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Could not start speech recognition:', error);
+                    handleMemoryTestIncorrect(cardElement, 'Could not start recording');
+                }
+            }
+            
+            function handleMemoryTestCorrect(cardElement) {
+                const gameState = window.memoryTestGameState;
+                const cardId = cardElement.dataset.id;
+                
+                stopMemoryTestRecording(cardElement);
+                
+                cardElement.classList.remove('recording');
+                cardElement.classList.add('correct', 'completed');
+                
+                // Calculate points based on time and attempts
+                const attempts = gameState.cardAttempts[cardId] + 1;
+                const timeLeft = parseInt(memoryTestTimerValue.textContent) || 0;
+                let points = 0;
+                
+                if (attempts === 1 && timeLeft > 0) {
+                    points = 10; // First try within 5 seconds
+                } else if (attempts === 2) {
+                    points = 5; // Second try
+                }
+                
+                // Update score
+                currentScore += points;
+                if (currentScore > sessionMaxScore) {
+                    sessionMaxScore = currentScore;
+                }
+                updateScoreDisplay();
+                
+                // Play success sound
+                playCorrectMatchSound();
+                
+                memoryTestFeedback.textContent = `Correct! +${points} points`;
+                gameState.roundCompletedCards.push(cardId);
+                
+                // Check if round is complete
+                setTimeout(() => {
+                    checkMemoryTestRoundComplete();
+                }, 1500);
+            }
+            
+            function handleMemoryTestIncorrect(cardElement, message) {
+                const gameState = window.memoryTestGameState;
+                const cardId = cardElement.dataset.id;
+                
+                stopMemoryTestRecording(cardElement);
+                
+                cardElement.classList.remove('recording');
+                cardElement.classList.add('incorrect');
+                
+                gameState.cardAttempts[cardId]++;
+                
+                // Remove incorrect class after animation
+                setTimeout(() => {
+                    cardElement.classList.remove('incorrect');
+                }, 500);
+                
+                memoryTestFeedback.textContent = message;
+                
+                // Check if this was the second attempt
+                if (gameState.cardAttempts[cardId] >= 2) {
+                    cardElement.classList.add('completed');
+                    
+                    // Add to wrong cards for bonus round
+                    const vocabItem = {
+                        lang1: cardElement.dataset.lang1,
+                        lang2: cardElement.dataset.lang2
+                    };
+                    
+                    if (!gameState.wrongCards.find(w => w.lang1 === vocabItem.lang1)) {
+                        gameState.wrongCards.push(vocabItem);
+                    }
+                    
+                    gameState.roundCompletedCards.push(cardId);
+                    
+                    // Lose a life
+                    gameState.lives--;
+                    updateMemoryTestLives();
+                    
+                    if (gameState.lives <= 0) {
+                        endMemoryTestGame('Game Over! No lives remaining.');
+                        return;
+                    }
+                }
+                
+                // Check if round is complete
+                setTimeout(() => {
+                    checkMemoryTestRoundComplete();
+                }, 1500);
+            }
+            
+            function stopMemoryTestRecording(cardElement) {
+                const gameState = window.memoryTestGameState;
+                
+                // Hide recording UI
+                memoryTestRecording.classList.add('hidden');
+                memoryTestTimer.classList.add('hidden');
+                
+                // Clear timer
+                if (gameState.recordingTimeoutId) {
+                    clearInterval(gameState.recordingTimeoutId);
+                    gameState.recordingTimeoutId = null;
+                }
+                
+                // Stop speech recognition
+                if (recognition && recognition.isListening !== false) {
+                    try {
+                        recognition.stop();
+                    } catch (error) {
+                        console.log('Error stopping recognition:', error);
+                    }
+                }
+                
+                gameState.currentCard = null;
+            }
+            
+            function checkMemoryTestRoundComplete() {
+                const gameState = window.memoryTestGameState;
+                const totalCardsThisRound = gameState.bonusRoundActive ? 
+                    gameState.wrongCards.length : 
+                    gameState.cardsPerRound[gameState.currentRound - 1];
+                
+                if (gameState.roundCompletedCards.length >= totalCardsThisRound) {
+                    if (gameState.bonusRoundActive) {
+                        endMemoryTestGame('Bonus Round Complete! Well done!');
+                    } else if (gameState.currentRound < gameState.totalRounds) {
+                        gameState.currentRound++;
+                        memoryTestFeedback.textContent = `Round ${gameState.currentRound - 1} Complete! Get ready for Round ${gameState.currentRound}...`;
+                        
+                        setTimeout(() => {
+                            startMemoryTestRound();
+                        }, 2000);
+                    } else {
+                        // All regular rounds complete
+                        if (gameState.wrongCards.length > 0) {
+                            gameState.bonusRoundActive = true;
+                            memoryTestFeedback.textContent = "All rounds complete! Starting bonus round...";
+                            
+                            setTimeout(() => {
+                                startMemoryTestRound();
+                            }, 2000);
+                        } else {
+                            endMemoryTestGame('Perfect game! All rounds completed flawlessly!');
+                        }
+                    }
+                }
+            }
+            
+            function endMemoryTestGame(message) {
+                memoryTestFeedback.textContent = message;
+                
+                // Reset game state
+                window.memoryTestGameState = null;
+                
+                // Show game complete message
+                setTimeout(() => {
+                    gameOverMessage.classList.remove('hidden');
+                    memoryTestGameContainer.classList.add('hidden');
+                }, 2000);
             }
 
             function initMultipleChoiceGame() {
@@ -3806,6 +4161,7 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
             backToGameSelectionBtn.addEventListener('click', showGameSelection);
             backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
             matchingBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('matching'); });
+            memoryTestBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('memoryTest'); });
             multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('multipleChoice'); });
             typeTranslationBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('typeTranslation'); });
             talkToMeBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('talkToMe'); });
@@ -3846,6 +4202,14 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                 currentTalkToMeIndex++; 
                 displayNextTalkToMe(currentVocabularyPart); 
                 nextTalkToMeBtn.classList.add('hidden'); 
+            });
+            if (resetMemoryTestBtn) resetMemoryTestBtn.addEventListener('click', () => {
+                // Reset the current memory test round
+                if (window.memoryTestGameState) {
+                    window.memoryTestGameState.roundCompletedCards = [];
+                    window.memoryTestGameState.cardAttempts = {};
+                    startMemoryTestRound();
+                }
             });
 
             // Replay button for TTS
