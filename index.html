@@ -87,6 +87,30 @@
         .incorrect-match-animation { animation: shake 0.4s; border: 2px solid #ef4444 !important; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
 
+        /* Memory Test Game Styles */
+        .memory-test-card {
+            min-height: 120px; display: flex; align-items: center; justify-content: center;
+            text-align: center; cursor: pointer; border: 2px solid #06b6d4; 
+            background-color: #f0f9ff; transition: all 0.3s ease;
+            overflow-wrap: break-word; word-break: break-word;
+        }
+        .memory-test-card:hover {
+            background-color: #e0f7fa; border-color: #0891b2; transform: scale(1.05);
+        }
+        .memory-test-card.recording {
+            border: 3px solid #ef4444; background-color: #fef2f2; animation: pulse 1s infinite;
+        }
+        .memory-test-card.correct {
+            border: 3px solid #22c55e; background-color: #f0fdf4; pointer-events: none;
+        }
+        .memory-test-card.incorrect {
+            border: 3px solid #ef4444; background-color: #fef2f2; animation: shake 0.5s;
+        }
+        .memory-test-card.completed {
+            opacity: 0.6; pointer-events: none; background-color: #f3f4f6;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
         .mcq-option-btn, .part-selection-btn, .essentials-category-btn, .essentials-action-btn {
             display: block; width: 100%; text-align: left; margin-bottom: 0.5rem;
             background-color: #f8fafc; border: 1px solid #cbd5e1; color: #334155;
@@ -915,6 +939,7 @@
                 <div id="gameButtonsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <button id="matchingBtn" class="btn btn-outline p-4 sm:p-6 text-base sm:text-lg">Matching Game</button>
                     <button id="multipleChoiceBtn" class="btn btn-outline p-4 sm:p-6 text-base sm:text-lg">Multiple Choice</button>
+                    <button id="memoryTestBtn" class="btn btn-outline p-4 sm:p-6 text-base sm:text-lg">Memory Test</button>
                     <button id="typeTranslationBtn" class="btn btn-outline p-4 sm:p-6 text-base sm:text-lg">Type Translation</button>
                     <button id="talkToMeBtn" class="btn btn-outline p-4 sm:p-6 text-base sm:text-lg">Talk to Me (Speak)</button>
                     <button id="fillInTheBlanksBtn" class="btn btn-outline p-4 sm:p-6 text-base sm:text-lg hidden">Fill in the Blanks</button>
@@ -974,6 +999,30 @@
                     <p id="matchingFeedback" class="text-center font-medium mt-3 sm:mt-4 h-5 sm:h-6 text-sm sm:text-base"></p>
                     <div class="text-center mt-3 sm:mt-4">
                          <button id="resetCurrentPartBtn" class="btn btn-primary">Restart This Part</button>
+                    </div>
+                </div>
+
+                <div id="memoryTestGame" class="hidden">
+                    <p id="memoryTestInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">
+                        Click a card and speak the translation in your original language. You have 2 tries per card and lose a life for each mistake.
+                    </p>
+                    <div class="flex justify-between items-center mb-3 sm:mb-4">
+                        <div id="memoryTestLives" class="flex gap-1">
+                            <span class="text-2xl">🦫</span>
+                            <span class="text-2xl">🦫</span>
+                            <span class="text-2xl">🦫</span>
+                        </div>
+                        <div id="memoryTestTimer" class="text-lg font-medium text-teal-700 hidden">⏱️ <span id="memoryTestTimerValue">5</span>s</div>
+                        <div id="memoryTestRoundInfo" class="text-sm text-slate-600">Round 1/3</div>
+                    </div>
+                    <div id="memoryTestGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4"></div>
+                    <div id="memoryTestRecording" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 mt-3 text-center">
+                        <p class="text-red-700 font-medium">🎤 Recording... Speak now!</p>
+                        <p id="memoryTestRecognizedText" class="text-sm text-red-600 mt-1"></p>
+                    </div>
+                    <p id="memoryTestFeedback" class="text-center font-medium mt-3 sm:mt-4 h-5 sm:h-6 text-sm sm:text-base"></p>
+                    <div class="text-center mt-3 sm:mt-4">
+                         <button id="resetMemoryTestBtn" class="btn btn-primary">Restart This Round</button>
                     </div>
                 </div>
 
