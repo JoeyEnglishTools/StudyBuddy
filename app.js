@@ -612,6 +612,11 @@ async function fetchNotes() {
         liveNotesTextarea.addEventListener('keydown', handleNotepadKeydown);
         liveNotesTextarea.addEventListener('click', handleNotepadClick);
         
+        // Add page visibility listeners to handle device lock/unlock
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleWindowFocus);
+        window.addEventListener('blur', handleWindowBlur);
+        
         // Initialize display counters and status
         updateLineAndParsedCounts();
         updateSaveStatus();
@@ -886,6 +891,11 @@ async function fetchNotes() {
         // Hide any translation suggestion
         hideTranslationSuggestion();
         
+        // Remove visibility event listeners
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', handleWindowFocus);
+        window.removeEventListener('blur', handleWindowBlur);
+        
         // Save any pending changes before closing
         if (pendingChanges) {
             saveLiveNotes();
@@ -895,6 +905,65 @@ async function fetchNotes() {
         liveNotesModal.classList.add('hidden');
     }
     
+    function setupAutoSaveTimer() {
+        // Clear existing timer
+        if (window.autoSaveTimeout) {
+            clearTimeout(window.autoSaveTimeout);
+        }
+        
+        // Set new timer
+        window.autoSaveTimeout = setTimeout(() => {
+            if (pendingChanges) {
+                saveLiveNotes();
+            }
+        }, 20000); // Auto-save after 20 seconds of inactivity
+    }
+
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            // Page became hidden (device locked, tab switched, etc.)
+            console.log('📱 Live Notes: Page became hidden, pausing auto-save timers');
+            if (window.autoSaveTimeout) {
+                clearTimeout(window.autoSaveTimeout);
+            }
+            if (autoAdvanceTimer) {
+                clearTimeout(autoAdvanceTimer);
+            }
+        } else {
+            // Page became visible again (device unlocked, tab focused, etc.)
+            console.log('📱 Live Notes: Page became visible, resuming auto-save functionality');
+            
+            // Save any pending changes immediately
+            if (pendingChanges) {
+                console.log('📱 Live Notes: Saving pending changes after visibility restore');
+                saveLiveNotes();
+            }
+            
+            // Restart auto-save timer with remaining time
+            if (liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
+                setupAutoSaveTimer();
+            }
+        }
+    }
+    
+    function handleWindowFocus() {
+        // Additional focus handler for better compatibility
+        if (liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
+            console.log('📱 Live Notes: Window focused, ensuring auto-save is active');
+            if (pendingChanges && !window.autoSaveTimeout) {
+                setupAutoSaveTimer();
+            }
+        }
+    }
+    
+    function handleWindowBlur() {
+        // Window lost focus - save any pending changes
+        if (pendingChanges && liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
+            console.log('📱 Live Notes: Window lost focus, saving pending changes');
+            saveLiveNotes();
+        }
+    }
+
     function handleNotepadInput(event) {
         notepadContent = event.target.value;
         pendingChanges = true;
@@ -932,11 +1001,7 @@ async function fetchNotes() {
         if (window.autoSaveTimeout) {
             clearTimeout(window.autoSaveTimeout);
         }
-        window.autoSaveTimeout = setTimeout(() => {
-            if (pendingChanges) {
-                saveLiveNotes();
-            }
-        }, 20000); // Auto-save after 20 seconds of inactivity
+        setupAutoSaveTimer();
         
         // Only start 7-second timer for auto-advance if user is not editing existing text
         // Check if user is at the end of text and on a new/empty line
@@ -3003,8 +3068,33 @@ async function startFindTheWordsRound(pool) {
 
             function checkFindTheWordsAnswer() {
                 const correctCount = findWordsSelectedWords.filter(s => findWordsTargetWords.includes(s)).length;
-                findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length}.`;
-                nextFindTheWordsRoundBtn.classList.remove('hidden');
+                const allCorrect = correctCount === WORDS_PER_FIND_WORDS_TARGET && findWordsSelectedWords.length === WORDS_PER_FIND_WORDS_TARGET;
+                
+                if (allCorrect) {
+                    playCorrectMatchSound();
+                    currentScore += 10; // Bonus points for finding all 3 words correctly
+                    if (currentScore > sessionMaxScore) {
+                        sessionMaxScore = currentScore;
+                    }
+                    updateScoreDisplay();
+                    
+                    findTheWordsFeedback.textContent = `Perfect! You found all ${correctCount} words!`;
+                    findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
+                    
+                    // Auto-advance to next round after 2 seconds
+                    setTimeout(() => {
+                        findWordsSelectedWords = [];
+                        startFindTheWordsRound(findWordsSessionPool);
+                        findTheWordsFeedback.textContent = '';
+                        findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base";
+                        nextFindTheWordsRoundBtn.classList.add('hidden');
+                    }, 2000);
+                } else {
+                    playIncorrectSound();
+                    findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length} correct words.`;
+                    findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                    nextFindTheWordsRoundBtn.classList.remove('hidden');
+                }
             }
 
             // --- EVENT LISTENERS ---
