@@ -790,7 +790,7 @@ async function fetchNotes() {
             };
             const handleSpanish = () => {
                 cleanup();
-                resolve({ language: 'es-ES', neverAskAgain: neverAskCheckbox.checked });
+                resolve({ language: 'es-US', neverAskAgain: neverAskCheckbox.checked });
             };
             const handlePortuguese = () => {
                 cleanup();
@@ -843,7 +843,7 @@ async function fetchNotes() {
             const handleEnglish = () => { cleanup(); resolve({ language: 'en-GB', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleFrench = () => { cleanup(); resolve({ language: 'fr-FR', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleGerman = () => { cleanup(); resolve({ language: 'de-DE', keepPreference: keepPreferenceCheckbox.checked }); };
-            const handleSpanish = () => { cleanup(); resolve({ language: 'es-ES', keepPreference: keepPreferenceCheckbox.checked }); };
+            const handleSpanish = () => { cleanup(); resolve({ language: 'es-US', keepPreference: keepPreferenceCheckbox.checked }); };
             const handlePortuguese = () => { cleanup(); resolve({ language: 'pt-PT', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleDutch = () => { cleanup(); resolve({ language: 'nl-NL', keepPreference: keepPreferenceCheckbox.checked }); };
             const handleCancel = () => { cleanup(); reject('cancelled'); };
@@ -1577,7 +1577,7 @@ async function fetchNotes() {
             const wordToTranslate = dashMatch[1].trim();
             if (wordToTranslate) {
                 // Get the auto-translate target language
-                const autoTranslateLanguage = localStorage.getItem('auto_translate_language') || 'es-ES';
+                const autoTranslateLanguage = localStorage.getItem('auto_translate_language') || 'es-US';
                 let langPair;
                 
                 // Determine translation direction based on auto-translate target language
@@ -1586,7 +1586,7 @@ async function fetchNotes() {
                     // Translating TO English - assume input could be Spanish/French/etc
                     // Try multiple source languages, prioritize Spanish
                     langPair = 'es|en';
-                } else if (autoTranslateLanguage === 'es-ES') {
+                } else if (autoTranslateLanguage === 'es-US') {
                     // Translating TO Spanish - translate from English to Spanish
                     langPair = 'en|es';
                 } else if (autoTranslateLanguage === 'fr-FR') {
@@ -1650,7 +1650,7 @@ async function fetchNotes() {
             const handleEnglish = () => { cleanup(); resolve('en-GB'); };
             const handleFrench = () => { cleanup(); resolve('fr-FR'); };
             const handleGerman = () => { cleanup(); resolve('de-DE'); };
-            const handleSpanish = () => { cleanup(); resolve('es-ES'); };
+            const handleSpanish = () => { cleanup(); resolve('es-US'); };
             const handlePortuguese = () => { cleanup(); resolve('pt-PT'); };
             const handleDutch = () => { cleanup(); resolve('nl-NL'); };
             const handleCancel = () => { cleanup(); reject('cancelled'); };
@@ -1877,7 +1877,21 @@ async function fetchNotes() {
         // Update filtered notes count and study button
         if (filteredNotesCount) {
             if (timeFilter !== 'all' || searchTerm) {
-                filteredNotesCount.textContent = `Showing ${filteredVocab.length} notes`;
+                let displayMessage = '';
+                
+                if (timeFilter !== 'all') {
+                    const timePeriodMap = {
+                        'today': 'last day',
+                        'week': 'last week', 
+                        'month': 'last month',
+                        '3months': 'last 3 months'
+                    };
+                    displayMessage = `Your notes over the ${timePeriodMap[timeFilter]} are ${filteredVocab.length}`;
+                } else if (searchTerm) {
+                    displayMessage = `Showing ${filteredVocab.length} notes`;
+                }
+                
+                filteredNotesCount.textContent = displayMessage;
                 if (studyFilteredNotesBtn && filteredVocab.length > 0) {
                     studyFilteredNotesBtn.classList.remove('hidden');
                     studyFilteredNotesBtn.textContent = `🎮 Play Matching Game (${filteredVocab.length} words)`;
@@ -2059,13 +2073,16 @@ async function fetchNotes() {
         // Store the filtered vocabulary for the game
         window.filteredGameVocabulary = filteredVocab;
         
+        // Set current vocabulary part to filtered vocab
+        currentVocabularyPart = filteredVocab;
+        
         // Navigate to game area
         hideAllSections();
         gameArea.classList.remove('hidden');
         
         // Set up matching game with filtered vocabulary
         showSection('matching');
-        playMatchingGame(filteredVocab);
+        initMatchingGame();
     }
     
     async function deleteNote(index, note) {
@@ -2231,14 +2248,44 @@ async function fetchNotes() {
     }
     
     function speakText(text, lang = 'en-GB') {
-        if ('speechSynthesis' in window) {
+        if ('speechSynthesis' in window && text) {
             // Cancel any ongoing speech
             window.speechSynthesis.cancel();
             
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang;
+            
+            // Ensure proper language mapping for better cross-browser support
+            if (lang === 'es-US' || lang === 'es-ES') {
+                // Force es-US for better pronunciation on Safari/Mac
+                utterance.lang = 'es-US';
+            } else if (lang === 'en-US' || lang === 'en-GB') {
+                // Force en-GB as default English
+                utterance.lang = 'en-GB';
+            } else {
+                utterance.lang = lang;
+            }
+            
             utterance.rate = 0.8;
             utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            // Additional Safari/Mac compatibility
+            if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+                utterance.rate = 0.9;
+                // Force voice selection for better pronunciation on Safari
+                const voices = window.speechSynthesis.getVoices();
+                if (utterance.lang.startsWith('es')) {
+                    const spanishVoice = voices.find(voice => 
+                        voice.lang.includes('es-US') || voice.lang.includes('es-MX') || voice.lang.includes('es')
+                    );
+                    if (spanishVoice) utterance.voice = spanishVoice;
+                } else if (utterance.lang.startsWith('en')) {
+                    const englishVoice = voices.find(voice => 
+                        voice.lang.includes('en-GB') || voice.lang.includes('en-US')
+                    );
+                    if (englishVoice) utterance.voice = englishVoice;
+                }
+            }
             
             window.speechSynthesis.speak(utterance);
         }
@@ -2324,7 +2371,7 @@ async function fetchNotes() {
                 currentEssentialsCategoryName = categoryKey; 
                 isEssentialsMode = true; 
                 if (categoryKey.toLowerCase().includes("(en-es)")) { 
-                    activeTargetStudyLanguage = 'es-ES'; 
+                    activeTargetStudyLanguage = 'es-US'; 
                 } else if (categoryKey.toLowerCase().includes("(en-fr)")) { 
                     activeTargetStudyLanguage = 'fr-FR'; 
                 } else { 
@@ -2488,7 +2535,35 @@ async function fetchNotes() {
 
             // --- GAME LOGIC FUNCTIONS ---
             function initMatchingGame() {
-                let gameVocab = shuffleArray(currentVocabularyPart).slice(0, ITEMS_PER_SUB_ROUND);
+                // Initialize round tracking for matching games
+                if (!window.matchingGameState) {
+                    window.matchingGameState = {
+                        currentRound: 1,
+                        totalRounds: 3,
+                        wrongMatches: [],
+                        bonusRoundActive: false,
+                        cardsPerRound: 6
+                    };
+                }
+                
+                startMatchingRound();
+            }
+            
+            function startMatchingRound() {
+                const gameState = window.matchingGameState;
+                let gameVocab;
+                
+                if (gameState.bonusRoundActive) {
+                    gameVocab = gameState.wrongMatches;
+                    matchingFeedback.textContent = `Bonus Round - Let's try those again!`;
+                } else {
+                    const startIndex = (gameState.currentRound - 1) * gameState.cardsPerRound;
+                    gameVocab = shuffleArray(currentVocabularyPart).slice(startIndex, startIndex + gameState.cardsPerRound);
+                    matchingFeedback.textContent = `Round ${gameState.currentRound} of ${gameState.totalRounds}`;
+                }
+                
+                matchedPairs = 0;
+                selectedMatchCard = null;
                 pairsToMatch = gameVocab.length;
                 let cards = [];
                 gameVocab.forEach((item, index) => {
@@ -2520,6 +2595,18 @@ async function fetchNotes() {
                 });
             }
 
+            function getCurrentMatchingVocab() {
+                const gameState = window.matchingGameState;
+                if (!gameState) return [];
+                
+                if (gameState.bonusRoundActive) {
+                    return gameState.wrongMatches;
+                } else {
+                    const startIndex = (gameState.currentRound - 1) * gameState.cardsPerRound;
+                    return currentVocabularyPart.slice(startIndex, startIndex + gameState.cardsPerRound);
+                }
+            }
+
             function handleMatchCardClick(cardElement) {
                 if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
 
@@ -2547,8 +2634,53 @@ async function fetchNotes() {
                         updateScoreDisplay();
                         
                         matchedPairs++;
-                        if (matchedPairs === pairsToMatch) matchingFeedback.textContent = "Part Complete!";
+                        if (matchedPairs === pairsToMatch) {
+                            const gameState = window.matchingGameState;
+                            
+                            if (gameState.bonusRoundActive) {
+                                matchingFeedback.textContent = "Bonus Round Complete!";
+                                // Reset game state
+                                window.matchingGameState = null;
+                            } else if (gameState.currentRound < gameState.totalRounds) {
+                                gameState.currentRound++;
+                                matchingFeedback.textContent = `Round ${gameState.currentRound - 1} Complete!`;
+                                
+                                setTimeout(() => {
+                                    startMatchingRound();
+                                }, 2000);
+                            } else {
+                                // All regular rounds complete, check for bonus round
+                                if (gameState.wrongMatches.length > 0) {
+                                    gameState.bonusRoundActive = true;
+                                    matchingFeedback.textContent = "All rounds complete! Starting bonus round...";
+                                    
+                                    setTimeout(() => {
+                                        startMatchingRound();
+                                    }, 2000);
+                                } else {
+                                    matchingFeedback.textContent = "All rounds complete! Perfect game!";
+                                    window.matchingGameState = null;
+                                }
+                            }
+                        }
                     } else {
+                        // Track wrong matches for bonus round
+                        const gameState = window.matchingGameState;
+                        if (gameState && !gameState.bonusRoundActive) {
+                            // Find the vocabulary items for this mismatch
+                            const card1Id = parseInt(selectedMatchCard.dataset.id);
+                            const card2Id = parseInt(cardElement.dataset.id);
+                            
+                            // Add both items to wrong matches if not already there
+                            const currentVocab = getCurrentMatchingVocab();
+                            if (currentVocab[card1Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card1Id].lang1)) {
+                                gameState.wrongMatches.push(currentVocab[card1Id]);
+                            }
+                            if (currentVocab[card2Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card2Id].lang1)) {
+                                gameState.wrongMatches.push(currentVocab[card2Id]);
+                            }
+                        }
+                        
                         [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
                         playIncorrectSound();
                         setTimeout(() => {
@@ -2565,6 +2697,10 @@ async function fetchNotes() {
                 currentMcqIndex = 0;
                 multipleChoiceGameContainer.classList.remove('hidden');
                 
+                // Initialize wrong answers tracking
+                window.mcqWrongAnswers = [];
+                window.mcqBonusRoundActive = false;
+                
                 // Only show language selector if no language is defined
                 if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
@@ -2580,8 +2716,23 @@ async function fetchNotes() {
 
             function displayNextMcq(gameVocab) {
                 if (currentMcqIndex >= gameVocab.length) {
+                    // Check if we need a bonus round for wrong answers
+                    if (window.mcqWrongAnswers && window.mcqWrongAnswers.length > 0 && !window.mcqBonusRoundActive) {
+                        window.mcqBonusRoundActive = true;
+                        currentMcqIndex = 0;
+                        mcqQuestion.textContent = "Bonus Round - Let's try those again!";
+                        
+                        setTimeout(() => {
+                            displayNextMcq(window.mcqWrongAnswers);
+                        }, 2000);
+                        return;
+                    }
+                    
                     mcqQuestion.textContent = "Part Complete!";
                     mcqOptions.innerHTML = '';
+                    // Reset bonus round tracking
+                    window.mcqWrongAnswers = [];
+                    window.mcqBonusRoundActive = false;
                     return;
                 }
                 const currentItem = gameVocab[currentMcqIndex];
@@ -2612,13 +2763,38 @@ async function fetchNotes() {
                 if (mcqAnswered) return;
                 mcqAnswered = true;
                 button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
-                if (!isCorrect) {
+                
+                if (isCorrect) {
+                    // Play correct sound and auto-advance
+                    playCorrectMatchSound();
+                    currentScore += 5;
+                    if (currentScore > sessionMaxScore) {
+                        sessionMaxScore = currentScore;
+                    }
+                    updateScoreDisplay();
+                    
+                    // Auto-advance after 1.5 seconds
+                    setTimeout(() => {
+                        mcqAnswered = false; 
+                        currentMcqIndex++; 
+                        mcqFeedback.textContent = ''; // Clear any previous feedback
+                        displayNextMcq(currentVocabularyPart); 
+                        nextMcqBtn.classList.add('hidden');
+                    }, 1500);
+                } else {
+                    // Track wrong answer for bonus round
+                    if (!window.mcqWrongAnswers) window.mcqWrongAnswers = [];
+                    if (!window.mcqWrongAnswers.find(w => w.lang1 === item.lang1)) {
+                        window.mcqWrongAnswers.push(item);
+                    }
+                    
+                    playIncorrectSound();
                     mcqFeedback.textContent = `Correct: ${item.lang2}`;
                     mcqOptions.querySelectorAll('.mcq-option-btn').forEach(btn => {
                         if (btn.textContent === item.lang2) btn.classList.add('correct-answer');
                     });
+                    nextMcqBtn.classList.remove('hidden');
                 }
-                nextMcqBtn.classList.remove('hidden');
             }
 
             function initTypeTranslationGame() {
