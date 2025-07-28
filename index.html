@@ -551,10 +551,193 @@
         .hidden {
             display: none !important;
         }
+
+        /* Deck Management - Collapsible Side Panel Styles */
+        #deckSidePanel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background-color: #1f2937; /* dark gray */
+            color: white;
+            transform: translateX(-280px);
+            transition: transform 0.3s ease-in-out;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        #deckSidePanel.open {
+            transform: translateX(0);
+        }
+        
+        #deckSidePanelToggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: rgba(55, 65, 81, 0.9);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #deckSidePanelToggle:hover {
+            background-color: rgba(55, 65, 81, 1);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        #deckSidePanelToggle.open {
+            left: 300px;
+        }
+        
+        .deck-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .deck-section {
+            padding: 15px 20px;
+        }
+        
+        .deck-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            margin: 4px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .deck-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .deck-item.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .deck-item-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        
+        .deck-item-text {
+            flex-grow: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .deck-item-count {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        
+        .deck-language-group {
+            margin-bottom: 20px;
+        }
+        
+        .deck-language-header {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .new-deck-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 12px;
+            background-color: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+        
+        .new-deck-btn:hover {
+            background-color: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        
+        /* Main content adjustment when panel is open */
+        .main-content {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        
+        .main-content.panel-open {
+            margin-left: 280px;
+        }
+        
+        @media (max-width: 768px) {
+            #deckSidePanel {
+                width: 100%;
+                transform: translateX(-100%);
+            }
+            
+            #deckSidePanelToggle.open {
+                left: 20px;
+            }
+            
+            .main-content.panel-open {
+                margin-left: 0;
+            }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="min-h-screen flex flex-col items-center p-2 sm:p-4 md:p-6">
+
+    <!-- Deck Management Side Panel -->
+    <div id="deckSidePanel">
+        <div class="deck-header">
+            <h2 class="text-lg font-semibold text-white mb-2">StudyBuddy</h2>
+            <p class="text-sm text-gray-300">Vocabulary Decks</p>
+        </div>
+        
+        <div class="deck-section">
+            <button class="new-deck-btn" id="newDeckBtn">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                New Deck
+            </button>
+        </div>
+        
+        <div id="decksList" class="deck-section">
+            <!-- Decks will be populated here -->
+        </div>
+    </div>
+    
+    <!-- Side Panel Toggle Button -->
+    <button id="deckSidePanelToggle">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+    </button>
 
     <button id="musicToggleBtn" class="btn p-2 text-sm">
         <svg id="musicIconOn" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15z" /></svg>
@@ -562,7 +745,7 @@
         <span id="musicStatusText">Music: ON</span>
     </button>
 
-    <div class="w-full max-w-3xl mx-auto"> 
+    <div class="w-full max-w-3xl mx-auto main-content" id="mainContent"> 
         <header class="text-center mb-6 sm:mb-10">
             <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh7G7JZO-izPezsiQzlGVi10doRtWHuCKsp3u9txVRurU_ziVdRHtF5XswySzXYQMbLpJXCr3QvXSrSQdJIuzO9QeNIkjUKqHIayQZQUFQFP2bpmVr_5auHdT-lbCL8KaVkrjrbw5UJqJApeGTADnBy-r5G-CBhHOGsvuAy8cN7FyJxH8VrJHM2Bu4TqZo/s512/studybuddy.jpg" alt="StudyBuddy Logo" class="header-logo-image"
                  onerror="this.onerror=null; this.src='https://placehold.co/120x80/CCCCCC/000000?text=Logo';">
@@ -1105,6 +1288,55 @@ Use a dash (-) to separate words from their translations."
                 <div class="items-center px-4 py-3">
                     <button id="autoTranslateLanguageCancelBtn" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
                         Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Modal for New Users -->
+    <div id="welcomeDeckModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 1003;">
+        <div class="relative top-20 mx-auto p-6 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Welcome to StudyBuddy!</h3>
+                <p class="text-sm text-gray-600 mb-6">Let's create your first vocabulary deck to get started.</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="welcomeDeckName" class="block text-sm font-medium text-gray-700 text-left">Deck Name</label>
+                        <input type="text" id="welcomeDeckName" 
+                               class="form-input mt-1 w-full" 
+                               placeholder="e.g., Spanish Basics, French Travel, etc."
+                               required>
+                    </div>
+                    
+                    <div>
+                        <label for="welcomeDeckLanguage" class="block text-sm font-medium text-gray-700 text-left">Language</label>
+                        <select id="welcomeDeckLanguage" class="form-input mt-1 w-full">
+                            <option value="en-GB">English (UK)</option>
+                            <option value="es-ES">Español (Spain)</option>
+                            <option value="fr-FR">Français (France)</option>
+                            <option value="de-DE">Deutsch (German)</option>
+                            <option value="it-IT">Italiano (Italian)</option>
+                            <option value="pt-PT">Português (Portugal)</option>
+                            <option value="ja-JP">日本語 (Japanese)</option>
+                            <option value="ko-KR">한국어 (Korean)</option>
+                            <option value="zh-CN">中文 (Chinese)</option>
+                            <option value="nl-NL">Nederlands (Dutch)</option>
+                            <option value="ru-RU">Русский (Russian)</option>
+                            <option value="ar-SA">العربية (Arabic)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button id="createFirstDeckBtn" class="flex-1 btn btn-primary">
+                        Create Deck
                     </button>
                 </div>
             </div>
