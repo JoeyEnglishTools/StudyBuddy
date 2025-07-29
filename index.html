@@ -1141,10 +1141,12 @@
                     <!-- Upload Options Section -->
                     <div id="notesManagementUploadSection" class="mb-6">
                         <h3 class="text-lg font-semibold text-gray-700 mb-3">Add New Notes</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <button id="notesUploadCsvBtn" class="btn btn-primary p-3 text-sm">📄 Upload CSV File</button>
                             <button id="notesStudyEssentialsBtn" class="btn btn-primary p-3 text-sm">📖 Study Essentials</button>
+                            <button id="notesFillUpBtn" class="btn btn-secondary p-3 text-sm">🔄 Fill Up Translations</button>
                         </div>
+                        <p class="text-xs text-gray-600 mt-2">Fill Up automatically translates all words using the dictionary API based on your language preferences.</p>
                     </div>
                     
                     <!-- Existing Notes Section -->
@@ -1163,6 +1165,8 @@
                                 </div>
                                 <select id="timeFilterSelect" class="form-select text-sm py-2 px-3 border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500">
                                     <option value="all">All Notes</option>
+                                    <option value="hour">Last Hour</option>
+                                    <option value="yesterday">Yesterday</option>
                                     <option value="today">Today</option>
                                     <option value="week">Last Week</option>
                                     <option value="month">Last Month</option>
@@ -1350,7 +1354,7 @@ Symbols like _, ·, •, →, ← are automatically converted to dashes."
                     </svg>
                 </div>
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Welcome to StudyBuddy!</h3>
-                <p class="text-sm text-gray-600 mb-6">Let's create your first vocabulary deck to get started.</p>
+                <p class="text-sm text-gray-600 mb-6">Let's create your first vocabulary deck. We need to know your native language and what you're learning for the dictionary API.</p>
                 
                 <div class="space-y-4">
                     <div>
@@ -1362,7 +1366,25 @@ Symbols like _, ·, •, →, ← are automatically converted to dashes."
                     </div>
                     
                     <div>
-                        <label for="welcomeDeckLanguage" class="block text-sm font-medium text-gray-700 text-left">Language</label>
+                        <label for="welcomeNativeLanguage" class="block text-sm font-medium text-gray-700 text-left">Your Native Language</label>
+                        <select id="welcomeNativeLanguage" class="form-input mt-1 w-full">
+                            <option value="EN">English</option>
+                            <option value="ES">Spanish</option>
+                            <option value="FR">French</option>
+                            <option value="DE">German</option>
+                            <option value="IT">Italian</option>
+                            <option value="PT">Portuguese</option>
+                            <option value="NL">Dutch</option>
+                            <option value="RU">Russian</option>
+                            <option value="ZH">Chinese</option>
+                            <option value="JA">Japanese</option>
+                            <option value="KO">Korean</option>
+                            <option value="AR">Arabic</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="welcomeDeckLanguage" class="block text-sm font-medium text-gray-700 text-left">Language You're Learning</label>
                         <select id="welcomeDeckLanguage" class="form-input mt-1 w-full">
                             <option value="en-GB">English (UK)</option>
                             <option value="es-ES">Español (Spain)</option>

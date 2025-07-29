@@ -350,8 +350,8 @@ async function fetchNotes() {
     }
     
     // Create a new deck
-    async function createDeck(deckName, language) {
-        console.log('🆕 Creating new deck:', deckName, language);
+    async function createDeck(deckName, language, definitionLang = 'EN') {
+        console.log('🆕 Creating new deck:', deckName, language, 'Definition lang:', definitionLang);
         
         try {
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -383,6 +383,7 @@ async function fetchNotes() {
                 .insert([{
                     name: deckName,
                     language: language,
+                    definition_lang: definitionLang,
                     user_id: user.id,
                     created_at: new Date().toISOString()
                 }])
@@ -1498,6 +1499,135 @@ async function fetchNotes() {
             return true;
         } catch (error) {
             console.error('💥 Unexpected error updating note progress:', error);
+            return false;
+        }
+    }
+    
+    // Fill up translations using dictionary API
+    async function handleFillUpTranslations() {
+        try {
+            // Check if user has set language preferences
+            const nativeLanguage = localStorage.getItem('user_native_language');
+            const learningLanguage = localStorage.getItem('user_learning_language');
+            
+            if (!nativeLanguage || !learningLanguage) {
+                alert('Language preferences not found. Please create a new deck to set your native and learning languages.');
+                return;
+            }
+            
+            // Get current vocabulary that needs translations
+            const wordsToTranslate = vocabulary.filter(item => {
+                // Find words that have empty or missing definitions
+                return !item.lang2 || item.lang2.trim() === '' || item.lang2 === item.lang1;
+            });
+            
+            if (wordsToTranslate.length === 0) {
+                alert('All your words already have translations!');
+                return;
+            }
+            
+            const confirmMsg = `Found ${wordsToTranslate.length} words that need translations. This will automatically translate them from ${learningLanguage} to ${nativeLanguage}. Continue?`;
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            
+            console.log('🔄 Starting auto-fill translations...', {
+                nativeLanguage,
+                learningLanguage,
+                wordsToTranslate: wordsToTranslate.length
+            });
+            
+            // Show progress
+            const notesFillUpBtn = document.getElementById('notesFillUpBtn');
+            const originalText = notesFillUpBtn.textContent;
+            let processedCount = 0;
+            
+            notesFillUpBtn.textContent = `Translating... (0/${wordsToTranslate.length})`;
+            notesFillUpBtn.disabled = true;
+            
+            // Determine language pair for MyMemory API
+            let langPair;
+            const learningCode = learningLanguage.split('-')[0].toLowerCase();
+            const nativeCode = nativeLanguage.toLowerCase();
+            
+            // Format for MyMemory API: "source|target"
+            langPair = `${learningCode}|${nativeCode}`;
+            
+            console.log('🌐 Using language pair:', langPair);
+            
+            // Process translations with delay to avoid rate limiting
+            for (const item of wordsToTranslate) {
+                try {
+                    console.log(`🔤 Translating "${item.lang1}" (${processedCount + 1}/${wordsToTranslate.length})`);
+                    
+                    const translation = await translateText(item.lang1.trim(), langPair);
+                    
+                    if (translation && translation !== 'Translation failed.' && translation !== 'Translation error.' && translation.toLowerCase() !== item.lang1.toLowerCase()) {
+                        // Update the vocabulary item
+                        item.lang2 = translation;
+                        
+                        // Update in database
+                        await updateNoteInDatabase(item.lang1, item.definition || item.lang2, item.lang1, translation);
+                        
+                        console.log(`✅ Translated "${item.lang1}" → "${translation}"`);
+                    } else {
+                        console.log(`⚠️ No translation found for "${item.lang1}"`);
+                    }
+                    
+                    processedCount++;
+                    notesFillUpBtn.textContent = `Translating... (${processedCount}/${wordsToTranslate.length})`;
+                    
+                    // Add delay to avoid rate limiting (1 second between requests)
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                } catch (error) {
+                    console.error(`❌ Error translating "${item.lang1}":`, error);
+                    processedCount++;
+                }
+            }
+            
+            // Restore button and refresh notes list
+            notesFillUpBtn.textContent = originalText;
+            notesFillUpBtn.disabled = false;
+            
+            // Refresh the notes display
+            if (typeof fetchNotesForManagement === 'function') {
+                await fetchNotesForManagement();
+            }
+            
+            alert(`Translation complete! Processed ${processedCount} words.`);
+            
+        } catch (error) {
+            console.error('💥 Error in fill up translations:', error);
+            alert('Error during translation process. Please try again.');
+            
+            // Restore button
+            const notesFillUpBtn = document.getElementById('notesFillUpBtn');
+            if (notesFillUpBtn) {
+                notesFillUpBtn.textContent = '🔄 Fill Up Translations';
+                notesFillUpBtn.disabled = false;
+            }
+        }
+    }
+    
+    // Helper function to update note in database
+    async function updateNoteInDatabase(oldTerm, oldDefinition, newTerm, newDefinition) {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return false;
+            
+            const { error } = await supabaseClient
+                .from('notes')
+                .update({
+                    term: newTerm,
+                    definition: newDefinition
+                })
+                .eq('user_id', user.id)
+                .eq('term', oldTerm);
+            
+            return !error;
+        } catch (error) {
+            console.error('Error updating note in database:', error);
             return false;
         }
     }
@@ -4863,6 +4993,12 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                     }, 100);
                 });
             }
+            
+            // Fill Up translations button
+            const notesFillUpBtn = document.getElementById('notesFillUpBtn');
+            if (notesFillUpBtn) {
+                notesFillUpBtn.addEventListener('click', handleFillUpTranslations);
+            }
             showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
             backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
             showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
@@ -5319,16 +5455,21 @@ if (languageSelectorInGame) {
                 createFirstDeckBtn.addEventListener('click', async () => {
                     const deckName = document.getElementById('welcomeDeckName')?.value.trim();
                     const deckLanguage = document.getElementById('welcomeDeckLanguage')?.value;
+                    const nativeLanguage = document.getElementById('welcomeNativeLanguage')?.value;
                     
                     if (!deckName) {
                         alert('Please enter a deck name.');
                         return;
                     }
                     
-                    console.log('🆕 Creating first deck:', deckName, deckLanguage);
+                    console.log('🆕 Creating first deck:', { deckName, deckLanguage, nativeLanguage });
                     
-                    const newDeck = await createDeck(deckName, deckLanguage);
+                    const newDeck = await createDeck(deckName, deckLanguage, nativeLanguage);
                     if (newDeck) {
+                        // Store language preferences for dictionary API
+                        localStorage.setItem('user_native_language', nativeLanguage);
+                        localStorage.setItem('user_learning_language', deckLanguage);
+                        
                         // Update state and UI
                         userDecks = await fetchUserDecks();
                         renderDecks(userDecks);
