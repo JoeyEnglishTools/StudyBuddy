@@ -1263,6 +1263,12 @@ async function fetchNotes() {
             window.autoSaveTimeout = null;
         }
         
+        // Clear word pair auto-save timeout
+        if (window.wordPairAutoSaveTimeout) {
+            clearTimeout(window.wordPairAutoSaveTimeout);
+            window.wordPairAutoSaveTimeout = null;
+        }
+        
         // Hide any translation suggestion
         hideTranslationSuggestion();
         
@@ -1349,26 +1355,38 @@ async function fetchNotes() {
             if (connectionTest) {
                 console.log('✅ Live Notes: Database connection restored successfully');
                 updateSaveStatus('Connected', 'text-green-600');
+                hideConnectionLostPrompt(); // Hide prompt if shown
             } else {
-                console.log('❌ Live Notes: Database connection failed, will retry');
-                updateSaveStatus('Connection Lost', 'text-red-600');
-                
-                // Retry connection after a delay
-                setTimeout(restoreLiveNotesConnection, 5000);
+                console.log('❌ Live Notes: Database connection failed, will show user prompt');
+                updateSaveStatus('Connection Lost - Click to Refresh', 'text-red-600 cursor-pointer', true);
+                showConnectionLostPrompt();
             }
         } catch (error) {
             console.error('💥 Live Notes: Error restoring connection:', error);
-            updateSaveStatus('Connection Error', 'text-red-600');
-            
-            // Retry connection after a delay
-            setTimeout(restoreLiveNotesConnection, 5000);
+            updateSaveStatus('Connection Error - Click to Refresh', 'text-red-600 cursor-pointer', true);
+            showConnectionLostPrompt();
         }
     }
     
-    function updateSaveStatus(message, className) {
+    function updateSaveStatus(message, className, isClickable = false) {
         if (saveStatus) {
             saveStatus.textContent = message;
             saveStatus.className = `text-sm ${className}`;
+            
+            // Handle clickable connection lost message
+            if (isClickable) {
+                saveStatus.style.cursor = 'pointer';
+                saveStatus.title = 'Click to refresh database connection';
+                saveStatus.onclick = () => {
+                    console.log('🔄 User clicked to refresh connection');
+                    updateSaveStatus('Reconnecting...', 'text-orange-600');
+                    restoreLiveNotesConnection();
+                };
+            } else {
+                saveStatus.style.cursor = '';
+                saveStatus.title = '';
+                saveStatus.onclick = null;
+            }
         }
         
         // Update cloud icon
@@ -1379,6 +1397,87 @@ async function fetchNotes() {
                 cloudIcon.className = 'w-5 h-5 text-red-500';
             } else {
                 cloudIcon.className = 'w-5 h-5 text-orange-500';
+            }
+        }
+    }
+    
+    function showConnectionLostPrompt() {
+        // Create or show connection lost banner if not already shown
+        let connectionBanner = document.getElementById('connectionLostBanner');
+        if (!connectionBanner) {
+            connectionBanner = document.createElement('div');
+            connectionBanner.id = 'connectionLostBanner';
+            connectionBanner.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+            connectionBanner.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="font-medium">⚠️ Connection lost</span>
+                        <span class="ml-2">Click here to refresh the connection to the database</span>
+                    </div>
+                    <button onclick="hideConnectionLostPrompt()" class="text-red-700 hover:text-red-900 ml-4">✕</button>
+                </div>
+            `;
+            connectionBanner.style.cursor = 'pointer';
+            connectionBanner.onclick = (e) => {
+                if (e.target.tagName !== 'BUTTON') {
+                    console.log('🔄 User clicked connection banner to refresh');
+                    hideConnectionLostPrompt();
+                    updateSaveStatus('Reconnecting...', 'text-orange-600');
+                    restoreLiveNotesConnection();
+                }
+            };
+            
+            // Insert at top of Live Notes modal content
+            const liveNotesContent = document.querySelector('#liveNotesModal .card');
+            if (liveNotesContent) {
+                liveNotesContent.insertBefore(connectionBanner, liveNotesContent.firstChild);
+            }
+        }
+        connectionBanner.style.display = 'block';
+    }
+    
+    function hideConnectionLostPrompt() {
+        const connectionBanner = document.getElementById('connectionLostBanner');
+        if (connectionBanner) {
+            connectionBanner.style.display = 'none';
+        }
+    }
+    
+    // Make functions globally accessible for onclick handlers
+    window.hideConnectionLostPrompt = hideConnectionLostPrompt;
+    
+    function checkForWordPairCompletion(text, cursorPosition) {
+        // Get the current line where the cursor is
+        const beforeCursor = text.substring(0, cursorPosition);
+        const lines = beforeCursor.split('\n');
+        const currentLineText = lines[lines.length - 1];
+        
+        // Check if current line has a complete word pair pattern: "word - translation"
+        const completePairPattern = /^(.+?)\s*-\s*(.+?)(\s+|$)/;
+        const match = currentLineText.match(completePairPattern);
+        
+        if (match) {
+            const word = match[1].trim();
+            const translation = match[2].trim();
+            
+            // Check if both word and translation are non-empty
+            if (word && translation) {
+                console.log('📝 Word pair completed:', { word, translation });
+                
+                // Clear any existing word pair timer
+                if (window.wordPairAutoSaveTimeout) {
+                    clearTimeout(window.wordPairAutoSaveTimeout);
+                }
+                
+                // Set 20-second timer specifically for this word pair
+                window.wordPairAutoSaveTimeout = setTimeout(() => {
+                    console.log('⏰ 20-second word pair auto-save triggered');
+                    updateSaveStatus('Saving word pair...', 'text-orange-600');
+                    saveLiveNotes(false); // Auto-save, not manual
+                    window.wordPairAutoSaveTimeout = null;
+                }, 20000); // 20 seconds
+                
+                console.log('⏰ Set 20-second auto-save timer for word pair completion');
             }
         }
     }
@@ -1433,6 +1532,9 @@ async function fetchNotes() {
         parseNotepadContent();
         updateLineAndParsedCounts();
         updateSaveStatus();
+        
+        // Check for word pair completion and trigger 20-second auto-save
+        checkForWordPairCompletion(currentValue, cursorPosition);
         
         // Debounced auto-save - clear existing timeout and set new one
         if (window.autoSaveTimeout) {
@@ -2485,7 +2587,7 @@ async function fetchNotes() {
             const editBtn = document.createElement('button');
             editBtn.className = 'ml-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded edit-btn-safe';
             editBtn.innerHTML = '✏️';
-            editBtn.title = 'Edit note (hold for 1 second)';
+            editBtn.title = 'Edit note (hold for 0.25 seconds)';
             
             let editTimeout = null;
             let isEditPressed = false;
@@ -2502,7 +2604,7 @@ async function fetchNotes() {
                         editNote(originalIndex, note);
                         resetEditButton();
                     }
-                }, 1000); // 1 second hold required
+                }, 250); // 250ms hold required (1/4 of previous duration)
             };
             
             const cancelEditTimer = () => {
@@ -2517,7 +2619,7 @@ async function fetchNotes() {
             const resetEditButton = () => {
                 editBtn.style.backgroundColor = '';
                 editBtn.innerHTML = '✏️';
-                editBtn.title = 'Edit note (hold for 1 second)';
+                editBtn.title = 'Edit note (hold for 0.25 seconds)';
             };
             
             // Mouse events
@@ -2544,7 +2646,7 @@ async function fetchNotes() {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn-safe';
             deleteBtn.innerHTML = '✕';
-            deleteBtn.title = 'Delete note (hold for 1 second)';
+            deleteBtn.title = 'Delete note (hold for 0.25 seconds)';
             
             let deleteTimeout = null;
             let isDeletePressed = false;
@@ -2562,7 +2664,7 @@ async function fetchNotes() {
                         deleteNote(originalIndex, note);
                         resetDeleteButton();
                     }
-                }, 1000); // 1 second hold required
+                }, 250); // 250ms hold required (1/4 of previous duration)
             };
             
             const cancelDeleteTimer = () => {
@@ -2578,7 +2680,7 @@ async function fetchNotes() {
                 deleteBtn.style.backgroundColor = '';
                 deleteBtn.style.color = '';
                 deleteBtn.innerHTML = '✕';
-                deleteBtn.title = 'Delete note (hold for 1 second)';
+                deleteBtn.title = 'Delete note (hold for 0.25 seconds)';
             };
             
             // Mouse events for delete

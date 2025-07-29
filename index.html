@@ -1214,44 +1214,9 @@
                         </div>
                     </div>
                     
-                    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p class="text-sm text-blue-800">
-                            ✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
-                            <br>Example: "hello - hola" or "good morning - buenos días"
-                            <br>📢 <strong>Click on any word before the dash to hear it pronounced!</strong>
-                            <br>Each line with word/phrase + dash + translation gets automatically saved.
-                            <br><em>Symbols like _, ·, •, →, ← are automatically converted to dashes.</em>
-                        </p>
-                        
-                        <!-- Auto-translate Preference -->
-                        <div class="mt-3 pt-3 border-t border-blue-200">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="enableAutoTranslateCheckbox" class="rounded border-blue-300 text-blue-600 focus:ring-blue-500">
-                                <span class="text-sm font-medium text-blue-800">🤖 Enable Auto-translation</span>
-                            </label>
-                            <p class="text-xs text-blue-600 mt-1 ml-6">Type a word and add a dash (-) to get instant translation suggestions!</p>
-                        </div>
-                    </div>
+                    <!-- Instructions moved to textarea placeholder -->
                     
-                    <!-- Language Selection for Live Notes -->
-                    <div class="mb-4">
-                        <label for="liveNotesLanguageSelector" class="block mb-2 text-sm font-medium text-gray-900">Select Target Language (for first words in each line):</label>
-                        <select id="liveNotesLanguageSelector" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block w-full p-2.5">
-                            <option value="en-US">English (US)</option>
-                            <option value="en-GB" selected>English (UK)</option>
-                            <option value="es-ES">Español (Spain)</option>
-                            <option value="fr-FR">Français (France)</option>
-                            <option value="de-DE">Deutsch (German)</option>
-                            <option value="it-IT">Italiano (Italian)</option>
-                            <option value="pt-PT">Português (Portugal)</option>
-                            <option value="ja-JP">日本語 (Japanese)</option>
-                            <option value="ko-KR">한국어 (Korean)</option>
-                            <option value="zh-CN">中文 (简体 Chinese)</option>
-                            <option value="nl-NL">Nederlands (Dutch)</option>
-                            <option value="ru-RU">Русский (Russian)</option>
-                            <option value="ar-SA">العربية (Arabic)</option>
-                        </select>
-                    </div>
+                    <!-- Language selection removed - uses deck's default language -->
                     
                     <div class="mb-3">
                         <div class="flex justify-between items-center mb-2">
@@ -1270,14 +1235,15 @@
                         
                         <textarea 
                             id="liveNotesTextarea" 
-                            placeholder="Start writing your notes here...
+                            placeholder="✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
 
-word - translation
-phrase - definition
-bonjour - hello
-buenos días - good morning
+Examples: 
+hello - hola
+good morning - buenos días
+📢 Click on any word before the dash to hear it pronounced!
 
-Use a dash (-) to separate words from their translations."
+Each line with word/phrase + dash + translation gets automatically saved.
+Symbols like _, ·, •, →, ← are automatically converted to dashes."
                             autocorrect="off"
                             autocapitalize="off" 
                             spellcheck="false"
