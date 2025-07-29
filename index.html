@@ -513,6 +513,27 @@
             font-size: 1.2rem;
             resize: none;
             min-height: 60vh; /* Reduced minimum height */
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* Style for translated text */
+        .translated-text {
+            color: #FF5433 !important;
+            font-weight: 500;
+        }
+        
+        /* Placeholder functionality for contenteditable */
+        #liveNotesTextarea:empty:before {
+            content: attr(data-placeholder);
+            color: #9CA3AF;
+            white-space: pre-wrap;
+            pointer-events: none;
+        }
+        
+        #liveNotesTextarea:focus:empty:before {
+            color: #D1D5DB;
         }
 
         #liveNotesTextarea:focus {
@@ -1233,12 +1254,13 @@
                             <button id="previousLineBtn" class="btn btn-secondary text-sm py-1 px-2">↑ Previous Line</button>
                             <button id="newLineBtn" class="btn btn-primary text-sm py-1 px-2">+ New Line</button>
                             <button id="clearAllBtn" class="btn btn-warning text-sm py-1 px-2">Clear All</button>
-                            <button id="translateTextBtn" class="btn btn-outline text-sm py-1 px-2">🤖 Translate Text</button>
+                            <button id="translateTextBtn" class="btn btn-outline text-sm py-1 px-2">Translate Text</button>
                         </div>
                         
-                        <textarea 
+                        <div 
                             id="liveNotesTextarea" 
-                            placeholder="✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
+                            contenteditable="true"
+                            data-placeholder="✍️ Write naturally in your notepad! Use a dash (-) to separate words from their translations.
 
 Examples: 
 hello - hola
@@ -1249,8 +1271,8 @@ Each line with word/phrase + dash + translation gets automatically saved.
 Symbols like _, ·, •, →, ← are automatically converted to dashes."
                             autocorrect="off"
                             autocapitalize="off" 
-                            spellcheck="false"
-                        ></textarea>
+                            spellcheck="false">
+                        </div>
                     </div>
                 </div>
             </div>
