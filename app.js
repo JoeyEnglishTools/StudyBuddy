@@ -606,6 +606,9 @@ async function fetchNotes() {
     async function selectDeck(deckId, deckName, deckLanguage) {
         console.log('🎯 Selecting deck:', deckId, deckName, deckLanguage);
         
+        // Get the full deck object to access all properties
+        const selectedDeck = userDecks.find(deck => deck.id === deckId);
+        
         // Update state
         currentlySelectedDeckId = deckId;
         csvUploadedTargetLanguage = deckLanguage;
@@ -615,6 +618,14 @@ async function fetchNotes() {
         localStorage.setItem('lastSelectedDeckId', deckId);
         localStorage.setItem('lastSelectedDeckName', deckName);
         localStorage.setItem('lastSelectedDeckLanguage', deckLanguage);
+        
+        // Store language preferences for translation function compatibility
+        if (selectedDeck) {
+            localStorage.setItem('user_learning_language', deckLanguage);
+            if (selectedDeck.definition_lang) {
+                localStorage.setItem('user_native_language', selectedDeck.definition_lang);
+            }
+        }
         
         // Update active deck visuals
         document.querySelectorAll('.deck-item').forEach(item => {
@@ -2397,14 +2408,58 @@ async function fetchNotes() {
     }
     
     // Handle Live Notes batch translation functionality
+    /**
+     * Get user-friendly language name from language code
+     */
+    function getLangaugeName(langCode) {
+        const languageNames = {
+            'es-ES': 'Spanish',
+            'es': 'Spanish',
+            'EN': 'English',
+            'en': 'English',
+            'fr-FR': 'French',
+            'fr': 'French',
+            'de-DE': 'German',
+            'de': 'German',
+            'pt-PT': 'Portuguese',
+            'pt': 'Portuguese',
+            'it-IT': 'Italian',
+            'it': 'Italian',
+            'nl-NL': 'Dutch',
+            'nl': 'Dutch',
+            'ru-RU': 'Russian',
+            'ru': 'Russian',
+            'zh-CN': 'Chinese',
+            'zh': 'Chinese',
+            'ja-JP': 'Japanese',
+            'ja': 'Japanese',
+            'ko-KR': 'Korean',
+            'ko': 'Korean',
+            'ar-SA': 'Arabic',
+            'ar': 'Arabic'
+        };
+        return languageNames[langCode] || langCode;
+    }
+
     async function handleLiveNotesTranslation() {
         try {
-            // Check if user has set language preferences
-            const nativeLanguage = localStorage.getItem('user_native_language');
-            const learningLanguage = localStorage.getItem('user_learning_language');
+            // Get current deck language preferences from the deck data
+            const currentDeck = userDecks.find(deck => deck.id === currentlySelectedDeckId);
+            
+            let learningLanguage, nativeLanguage;
+            
+            if (currentDeck) {
+                // Use deck language settings
+                learningLanguage = currentDeck.language; // Language being learned (e.g., 'es-ES')
+                nativeLanguage = currentDeck.definition_lang; // Native language (e.g., 'EN')
+            } else {
+                // Fallback to localStorage for compatibility
+                learningLanguage = localStorage.getItem('user_learning_language');
+                nativeLanguage = localStorage.getItem('user_native_language');
+            }
             
             if (!nativeLanguage || !learningLanguage) {
-                alert('Language preferences not found. Please create a new deck to set your native and learning languages.');
+                alert('Deck language preferences not found. Please select a deck or create a new deck to set language preferences.');
                 return;
             }
             
@@ -2429,7 +2484,11 @@ async function fetchNotes() {
                 return;
             }
             
-            const confirmMsg = `Found ${linesToTranslate.length} word(s) that need translation. This will automatically translate them from ${learningLanguage} to ${nativeLanguage}. Continue?`;
+            // Create user-friendly language names for the confirmation
+            const learningLangName = getLangaugeName(learningLanguage);
+            const nativeLangName = getLangaugeName(nativeLanguage);
+            
+            const confirmMsg = `Found ${linesToTranslate.length} word(s) that need translation. This will automatically translate them from ${learningLangName} to ${nativeLangName}. Continue?`;
             if (!confirm(confirmMsg)) {
                 return;
             }
@@ -2454,9 +2513,9 @@ async function fetchNotes() {
                 try {
                     const translation = await translateTextWithFallback(word, langPair);
                     if (translation && translation.toLowerCase() !== word.toLowerCase()) {
-                        // Create new line with translation
-                        const newLine = originalLine.replace(word + ' -', `${word} - ${translation}`);
-                        return { index, newLine, success: true };
+                        // Create new line with translation marked with auto-translate indicator
+                        const newLine = originalLine.replace(word + ' -', `${word} - 🤖${translation}`);
+                        return { index, newLine, success: true, translation };
                     } else {
                         console.log(`❌ Translation failed or unchanged for: ${word}`);
                         return { index, newLine: originalLine, success: false };
@@ -2473,10 +2532,16 @@ async function fetchNotes() {
             // Update the textarea with translated lines
             let updatedLines = [...lines];
             let successCount = 0;
+            let translatedWords = [];
             
-            results.forEach(({ index, newLine, success }) => {
+            results.forEach(({ index, newLine, success, translation }) => {
                 updatedLines[index] = newLine;
-                if (success) successCount++;
+                if (success) {
+                    successCount++;
+                    if (translation) {
+                        translatedWords.push(translation);
+                    }
+                }
             });
             
             // Update textarea content
@@ -2511,11 +2576,15 @@ async function fetchNotes() {
      */
     async function translateTextWithFallback(text, langPair) {
         // First try Chrome AI if available
-        if ('ai' in window && typeof window.ai.translateText === 'function') {
+        if ('ai' in window && typeof window.ai.createTextTranslator === 'function') {
             try {
                 console.log('🤖 Using Chrome AI Translator for:', text);
                 const [sourceLang, targetLang] = langPair.split('|');
-                const result = await window.ai.translateText(text, sourceLang, targetLang);
+                const translator = await window.ai.createTextTranslator({
+                    sourceLanguage: sourceLang,
+                    targetLanguage: targetLang
+                });
+                const result = await translator.translate(text);
                 if (result && result.trim()) {
                     return result.trim();
                 }
@@ -5627,8 +5696,12 @@ if (languageSelectorInGame) {
                         
                         // Show hamburger menu when user is authenticated
                         const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                        console.log('🍔 Attempting to show hamburger menu...', { deckSidePanelToggle: !!deckSidePanelToggle });
                         if (deckSidePanelToggle) {
                             deckSidePanelToggle.style.display = 'flex';
+                            console.log('✅ Hamburger menu should now be visible');
+                        } else {
+                            console.error('❌ deckSidePanelToggle element not found!');
                         }
 
                         try {
@@ -5709,6 +5782,7 @@ if (languageSelectorInGame) {
                         
                         // Hide hamburger menu when user is not authenticated
                         const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                        console.log('🍔 Hiding hamburger menu on logout...', { deckSidePanelToggle: !!deckSidePanelToggle });
                         if (deckSidePanelToggle) {
                             deckSidePanelToggle.style.display = 'none';
                         }
@@ -5740,6 +5814,7 @@ if (languageSelectorInGame) {
                             
                             // Hide hamburger menu when no session
                             const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                            console.log('🍔 Hiding hamburger menu (no session)...', { deckSidePanelToggle: !!deckSidePanelToggle });
                             if (deckSidePanelToggle) {
                                 deckSidePanelToggle.style.display = 'none';
                             }
@@ -5765,6 +5840,7 @@ if (languageSelectorInGame) {
                 
                 // Hide hamburger menu when Supabase not available
                 const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                console.log('🍔 Hiding hamburger menu (no Supabase)...', { deckSidePanelToggle: !!deckSidePanelToggle });
                 if (deckSidePanelToggle) {
                     deckSidePanelToggle.style.display = 'none';
                 }
