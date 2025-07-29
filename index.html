@@ -1004,7 +1004,8 @@
 
                 <div id="memoryTestGame" class="hidden">
                     <p id="memoryTestInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">
-                        Click a card and speak the translation in your original language. You have 2 tries per card and lose a life for each mistake.
+                        <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-medium mr-2">BETA</span>
+                        Click a card and speak the translation in your original language. You have 3 tries per card and lose a life for each mistake.
                     </p>
                     <div class="flex justify-between items-center mb-3 sm:mb-4">
                         <div id="memoryTestLives" class="flex gap-1">
@@ -1019,6 +1020,8 @@
                     <div id="memoryTestRecording" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 mt-3 text-center">
                         <p class="text-red-700 font-medium">🎤 Recording... Speak now!</p>
                         <p id="memoryTestRecognizedText" class="text-sm text-red-600 mt-1"></p>
+                        <button id="memoryTestHintBtn" class="btn btn-secondary text-xs mt-2">💡 Get Hint</button>
+                        <p id="memoryTestHint" class="text-sm text-blue-600 mt-1 hidden"></p>
                     </div>
                     <p id="memoryTestFeedback" class="text-center font-medium mt-3 sm:mt-4 h-5 sm:h-6 text-sm sm:text-base"></p>
                     <div class="text-center mt-3 sm:mt-4">
@@ -1054,7 +1057,10 @@
                 </div>
 
                 <div id="typeTranslationGame" class="hidden">
-                    <p id="typeTranslationInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">Type the Target Language translation for the word/phrase shown in Your Language.</p>
+                    <p id="typeTranslationInstructions" class="text-slate-600 mb-3 sm:mb-4 text-sm sm:text-base">
+                        <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-medium mr-2">BETA</span>
+                        Type the Target Language translation for the word/phrase shown in Your Language.
+                    </p>
                     <div id="typeTranslationPhrase" class="card non-interactive-card bg-sky-50 p-3 sm:p-4 mb-3 sm:mb-4 text-lg sm:text-xl font-medium text-sky-700 text-center min-h-[70px] sm:min-h-[80px] flex items-center justify-center"></div>
                     <input type="text" id="typeTranslationInput" class="w-full p-2.5 sm:p-3 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 mb-2 text-sm sm:text-base" placeholder="Type Target Language translation here...">
                     <div class="flex flex-col sm:flex-row justify-between items-center mb-3 sm:mb-4 gap-2">

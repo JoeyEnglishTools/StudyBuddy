@@ -805,7 +805,7 @@ async function fetchNotes() {
     // Live Notes elements
     const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
     const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), memoryTestBtn = document.getElementById("memoryTestBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
-    const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), memoryTestGameContainer = document.getElementById("memoryTestGame"), memoryTestGrid = document.getElementById("memoryTestGrid"), memoryTestInstructions = document.getElementById("memoryTestInstructions"), memoryTestFeedback = document.getElementById("memoryTestFeedback"), memoryTestLives = document.getElementById("memoryTestLives"), memoryTestTimer = document.getElementById("memoryTestTimer"), memoryTestTimerValue = document.getElementById("memoryTestTimerValue"), memoryTestRoundInfo = document.getElementById("memoryTestRoundInfo"), memoryTestRecording = document.getElementById("memoryTestRecording"), memoryTestRecognizedText = document.getElementById("memoryTestRecognizedText"), resetMemoryTestBtn = document.getElementById("resetMemoryTestBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
+    const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), memoryTestGameContainer = document.getElementById("memoryTestGame"), memoryTestGrid = document.getElementById("memoryTestGrid"), memoryTestInstructions = document.getElementById("memoryTestInstructions"), memoryTestFeedback = document.getElementById("memoryTestFeedback"), memoryTestLives = document.getElementById("memoryTestLives"), memoryTestTimer = document.getElementById("memoryTestTimer"), memoryTestTimerValue = document.getElementById("memoryTestTimerValue"), memoryTestRoundInfo = document.getElementById("memoryTestRoundInfo"), memoryTestRecording = document.getElementById("memoryTestRecording"), memoryTestRecognizedText = document.getElementById("memoryTestRecognizedText"), memoryTestHintBtn = document.getElementById("memoryTestHintBtn"), memoryTestHint = document.getElementById("memoryTestHint"), resetMemoryTestBtn = document.getElementById("resetMemoryTestBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
     const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
     const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
     const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
@@ -2387,8 +2387,10 @@ async function fetchNotes() {
                 <div class="flex items-center space-x-3">
                     <div class="flex-1">
                         <span class="font-medium text-gray-900 click-to-speak" data-text="${note.lang1}" data-lang="${note.term_lang || csvUploadedTargetLanguage}">${note.lang1}</span>
+                        <button class="ml-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1 rounded edit-btn-inline" title="Edit note" data-index="${originalIndex}">✏️</button>
                         <span class="text-gray-600 mx-2">—</span>
                         <span class="text-gray-700 click-to-speak" data-text="${note.lang2}" data-lang="en">${note.lang2}</span>
+                        <button class="ml-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1 rounded edit-btn-inline" title="Edit note" data-index="${originalIndex}">✏️</button>
                     </div>
                 </div>
             `;
@@ -2402,21 +2404,16 @@ async function fetchNotes() {
                         console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
                         speakText(text, lang);
                     }
+                } else if (e.target.classList.contains('edit-btn-inline')) {
+                    e.stopPropagation();
+                    const index = parseInt(e.target.dataset.index);
+                    console.log('✏️ populateNotesList: Inline edit button clicked for note:', note);
+                    editNote(index, note);
                 }
             });
             
-            // Add edit button
-            const editBtn = document.createElement('button');
-            editBtn.className = 'ml-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded edit-btn';
-            editBtn.innerHTML = '✏️';
-            editBtn.title = 'Edit note';
-            editBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event bubbling
-                console.log('✏️ populateNotesList: Edit button clicked for note:', note);
-                editNote(originalIndex, note);
-            });
-            
-            // Add delete button
+            // Remove the old edit button since we now have inline edit buttons
+            // Add delete button only
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn';
             deleteBtn.innerHTML = '✕';
@@ -2428,7 +2425,6 @@ async function fetchNotes() {
             });
             
             noteItem.appendChild(noteContent);
-            noteItem.appendChild(editBtn);
             noteItem.appendChild(deleteBtn);
             
             // Add swipe-to-delete for mobile
@@ -3034,7 +3030,7 @@ async function fetchNotes() {
                 if (SpeechRecognition) {
                     recognition = new SpeechRecognition();
                     recognition.continuous = false;
-                    recognition.lang = 'en-GB';
+                    recognition.lang = 'en'; // Use generic English to be less accent-sensitive
                     recognition.interimResults = false;
                     recognition.maxAlternatives = 1;
 
@@ -3054,6 +3050,41 @@ async function fetchNotes() {
                     speechApiStatus.textContent = "Browser doesn't support speech recognition.";
                     if(listenBtn) listenBtn.disabled = true;
                 }
+            }
+            
+            // Helper function for calculating edit distance (Levenshtein distance)
+            function getEditDistance(str1, str2) {
+                const matrix = [];
+                const n = str1.length;
+                const m = str2.length;
+                
+                if (n === 0) return m;
+                if (m === 0) return n;
+                
+                // Initialize matrix
+                for (let i = 0; i <= n; i++) {
+                    matrix[i] = [i];
+                }
+                for (let j = 0; j <= m; j++) {
+                    matrix[0][j] = j;
+                }
+                
+                // Fill in the matrix
+                for (let i = 1; i <= n; i++) {
+                    for (let j = 1; j <= m; j++) {
+                        if (str1.charAt(i - 1) === str2.charAt(j - 1)) {
+                            matrix[i][j] = matrix[i - 1][j - 1];
+                        } else {
+                            matrix[i][j] = Math.min(
+                                matrix[i - 1][j - 1] + 1, // substitution
+                                matrix[i][j - 1] + 1,     // insertion
+                                matrix[i - 1][j] + 1      // deletion
+                            );
+                        }
+                    }
+                }
+                
+                return matrix[n][m];
             }
 
             // --- GAME LOGIC FUNCTIONS ---
@@ -3315,8 +3346,8 @@ async function fetchNotes() {
                     gameState.cardAttempts[cardId] = 0;
                 }
                 
-                // Check if this card has already been attempted 2 times
-                if (gameState.cardAttempts[cardId] >= 2) {
+                // Check if this card has already been attempted 3 times
+                if (gameState.cardAttempts[cardId] >= 3) {
                     return;
                 }
                 
@@ -3326,6 +3357,7 @@ async function fetchNotes() {
                 // Show recording UI
                 memoryTestRecording.classList.remove('hidden');
                 memoryTestRecognizedText.textContent = '';
+                memoryTestHint.classList.add('hidden'); // Hide hint for new card
                 
                 // Start timer
                 startMemoryTestTimer();
@@ -3370,18 +3402,31 @@ async function fetchNotes() {
                     }
                 }
                 
-                // Set recognition language to English (user needs to speak original language)
-                recognition.lang = 'en-GB';
+                // Set recognition language to be more flexible with accents
+                recognition.lang = 'en';  // Use generic English instead of en-GB to be less accent-sensitive
                 
                 recognition.onresult = (event) => {
                     const spokenText = event.results[0][0].transcript.toLowerCase().trim();
                     memoryTestRecognizedText.textContent = `Heard: "${spokenText}"`;
                     
-                    // Check if correct
+                    // Check if correct with more flexible matching
                     const expectedAnswer = cardElement.dataset.lang1.toLowerCase().trim();
-                    const isCorrect = spokenText === expectedAnswer || 
-                                    spokenText.includes(expectedAnswer) ||
-                                    expectedAnswer.includes(spokenText);
+                    
+                    // Normalize both texts: remove punctuation, extra spaces, and common variations
+                    const normalizeText = (text) => {
+                        return text.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+                    };
+                    
+                    const normalizedSpoken = normalizeText(spokenText);
+                    const normalizedExpected = normalizeText(expectedAnswer);
+                    
+                    // Multiple matching strategies for better accuracy
+                    const isCorrect = 
+                        normalizedSpoken === normalizedExpected ||  // Exact match
+                        normalizedSpoken.includes(normalizedExpected) ||  // Spoken contains expected
+                        normalizedExpected.includes(normalizedSpoken) ||  // Expected contains spoken
+                        // Phonetic similarity (simple edit distance check)
+                        getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.2));
                     
                     if (isCorrect) {
                         handleMemoryTestCorrect(cardElement);
@@ -3568,6 +3613,19 @@ async function fetchNotes() {
                     memoryTestGameContainer.classList.add('hidden');
                 }, 2000);
             }
+            
+            function showMemoryTestHint(cardElement) {
+                const expectedAnswer = cardElement.dataset.lang1;
+                if (expectedAnswer.length < 3) {
+                    memoryTestHint.textContent = `Hint: "${expectedAnswer}"`;
+                } else {
+                    const firstLetter = expectedAnswer.charAt(0);
+                    const lastTwoLetters = expectedAnswer.slice(-2);
+                    const middleAsterisks = '*'.repeat(Math.max(0, expectedAnswer.length - 3));
+                    memoryTestHint.textContent = `Hint: ${firstLetter}${middleAsterisks}${lastTwoLetters}`;
+                }
+                memoryTestHint.classList.remove('hidden');
+            }
 
             function initMultipleChoiceGame() {
                 let mcqGameActiveVocab = shuffleArray(currentVocabularyPart);
@@ -3738,6 +3796,15 @@ async function fetchNotes() {
             function initTalkToMeGame() {
                 talkToMeGameContainer.classList.remove('hidden');
                 
+                // Initialize wrong answers tracking for Talk to Me
+                if (!window.talkToMeWrongAnswers) {
+                    window.talkToMeWrongAnswers = [];
+                }
+                if (!window.talkToMeAttempts) {
+                    window.talkToMeAttempts = {}; // Track attempts per question
+                }
+                window.talkToMeBonusRoundActive = false;
+                
                 // Only show language selector if no language is defined
                 if (!hasDefinedLanguage()) {
                     languageSelectionInGameContainer.classList.remove('hidden');
@@ -3755,9 +3822,23 @@ async function fetchNotes() {
 
             function displayNextTalkToMe(gameVocab) {
                 if (currentTalkToMeIndex >= gameVocab.length) {
-                    talkToMePhraseText.textContent = "Part Complete!";
-                    return;
+                    // Check if we need a bonus round for wrong answers
+                    if (window.talkToMeWrongAnswers && window.talkToMeWrongAnswers.length > 0 && !window.talkToMeBonusRoundActive) {
+                        window.talkToMeBonusRoundActive = true;
+                        talkToMeFeedback.textContent = "Starting bonus round for missed words...";
+                        
+                        setTimeout(() => {
+                            // Reset index and use wrong answers for bonus round
+                            currentTalkToMeIndex = 0;
+                            displayNextTalkToMe(window.talkToMeWrongAnswers);
+                        }, 2000);
+                        return;
+                    } else {
+                        talkToMePhraseText.textContent = window.talkToMeBonusRoundActive ? "Bonus Round Complete!" : "Part Complete!";
+                        return;
+                    }
                 }
+                
                 const item = gameVocab[currentTalkToMeIndex];
                 talkToMePhraseText.textContent = item.lang1;
                 talkToMeRecognizedText.textContent = "...";
@@ -3796,7 +3877,32 @@ async function fetchNotes() {
 
             function checkSpeechAnswer(spokenText) {
                 const item = currentVocabularyPart[currentTalkToMeIndex];
-                const isCorrect = normalizeText(spokenText) === normalizeText(item.lang1);
+                
+                // Initialize attempts tracking for this question
+                const questionKey = `${currentTalkToMeIndex}_${item.lang1}`;
+                if (!window.talkToMeAttempts[questionKey]) {
+                    window.talkToMeAttempts[questionKey] = 0;
+                }
+                window.talkToMeAttempts[questionKey]++;
+                
+                // Display what was heard
+                talkToMeRecognizedText.textContent = `Heard: "${spokenText}"`;
+                
+                // Enhanced matching logic (same as Memory Test)
+                const normalizeTextAdvanced = (text) => {
+                    return text.replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+                };
+                
+                const normalizedSpoken = normalizeTextAdvanced(spokenText.toLowerCase());
+                const normalizedExpected = normalizeTextAdvanced(item.lang1.toLowerCase());
+                
+                // Multiple matching strategies for better accuracy
+                const isCorrect = 
+                    normalizedSpoken === normalizedExpected ||  // Exact match
+                    normalizedSpoken.includes(normalizedExpected) ||  // Spoken contains expected
+                    normalizedExpected.includes(normalizedSpoken) ||  // Expected contains spoken
+                    // Phonetic similarity (simple edit distance check)
+                    getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.2));
 
                 if (isCorrect) {
                     talkToMeFeedback.textContent = "Correct! Well done!";
@@ -3809,12 +3915,32 @@ async function fetchNotes() {
                         displayNextTalkToMe(currentVocabularyPart);
                     }, 1500);
                 } else {
-                    talkToMeFeedback.textContent = "Not quite, try again or click the word to hear it again.";
-                    talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
-                    playIncorrectSound();
+                    const attempts = window.talkToMeAttempts[questionKey];
+                    
+                    if (attempts >= 3) {
+                        // Add to wrong answers if max attempts reached
+                        if (!window.talkToMeWrongAnswers.some(wrong => wrong.lang1 === item.lang1)) {
+                            window.talkToMeWrongAnswers.push(item);
+                        }
+                        
+                        talkToMeFeedback.textContent = `Expected: "${item.lang1}". Moving to next question.`;
+                        talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-red-600";
+                        playIncorrectSound();
+                        
+                        // Auto-advance after showing the correct answer
+                        setTimeout(() => {
+                            currentTalkToMeIndex++;
+                            displayNextTalkToMe(currentVocabularyPart);
+                        }, 2500);
+                    } else {
+                        talkToMeFeedback.textContent = `Try ${attempts}/3: Expected "${item.lang1}". Try again or click the word to hear it.`;
+                        talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                        playIncorrectSound();
+                        
+                        // Allow another attempt
+                        nextTalkToMeBtn.classList.remove('hidden');
+                    }
                 }
-
-                nextTalkToMeBtn.classList.remove('hidden');
             }
 
             function initFindTheWordsGame() {
@@ -4209,6 +4335,13 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                     window.memoryTestGameState.roundCompletedCards = [];
                     window.memoryTestGameState.cardAttempts = {};
                     startMemoryTestRound();
+                }
+            });
+            
+            if (memoryTestHintBtn) memoryTestHintBtn.addEventListener('click', () => {
+                const gameState = window.memoryTestGameState;
+                if (gameState.currentCard) {
+                    showMemoryTestHint(gameState.currentCard);
                 }
             });
 
