@@ -606,7 +606,7 @@
             background-color: rgba(55, 65, 81, 0.9);
             color: white;
             border: 2px solid rgba(255, 255, 255, 0.2);
-            display: flex;
+            display: none; /* Hidden by default until user is authenticated */
             align-items: center;
             justify-content: center;
             cursor: pointer;
@@ -1367,14 +1367,15 @@ Symbols like _, ·, •, →, ← are automatically converted to dashes."
                     
                     <div>
                         <label for="welcomeNativeLanguage" class="block text-sm font-medium text-gray-700 text-left">Your Native Language</label>
-                        <select id="welcomeNativeLanguage" class="form-input mt-1 w-full">
-                            <option value="EN">English</option>
+                        <select id="welcomeNativeLanguage" class="form-input mt-1 w-full" required>
+                            <option value="">-- Select Your Native Language --</option>
                             <option value="ES">Spanish</option>
                             <option value="FR">French</option>
                             <option value="DE">German</option>
-                            <option value="IT">Italian</option>
                             <option value="PT">Portuguese</option>
+                            <option value="IT">Italian</option>
                             <option value="NL">Dutch</option>
+                            <option value="EN">English</option>
                             <option value="RU">Russian</option>
                             <option value="ZH">Chinese</option>
                             <option value="JA">Japanese</option>
@@ -1385,18 +1386,19 @@ Symbols like _, ·, •, →, ← are automatically converted to dashes."
                     
                     <div>
                         <label for="welcomeDeckLanguage" class="block text-sm font-medium text-gray-700 text-left">Language You're Learning</label>
-                        <select id="welcomeDeckLanguage" class="form-input mt-1 w-full">
-                            <option value="en-GB">English (UK)</option>
+                        <select id="welcomeDeckLanguage" class="form-input mt-1 w-full" required>
+                            <option value="">-- Select Language You're Learning --</option>
                             <option value="es-ES">Español (Spain)</option>
                             <option value="fr-FR">Français (France)</option>
                             <option value="de-DE">Deutsch (German)</option>
-                            <option value="it-IT">Italiano (Italian)</option>
                             <option value="pt-PT">Português (Portugal)</option>
+                            <option value="it-IT">Italiano (Italian)</option>
+                            <option value="nl-NL">Nederlands (Dutch)</option>
+                            <option value="en-GB">English (UK)</option>
+                            <option value="ru-RU">Русский (Russian)</option>
+                            <option value="zh-CN">中文 (Chinese)</option>
                             <option value="ja-JP">日本語 (Japanese)</option>
                             <option value="ko-KR">한국어 (Korean)</option>
-                            <option value="zh-CN">中文 (Chinese)</option>
-                            <option value="nl-NL">Nederlands (Dutch)</option>
-                            <option value="ru-RU">Русский (Russian)</option>
                             <option value="ar-SA">العربية (Arabic)</option>
                         </select>
                     </div>

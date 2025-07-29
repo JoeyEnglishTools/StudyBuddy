@@ -5467,6 +5467,12 @@ if (languageSelectorInGame) {
                         
                         loginSection.classList.add('hidden');
                         appContent.classList.remove('hidden');
+                        
+                        // Show hamburger menu when user is authenticated
+                        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                        if (deckSidePanelToggle) {
+                            deckSidePanelToggle.style.display = 'flex';
+                        }
 
                         try {
                             // Initialize deck management first
@@ -5544,6 +5550,12 @@ if (languageSelectorInGame) {
                         appContent.classList.add('hidden');
                         vocabulary = [];
                         
+                        // Hide hamburger menu when user is not authenticated
+                        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                        if (deckSidePanelToggle) {
+                            deckSidePanelToggle.style.display = 'none';
+                        }
+                        
                         // Clear file input on logout to prevent issues
                         if (csvFileInput) {
                             csvFileInput.value = '';
@@ -5562,6 +5574,12 @@ if (languageSelectorInGame) {
                             isAuthenticating = false; // Ensure flag is reset
                             loginSection.classList.remove('hidden');
                             appContent.classList.add('hidden');
+                            
+                            // Hide hamburger menu when no session
+                            const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                            if (deckSidePanelToggle) {
+                                deckSidePanelToggle.style.display = 'none';
+                            }
                         }
                     }).catch(error => {
                         console.error('💥 Error checking session:', error);
@@ -5575,6 +5593,12 @@ if (languageSelectorInGame) {
                 // Fallback: ensure login is shown when Supabase is not available
                 loginSection.classList.remove('hidden');
                 appContent.classList.add('hidden');
+                
+                // Hide hamburger menu when Supabase not available
+                const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                if (deckSidePanelToggle) {
+                    deckSidePanelToggle.style.display = 'none';
+                }
                 // Disable login functionality
                 if (authForm) {
                     authForm.addEventListener('submit', (e) => {
@@ -5643,6 +5667,16 @@ if (languageSelectorInGame) {
                     
                     if (!deckName) {
                         alert('Please enter a deck name.');
+                        return;
+                    }
+                    
+                    if (!nativeLanguage) {
+                        alert('Please select your native language.');
+                        return;
+                    }
+                    
+                    if (!deckLanguage) {
+                        alert('Please select the language you are learning.');
                         return;
                     }
                     
