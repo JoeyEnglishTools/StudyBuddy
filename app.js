@@ -1446,6 +1446,62 @@ async function fetchNotes() {
     // Make functions globally accessible for onclick handlers
     window.hideConnectionLostPrompt = hideConnectionLostPrompt;
     
+    // Update note progress for spaced repetition
+    async function updateNoteProgress(term, definition, isCorrect) {
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                console.error('❌ No user authenticated for progress update');
+                return false;
+            }
+            
+            const now = new Date().toISOString();
+            let ease_factor, interval_days;
+            
+            if (isCorrect) {
+                // Correct answer: high ease factor, long interval (45 days)
+                ease_factor = 5;
+                interval_days = 45;
+                console.log(`✅ Marking ${term} as mastered - ease_factor: ${ease_factor}, interval: ${interval_days} days`);
+            } else {
+                // Incorrect answer: low ease factor, short interval (1 day)  
+                ease_factor = 1;
+                interval_days = 1;
+                console.log(`❌ Marking ${term} for review - ease_factor: ${ease_factor}, interval: ${interval_days} day`);
+            }
+            
+            // Calculate next review date
+            const nextReview = new Date();
+            nextReview.setDate(nextReview.getDate() + interval_days);
+            const nextReviewDate = nextReview.toISOString();
+            
+            // Try to update the existing note with progress data
+            const { error } = await supabaseClient
+                .from('notes')
+                .update({
+                    ease_factor: ease_factor,
+                    interval_days: interval_days,
+                    next_review: nextReviewDate,
+                    last_reviewed: now
+                })
+                .eq('user_id', user.id)
+                .eq('term', term)
+                .eq('definition', definition);
+            
+            if (error) {
+                console.error('❌ Error updating note progress:', error);
+                console.warn('⚠️ Note: This might be because ease_factor columns don\'t exist yet');
+                return false;
+            }
+            
+            console.log(`📈 Successfully updated progress for "${term}"`);
+            return true;
+        } catch (error) {
+            console.error('💥 Unexpected error updating note progress:', error);
+            return false;
+        }
+    }
+    
     function checkForWordPairCompletion(text, cursorPosition) {
         // Get the current line where the cursor is
         const beforeCursor = text.substring(0, cursorPosition);
@@ -3467,6 +3523,12 @@ async function fetchNotes() {
                         }
                         updateScoreDisplay();
                         
+                        // Update progress for spaced repetition
+                        const item = currentVocab[card1Id] || currentVocab[card2Id];
+                        if (item) {
+                            updateNoteProgress(item.lang1, item.lang2, true);
+                        }
+                        
                         matchedPairs++;
                         if (matchedPairs === pairsToMatch) {
                             const gameState = window.matchingGameState;
@@ -3509,9 +3571,13 @@ async function fetchNotes() {
                             const currentVocab = getCurrentMatchingVocab();
                             if (currentVocab[card1Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card1Id].lang1)) {
                                 gameState.wrongMatches.push(currentVocab[card1Id]);
+                                // Update progress for incorrect match
+                                updateNoteProgress(currentVocab[card1Id].lang1, currentVocab[card1Id].lang2, false);
                             }
                             if (currentVocab[card2Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card2Id].lang1)) {
                                 gameState.wrongMatches.push(currentVocab[card2Id]);
+                                // Update progress for incorrect match
+                                updateNoteProgress(currentVocab[card2Id].lang1, currentVocab[card2Id].lang2, false);
                             }
                         }
                         
@@ -3848,6 +3914,13 @@ async function fetchNotes() {
                 // Play success sound
                 playCorrectMatchSound();
                 
+                // Update progress for correct answer
+                const vocabItem = {
+                    lang1: cardElement.dataset.lang1,
+                    lang2: cardElement.dataset.lang2
+                };
+                updateNoteProgress(vocabItem.lang1, vocabItem.lang2, true);
+                
                 memoryTestFeedback.textContent = `Correct! +${points} points`;
                 gameState.roundCompletedCards.push(cardId);
                 
@@ -3888,6 +3961,9 @@ async function fetchNotes() {
                     if (!gameState.wrongCards.find(w => w.lang1 === vocabItem.lang1)) {
                         gameState.wrongCards.push(vocabItem);
                     }
+                    
+                    // Update progress for incorrect answer
+                    updateNoteProgress(vocabItem.lang1, vocabItem.lang2, false);
                     
                     gameState.roundCompletedCards.push(cardId);
                     
@@ -4071,6 +4147,9 @@ async function fetchNotes() {
                     }
                     updateScoreDisplay();
                     
+                    // Update progress for correct answer
+                    updateNoteProgress(item.lang1, item.lang2, true);
+                    
                     // Auto-advance after 1.5 seconds
                     setTimeout(() => {
                         mcqAnswered = false; 
@@ -4085,6 +4164,9 @@ async function fetchNotes() {
                     if (!window.mcqWrongAnswers.find(w => w.lang1 === item.lang1)) {
                         window.mcqWrongAnswers.push(item);
                     }
+                    
+                    // Update progress for incorrect answer
+                    updateNoteProgress(item.lang1, item.lang2, false);
                     
                     playIncorrectSound();
                     mcqFeedback.textContent = `Correct: ${item.lang2}`;
@@ -4307,6 +4389,9 @@ async function fetchNotes() {
                     talkToMeFeedback.textContent = "Correct! Well done!";
                     talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
                     playCorrectMatchSound();
+                    
+                    // Update progress for correct answer
+                    updateNoteProgress(item.lang1, item.lang2, true);
 
                     // Auto-advance after a short delay
                     setTimeout(() => {
@@ -4321,6 +4406,9 @@ async function fetchNotes() {
                         if (!window.talkToMeWrongAnswers.some(wrong => wrong.lang1 === item.lang1)) {
                             window.talkToMeWrongAnswers.push(item);
                         }
+                        
+                        // Update progress for incorrect answer (max attempts reached)
+                        updateNoteProgress(item.lang1, item.lang2, false);
                         
                         talkToMeFeedback.textContent = `Expected: "${item.lang1}". Moving to next question.`;
                         talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-red-600";
@@ -4376,6 +4464,9 @@ async function fetchNotes() {
                     talkToMeFeedback.textContent = "Correct! Well done!";
                     talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
                     playCorrectMatchSound();
+                    
+                    // Update progress for manually confirmed correct answer
+                    updateNoteProgress(item.lang1, item.lang2, true);
 
                     // Auto-advance after a short delay
                     setTimeout(() => {
@@ -4486,6 +4577,17 @@ async function startFindTheWordsRound(pool) {
                     }
                     updateScoreDisplay();
                     
+                    // Update progress for all correct words found
+                    findWordsTargetWords.forEach(word => {
+                        const vocabItem = findWordsSessionPool.find(item => 
+                            item.lang1.toLowerCase() === word.toLowerCase() || 
+                            item.lang2.toLowerCase() === word.toLowerCase()
+                        );
+                        if (vocabItem) {
+                            updateNoteProgress(vocabItem.lang1, vocabItem.lang2, true);
+                        }
+                    });
+                    
                     findTheWordsFeedback.textContent = `Perfect! You found all ${correctCount} words!`;
                     findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
                     
@@ -4499,6 +4601,20 @@ async function startFindTheWordsRound(pool) {
                     }, 2000);
                 } else {
                     playIncorrectSound();
+                    
+                    // Update progress for incorrect words (missed targets)
+                    findWordsTargetWords.forEach(word => {
+                        if (!findWordsSelectedWords.includes(word)) {
+                            const vocabItem = findWordsSessionPool.find(item => 
+                                item.lang1.toLowerCase() === word.toLowerCase() || 
+                                item.lang2.toLowerCase() === word.toLowerCase()
+                            );
+                            if (vocabItem) {
+                                updateNoteProgress(vocabItem.lang1, vocabItem.lang2, false);
+                            }
+                        }
+                    });
+                    
                     findTheWordsFeedback.textContent = `You found ${correctCount} of ${findWordsTargetWords.length} correct words.`;
                     findTheWordsFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
                     nextFindTheWordsRoundBtn.classList.remove('hidden');
