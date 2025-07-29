@@ -804,7 +804,7 @@ async function fetchNotes() {
     const loginSection = document.getElementById('loginSection'), appContent = document.getElementById('appContent'), logoutBtn = document.getElementById('logoutBtn'), googleLoginBtn = document.getElementById('googleLoginBtn'), authForm = document.getElementById('authForm'), authTitle = document.getElementById('authTitle'), authSubmitBtn = document.getElementById('authSubmitBtn'), authToggleText = document.getElementById('authToggleText'), authError = document.getElementById('authError'), addNotesBtn = document.getElementById('addNotesBtn'), refreshVocabBtn = document.getElementById('refreshVocabBtn'), liveNotesBtn = document.getElementById('liveNotesBtn');
     
     // Live Notes elements
-    const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
+    const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), translateTextBtn = document.getElementById('translateTextBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
     const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), memoryTestBtn = document.getElementById("memoryTestBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
     const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), memoryTestGameContainer = document.getElementById("memoryTestGame"), memoryTestGrid = document.getElementById("memoryTestGrid"), memoryTestInstructions = document.getElementById("memoryTestInstructions"), memoryTestFeedback = document.getElementById("memoryTestFeedback"), memoryTestLives = document.getElementById("memoryTestLives"), memoryTestTimer = document.getElementById("memoryTestTimer"), memoryTestTimerValue = document.getElementById("memoryTestTimerValue"), memoryTestRoundInfo = document.getElementById("memoryTestRoundInfo"), memoryTestRecording = document.getElementById("memoryTestRecording"), memoryTestRecognizedText = document.getElementById("memoryTestRecognizedText"), memoryTestHintBtn = document.getElementById("memoryTestHintBtn"), memoryTestHint = document.getElementById("memoryTestHint"), resetMemoryTestBtn = document.getElementById("resetMemoryTestBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
     const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
@@ -2393,6 +2393,162 @@ async function fetchNotes() {
             updateSaveStatus();
             updateLineAndParsedCounts();
             liveNotesTextarea.focus();
+        }
+    }
+    
+    // Handle Live Notes batch translation functionality
+    async function handleLiveNotesTranslation() {
+        try {
+            // Check if user has set language preferences
+            const nativeLanguage = localStorage.getItem('user_native_language');
+            const learningLanguage = localStorage.getItem('user_learning_language');
+            
+            if (!nativeLanguage || !learningLanguage) {
+                alert('Language preferences not found. Please create a new deck to set your native and learning languages.');
+                return;
+            }
+            
+            const textarea = liveNotesTextarea;
+            const text = textarea.value;
+            const lines = text.split('\n');
+            
+            // Find lines that need translation (end with dash but no definition)
+            const linesToTranslate = [];
+            lines.forEach((line, index) => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.endsWith('-') && !trimmedLine.includes(' - ')) {
+                    const wordToTranslate = trimmedLine.slice(0, -1).trim();
+                    if (wordToTranslate) {
+                        linesToTranslate.push({ index, word: wordToTranslate, originalLine: line });
+                    }
+                }
+            });
+            
+            if (linesToTranslate.length === 0) {
+                alert('No incomplete translations found. Add words ending with a dash (e.g., "apple -") to translate them.');
+                return;
+            }
+            
+            const confirmMsg = `Found ${linesToTranslate.length} word(s) that need translation. This will automatically translate them from ${learningLanguage} to ${nativeLanguage}. Continue?`;
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+            
+            // Show loading state
+            translateTextBtn.disabled = true;
+            translateTextBtn.textContent = '🔄 Translating...';
+            
+            console.log('🤖 Starting Live Notes batch translation...', {
+                nativeLanguage,
+                learningLanguage,
+                wordsToTranslate: linesToTranslate.length
+            });
+            
+            // Determine language pair for translation API
+            const learningCode = learningLanguage.split('-')[0].toLowerCase(); // 'es' from 'es-ES'
+            const nativeCode = nativeLanguage.toLowerCase(); // 'en' from 'EN'
+            const langPair = `${learningCode}|${nativeCode}`; // e.g., 'es|en'
+            
+            // Process translations in parallel
+            const translationPromises = linesToTranslate.map(async ({ index, word, originalLine }) => {
+                try {
+                    const translation = await translateTextWithFallback(word, langPair);
+                    if (translation && translation.toLowerCase() !== word.toLowerCase()) {
+                        // Create new line with translation
+                        const newLine = originalLine.replace(word + ' -', `${word} - ${translation}`);
+                        return { index, newLine, success: true };
+                    } else {
+                        console.log(`❌ Translation failed or unchanged for: ${word}`);
+                        return { index, newLine: originalLine, success: false };
+                    }
+                } catch (error) {
+                    console.error(`❌ Translation error for "${word}":`, error);
+                    return { index, newLine: originalLine, success: false };
+                }
+            });
+            
+            // Wait for all translations to complete
+            const results = await Promise.all(translationPromises);
+            
+            // Update the textarea with translated lines
+            let updatedLines = [...lines];
+            let successCount = 0;
+            
+            results.forEach(({ index, newLine, success }) => {
+                updatedLines[index] = newLine;
+                if (success) successCount++;
+            });
+            
+            // Update textarea content
+            textarea.value = updatedLines.join('\n');
+            notepadContent = textarea.value;
+            parseNotepadContent();
+            
+            // Mark as having pending changes for auto-save
+            pendingChanges = true;
+            
+            // Show success message
+            const message = successCount > 0 
+                ? `✅ Successfully translated ${successCount} out of ${linesToTranslate.length} words!`
+                : `❌ No translations could be completed. Please check your internet connection.`;
+                
+            updateSaveStatus(message);
+            
+            console.log(`🤖 Live Notes translation complete: ${successCount}/${linesToTranslate.length} successful`);
+            
+        } catch (error) {
+            console.error('❌ Live Notes translation error:', error);
+            updateSaveStatus('Translation failed');
+        } finally {
+            // Restore button state
+            translateTextBtn.disabled = false;
+            translateTextBtn.textContent = '🤖 Translate Text';
+        }
+    }
+    
+    /**
+     * Translation function that tries Chrome AI first, then falls back to MyMemory API
+     */
+    async function translateTextWithFallback(text, langPair) {
+        // First try Chrome AI if available
+        if ('ai' in window && typeof window.ai.translateText === 'function') {
+            try {
+                console.log('🤖 Using Chrome AI Translator for:', text);
+                const [sourceLang, targetLang] = langPair.split('|');
+                const result = await window.ai.translateText(text, sourceLang, targetLang);
+                if (result && result.trim()) {
+                    return result.trim();
+                }
+            } catch (error) {
+                console.log('Chrome AI translation failed, falling back to MyMemory API:', error);
+            }
+        }
+        
+        // Fallback to MyMemory API
+        return translateWithMyMemoryAPI(text, langPair);
+    }
+    
+    /**
+     * Translation using MyMemory API
+     */
+    async function translateWithMyMemoryAPI(text, langPair) {
+        if (!text.trim()) return '';
+        
+        const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+        
+        try {
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+            
+            if (data.responseStatus !== 200) {
+                console.error("MyMemory API Error:", data.responseDetails);
+                return null;
+            }
+            
+            return data.responseData.translatedText;
+        } catch (error) {
+            console.error('MyMemory API translation error:', error);
+            return null;
         }
     }
 
@@ -5141,6 +5297,7 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
             newLineBtn.addEventListener('click', addNewNoteLine);
             previousLineBtn.addEventListener('click', goToPreviousLine);
             clearAllBtn.addEventListener('click', clearAllLiveNotes);
+            translateTextBtn.addEventListener('click', handleLiveNotesTranslation);
             manualSaveBtn.addEventListener('click', () => saveLiveNotes(true));
             
             // Notes Management event listeners
@@ -5556,6 +5713,12 @@ if (languageSelectorInGame) {
                             deckSidePanelToggle.style.display = 'none';
                         }
                         
+                        // Also ensure side panel is closed when not authenticated
+                        const deckSidePanel = document.getElementById('deckSidePanel');
+                        if (deckSidePanel) {
+                            deckSidePanel.classList.remove('open');
+                        }
+                        
                         // Clear file input on logout to prevent issues
                         if (csvFileInput) {
                             csvFileInput.value = '';
@@ -5580,6 +5743,12 @@ if (languageSelectorInGame) {
                             if (deckSidePanelToggle) {
                                 deckSidePanelToggle.style.display = 'none';
                             }
+                            
+                            // Also ensure side panel is closed when no session
+                            const deckSidePanel = document.getElementById('deckSidePanel');
+                            if (deckSidePanel) {
+                                deckSidePanel.classList.remove('open');
+                            }
                         }
                     }).catch(error => {
                         console.error('💥 Error checking session:', error);
@@ -5598,6 +5767,12 @@ if (languageSelectorInGame) {
                 const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
                 if (deckSidePanelToggle) {
                     deckSidePanelToggle.style.display = 'none';
+                }
+                
+                // Also ensure side panel is closed when not authenticated
+                const deckSidePanel = document.getElementById('deckSidePanel');
+                if (deckSidePanel) {
+                    deckSidePanel.classList.remove('open');
                 }
                 // Disable login functionality
                 if (authForm) {
