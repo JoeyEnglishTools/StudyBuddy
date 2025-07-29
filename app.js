@@ -1307,7 +1307,13 @@ async function fetchNotes() {
     function handleVisibilityChange() {
         if (document.hidden) {
             // Page became hidden (device locked, tab switched, etc.)
-            console.log('📱 Live Notes: Page became hidden, pausing auto-save timers');
+            console.log('📱 Live Notes: Page became hidden, saving and pausing timers');
+            
+            // Save immediately before pausing
+            if (pendingChanges) {
+                saveLiveNotes(true); // Force immediate save
+            }
+            
             if (window.autoSaveTimeout) {
                 clearTimeout(window.autoSaveTimeout);
             }
@@ -1316,17 +1322,63 @@ async function fetchNotes() {
             }
         } else {
             // Page became visible again (device unlocked, tab focused, etc.)
-            console.log('📱 Live Notes: Page became visible, resuming auto-save functionality');
+            console.log('📱 Live Notes: Page became visible, restoring connection and resuming');
+            
+            // Test and restore database connection
+            restoreLiveNotesConnection();
             
             // Save any pending changes immediately
             if (pendingChanges) {
                 console.log('📱 Live Notes: Saving pending changes after visibility restore');
-                saveLiveNotes();
+                saveLiveNotes(true);
             }
             
-            // Restart auto-save timer with remaining time
+            // Restart auto-save timer
             if (liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
                 setupAutoSaveTimer();
+            }
+        }
+    }
+    
+    async function restoreLiveNotesConnection() {
+        console.log('🔌 Live Notes: Restoring database connection...');
+        
+        try {
+            // Test database connection
+            const connectionTest = await testDatabaseConnection();
+            if (connectionTest) {
+                console.log('✅ Live Notes: Database connection restored successfully');
+                updateSaveStatus('Connected', 'text-green-600');
+            } else {
+                console.log('❌ Live Notes: Database connection failed, will retry');
+                updateSaveStatus('Connection Lost', 'text-red-600');
+                
+                // Retry connection after a delay
+                setTimeout(restoreLiveNotesConnection, 5000);
+            }
+        } catch (error) {
+            console.error('💥 Live Notes: Error restoring connection:', error);
+            updateSaveStatus('Connection Error', 'text-red-600');
+            
+            // Retry connection after a delay
+            setTimeout(restoreLiveNotesConnection, 5000);
+        }
+    }
+    
+    function updateSaveStatus(message, className) {
+        if (saveStatus) {
+            saveStatus.textContent = message;
+            saveStatus.className = `text-sm ${className}`;
+        }
+        
+        // Update cloud icon
+        if (cloudIcon) {
+            if (className.includes('green')) {
+                cloudIcon.className = 'w-5 h-5 text-blue-500';
+            } else if (className.includes('red')) {
+                cloudIcon.className = 'w-5 h-5 text-red-500';
+            } else {
+                cloudIcon.className = 'w-5 h-5 text-orange-500';
             }
         }
     }
@@ -1665,35 +1717,52 @@ async function fetchNotes() {
     async function saveLiveNotes(isManualSave = false) {
         console.log('💾 saveLiveNotes: Starting live notes save process...');
         
-        // Parse only completed lines (not the current line being typed)
-        const completedNotesData = parseNotepadContentForSaving();
-        console.log('💾 saveLiveNotes: Parsed completed lines, found', completedNotesData.length, 'completed notes');
+        // Update save status to show saving
+        updateSaveStatus('Saving...', 'text-orange-600');
         
-        if (completedNotesData.length === 0) {
-            console.log('💾 saveLiveNotes: No completed notes to save');
-            return;
-        }
-        
-        // Filter and prepare notes for saving
-        const notesToSave = completedNotesData
-            .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
-            .map(note => ({
-                lang1: note.targetLang.trim(),
-                lang2: note.translation.trim(),
-                lineNumber: note.lineNumber, // Track line number for replacements
-                isEdit: note.wasEdited || false // Track if this is an edit to existing content
-            }));
-        
-        console.log('💾 saveLiveNotes: Prepared notes for saving:', {
-            originalCount: completedNotesData.length,
-            validCount: notesToSave.length,
-            sampleNotes: notesToSave.slice(0, 2)
-        });
-        
-        if (notesToSave.length === 0) {
-            console.log('💾 saveLiveNotes: No valid notes to save');
-            return;
-        }
+        try {
+            // Test database connection first
+            const connectionTest = await testDatabaseConnection();
+            if (!connectionTest) {
+                console.error('❌ saveLiveNotes: Database connection test failed');
+                updateSaveStatus('Connection Failed', 'text-red-600');
+                
+                // Try to restore connection
+                await restoreLiveNotesConnection();
+                return;
+            }
+            
+            // Parse only completed lines (not the current line being typed)
+            const completedNotesData = parseNotepadContentForSaving();
+            console.log('💾 saveLiveNotes: Parsed completed lines, found', completedNotesData.length, 'completed notes');
+            
+            if (completedNotesData.length === 0) {
+                console.log('💾 saveLiveNotes: No completed notes to save');
+                updateSaveStatus('All saved', 'text-green-600');
+                return;
+            }
+            
+            // Filter and prepare notes for saving
+            const notesToSave = completedNotesData
+                .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
+                .map(note => ({
+                    lang1: note.targetLang.trim(),
+                    lang2: note.translation.trim(),
+                    lineNumber: note.lineNumber, // Track line number for replacements
+                    isEdit: note.wasEdited || false // Track if this is an edit to existing content
+                }));
+            
+            console.log('💾 saveLiveNotes: Prepared notes for saving:', {
+                originalCount: completedNotesData.length,
+                validCount: notesToSave.length,
+                sampleNotes: notesToSave.slice(0, 2)
+            });
+            
+            if (notesToSave.length === 0) {
+                console.log('💾 saveLiveNotes: No valid notes to save');
+                updateSaveStatus('All saved', 'text-green-600');
+                return;
+            }
         
         // Separate new notes and edited notes
         const newNotes = [];
@@ -1766,7 +1835,7 @@ async function fetchNotes() {
         if (newNotes.length === 0) {
             console.log('⚠️ saveLiveNotes: No new or edited notes to save');
             pendingChanges = false;
-            updateSaveStatus();
+            updateSaveStatus('All saved', 'text-green-600');
             return;
         }
         
@@ -1803,13 +1872,20 @@ async function fetchNotes() {
             // Refresh vocabulary
             console.log('🔄 saveLiveNotes: Refreshing vocabulary from database...');
             await fetchNotes();
+            
+            // Update save status to success
+            updateSaveStatus('All saved', 'text-green-600');
         } else {
             console.error('❌ saveLiveNotes: Failed to save notes');
-            // Update status to show error
-            if (saveStatus) {
-                saveStatus.textContent = 'Save failed';
-                saveStatus.className = 'text-sm text-red-600';
-            }
+            updateSaveStatus('Save failed', 'text-red-600');
+        }
+        
+        } catch (error) {
+            console.error('💥 saveLiveNotes: Unexpected error during save:', error);
+            updateSaveStatus('Connection Error', 'text-red-600');
+            
+            // Try to restore connection for next time
+            setTimeout(restoreLiveNotesConnection, 2000);
         }
     }
     
@@ -2387,10 +2463,8 @@ async function fetchNotes() {
                 <div class="flex items-center space-x-3">
                     <div class="flex-1">
                         <span class="font-medium text-gray-900 click-to-speak" data-text="${note.lang1}" data-lang="${note.term_lang || csvUploadedTargetLanguage}">${note.lang1}</span>
-                        <button class="ml-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1 rounded edit-btn-inline" title="Edit note" data-index="${originalIndex}">✏️</button>
                         <span class="text-gray-600 mx-2">—</span>
                         <span class="text-gray-700 click-to-speak" data-text="${note.lang2}" data-lang="en">${note.lang2}</span>
-                        <button class="ml-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1 rounded edit-btn-inline" title="Edit note" data-index="${originalIndex}">✏️</button>
                     </div>
                 </div>
             `;
@@ -2404,27 +2478,131 @@ async function fetchNotes() {
                         console.log('🔊 populateNotesList: Speaking text:', text, 'in language:', lang);
                         speakText(text, lang);
                     }
-                } else if (e.target.classList.contains('edit-btn-inline')) {
-                    e.stopPropagation();
-                    const index = parseInt(e.target.dataset.index);
-                    console.log('✏️ populateNotesList: Inline edit button clicked for note:', note);
-                    editNote(index, note);
                 }
             });
             
-            // Remove the old edit button since we now have inline edit buttons
-            // Add delete button only
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn';
-            deleteBtn.innerHTML = '✕';
-            deleteBtn.title = 'Delete note';
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event bubbling
-                console.log('🗑️ populateNotesList: Delete button clicked for note:', note);
-                deleteNote(originalIndex, note);
+            // Add a single, safer edit button with confirmation
+            const editBtn = document.createElement('button');
+            editBtn.className = 'ml-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded edit-btn-safe';
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Edit note (hold for 1 second)';
+            
+            let editTimeout = null;
+            let isEditPressed = false;
+            
+            const startEditTimer = () => {
+                isEditPressed = true;
+                editBtn.style.backgroundColor = '#fbbf24';
+                editBtn.innerHTML = '⏱️';
+                editBtn.title = 'Hold to edit... (keep holding)';
+                
+                editTimeout = setTimeout(() => {
+                    if (isEditPressed) {
+                        console.log('✏️ populateNotesList: Safe edit triggered for note:', note);
+                        editNote(originalIndex, note);
+                        resetEditButton();
+                    }
+                }, 1000); // 1 second hold required
+            };
+            
+            const cancelEditTimer = () => {
+                isEditPressed = false;
+                if (editTimeout) {
+                    clearTimeout(editTimeout);
+                    editTimeout = null;
+                }
+                resetEditButton();
+            };
+            
+            const resetEditButton = () => {
+                editBtn.style.backgroundColor = '';
+                editBtn.innerHTML = '✏️';
+                editBtn.title = 'Edit note (hold for 1 second)';
+            };
+            
+            // Mouse events
+            editBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startEditTimer();
             });
             
+            editBtn.addEventListener('mouseup', cancelEditTimer);
+            editBtn.addEventListener('mouseleave', cancelEditTimer);
+            
+            // Touch events for mobile
+            editBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startEditTimer();
+            });
+            
+            editBtn.addEventListener('touchend', cancelEditTimer);
+            editBtn.addEventListener('touchcancel', cancelEditTimer);
+            
+            // Add delete button with safety measures
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn-safe';
+            deleteBtn.innerHTML = '✕';
+            deleteBtn.title = 'Delete note (hold for 1 second)';
+            
+            let deleteTimeout = null;
+            let isDeletePressed = false;
+            
+            const startDeleteTimer = () => {
+                isDeletePressed = true;
+                deleteBtn.style.backgroundColor = '#ef4444';
+                deleteBtn.style.color = 'white';
+                deleteBtn.innerHTML = '⏱️';
+                deleteBtn.title = 'Hold to delete... (keep holding)';
+                
+                deleteTimeout = setTimeout(() => {
+                    if (isDeletePressed) {
+                        console.log('🗑️ populateNotesList: Safe delete triggered for note:', note);
+                        deleteNote(originalIndex, note);
+                        resetDeleteButton();
+                    }
+                }, 1000); // 1 second hold required
+            };
+            
+            const cancelDeleteTimer = () => {
+                isDeletePressed = false;
+                if (deleteTimeout) {
+                    clearTimeout(deleteTimeout);
+                    deleteTimeout = null;
+                }
+                resetDeleteButton();
+            };
+            
+            const resetDeleteButton = () => {
+                deleteBtn.style.backgroundColor = '';
+                deleteBtn.style.color = '';
+                deleteBtn.innerHTML = '✕';
+                deleteBtn.title = 'Delete note (hold for 1 second)';
+            };
+            
+            // Mouse events for delete
+            deleteBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startDeleteTimer();
+            });
+            
+            deleteBtn.addEventListener('mouseup', cancelDeleteTimer);
+            deleteBtn.addEventListener('mouseleave', cancelDeleteTimer);
+            
+            // Touch events for mobile delete
+            deleteBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startDeleteTimer();
+            });
+            
+            deleteBtn.addEventListener('touchend', cancelDeleteTimer);
+            deleteBtn.addEventListener('touchcancel', cancelDeleteTimer);
+            
             noteItem.appendChild(noteContent);
+            noteItem.appendChild(editBtn);
             noteItem.appendChild(deleteBtn);
             
             // Add swipe-to-delete for mobile
@@ -3403,14 +3581,36 @@ async function fetchNotes() {
                 }
                 
                 // Set recognition language to be more flexible with accents
-                recognition.lang = 'en';  // Use generic English instead of en-GB to be less accent-sensitive
+                let recognitionLang = cardElement.dataset.termLang || activeTargetStudyLanguage;
+                
+                // Use more flexible language variants for recognition to accommodate different accents
+                if (recognitionLang.startsWith('en')) {
+                    recognition.lang = 'en'; // Generic English to accept all English accents
+                } else if (recognitionLang.startsWith('es')) {
+                    recognition.lang = 'es'; // Generic Spanish to accept all Spanish accents
+                } else {
+                    recognition.lang = recognitionLang.split('-')[0]; // Use generic language code
+                }
+                
+                // Configure recognition for better accuracy
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 3;
+                
+                console.log('🎙️ Memory Test: Using recognition language:', recognition.lang, 'for expected word:', cardElement.dataset.lang1);
                 
                 recognition.onresult = (event) => {
                     const spokenText = event.results[0][0].transcript.toLowerCase().trim();
-                    memoryTestRecognizedText.textContent = `Heard: "${spokenText}"`;
-                    
-                    // Check if correct with more flexible matching
                     const expectedAnswer = cardElement.dataset.lang1.toLowerCase().trim();
+                    
+                    console.log('🎙️ Memory Test Recognition:', { 
+                        spoken: spokenText, 
+                        expected: expectedAnswer,
+                        confidence: event.results[0][0].confidence 
+                    });
+                    
+                    // Display both texts for debugging
+                    memoryTestRecognizedText.textContent = `Heard: "${spokenText}" | Expected: "${expectedAnswer}"`;
                     
                     // Normalize both texts: remove punctuation, extra spaces, and common variations
                     const normalizeText = (text) => {
@@ -3420,18 +3620,35 @@ async function fetchNotes() {
                     const normalizedSpoken = normalizeText(spokenText);
                     const normalizedExpected = normalizeText(expectedAnswer);
                     
+                    console.log('🔍 Memory Test Normalized:', { 
+                        spoken: normalizedSpoken, 
+                        expected: normalizedExpected 
+                    });
+                    
                     // Multiple matching strategies for better accuracy
-                    const isCorrect = 
-                        normalizedSpoken === normalizedExpected ||  // Exact match
-                        normalizedSpoken.includes(normalizedExpected) ||  // Spoken contains expected
-                        normalizedExpected.includes(normalizedSpoken) ||  // Expected contains spoken
-                        // Phonetic similarity (simple edit distance check)
-                        getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.2));
+                    const exactMatch = normalizedSpoken === normalizedExpected;
+                    const containsMatch = normalizedSpoken.includes(normalizedExpected) || normalizedExpected.includes(normalizedSpoken);
+                    const editDistanceMatch = getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.3));
+                    
+                    const isCorrect = exactMatch || containsMatch || editDistanceMatch;
+                    
+                    console.log('🎯 Memory Test Matching:', { 
+                        exactMatch, 
+                        containsMatch, 
+                        editDistanceMatch, 
+                        finalResult: isCorrect 
+                    });
                     
                     if (isCorrect) {
                         handleMemoryTestCorrect(cardElement);
                     } else {
-                        handleMemoryTestIncorrect(cardElement, `Expected: "${expectedAnswer}"`);
+                        // Show "They matched correctly" button if the texts look similar
+                        const similarity = 1 - (getEditDistance(normalizedSpoken, normalizedExpected) / Math.max(normalizedSpoken.length, normalizedExpected.length));
+                        if (similarity > 0.7) {
+                            showMemoryTestMatchButton(cardElement, spokenText, expectedAnswer);
+                        } else {
+                            handleMemoryTestIncorrect(cardElement, `Expected: "${expectedAnswer}"`);
+                        }
                     }
                 };
                 
@@ -3453,6 +3670,50 @@ async function fetchNotes() {
                     console.error('Could not start speech recognition:', error);
                     handleMemoryTestIncorrect(cardElement, 'Could not start recording');
                 }
+            }
+            
+            function showMemoryTestMatchButton(cardElement, spokenText, expectedAnswer) {
+                const gameState = window.memoryTestGameState;
+                
+                // Create a "They matched correctly" button
+                const matchButtonContainer = document.createElement('div');
+                matchButtonContainer.id = 'memoryTestMatchContainer';
+                matchButtonContainer.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3 text-center';
+                matchButtonContainer.innerHTML = `
+                    <p class="text-sm text-yellow-800 mb-2">
+                        Heard: "<strong>${spokenText}</strong>" | Expected: "<strong>${expectedAnswer}</strong>"
+                    </p>
+                    <p class="text-xs text-yellow-700 mb-3">Do these match? Sometimes pronunciation differences aren't detected correctly.</p>
+                    <div class="flex gap-2 justify-center">
+                        <button id="memoryTestConfirmMatch" class="btn btn-primary text-sm py-1 px-3">✅ They Match Correctly</button>
+                        <button id="memoryTestRejectMatch" class="btn btn-secondary text-sm py-1 px-3">❌ They Don't Match</button>
+                    </div>
+                `;
+                
+                // Insert after recognition area
+                const recognitionArea = document.getElementById('memoryTestRecording');
+                recognitionArea.parentNode.insertBefore(matchButtonContainer, recognitionArea.nextSibling);
+                
+                // Add event listeners
+                document.getElementById('memoryTestConfirmMatch').addEventListener('click', () => {
+                    console.log('🎯 Memory Test: User confirmed match');
+                    matchButtonContainer.remove();
+                    handleMemoryTestCorrect(cardElement);
+                });
+                
+                document.getElementById('memoryTestRejectMatch').addEventListener('click', () => {
+                    console.log('🎯 Memory Test: User rejected match');
+                    matchButtonContainer.remove();
+                    handleMemoryTestIncorrect(cardElement, `Expected: "${expectedAnswer}"`);
+                });
+                
+                // Auto-remove after 10 seconds
+                setTimeout(() => {
+                    if (document.getElementById('memoryTestMatchContainer')) {
+                        matchButtonContainer.remove();
+                        handleMemoryTestIncorrect(cardElement, `Expected: "${expectedAnswer}"`);
+                    }
+                }, 10000);
             }
             
             function handleMemoryTestCorrect(cardElement) {
@@ -3862,7 +4123,26 @@ async function fetchNotes() {
 
             function startListening() {
                 if (!recognition || isListening) return;
-                recognition.lang = activeTargetStudyLanguage;
+                
+                // Set recognition language but make it more flexible for accents
+                let recognitionLang = activeTargetStudyLanguage;
+                
+                // For speech recognition, be more flexible with language variants
+                // to accommodate different accents
+                if (recognitionLang.startsWith('en')) {
+                    recognitionLang = 'en-US'; // Use US English for recognition (more broadly supported)
+                } else if (recognitionLang.startsWith('es')) {
+                    recognitionLang = 'es-US'; // Use US Spanish for recognition (more broadly supported)
+                }
+                
+                console.log('🎙️ Starting speech recognition with language:', recognitionLang);
+                recognition.lang = recognitionLang;
+                
+                // Make recognition more permissive
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 3; // Get multiple alternatives for better matching
+                
                 recognition.start();
                 isListening = true;
                 listenBtnText.textContent = 'Listening...';
@@ -3885,8 +4165,14 @@ async function fetchNotes() {
                 }
                 window.talkToMeAttempts[questionKey]++;
                 
-                // Display what was heard
-                talkToMeRecognizedText.textContent = `Heard: "${spokenText}"`;
+                console.log('🎙️ Talk to Me Recognition:', { 
+                    spoken: spokenText, 
+                    expected: item.lang1,
+                    attempt: window.talkToMeAttempts[questionKey]
+                });
+                
+                // Display what was heard with both texts
+                talkToMeRecognizedText.textContent = `Heard: "${spokenText}" | Expected: "${item.lang1}"`;
                 
                 // Enhanced matching logic (same as Memory Test)
                 const normalizeTextAdvanced = (text) => {
@@ -3896,13 +4182,24 @@ async function fetchNotes() {
                 const normalizedSpoken = normalizeTextAdvanced(spokenText.toLowerCase());
                 const normalizedExpected = normalizeTextAdvanced(item.lang1.toLowerCase());
                 
+                console.log('🔍 Talk to Me Normalized:', { 
+                    spoken: normalizedSpoken, 
+                    expected: normalizedExpected 
+                });
+                
                 // Multiple matching strategies for better accuracy
-                const isCorrect = 
-                    normalizedSpoken === normalizedExpected ||  // Exact match
-                    normalizedSpoken.includes(normalizedExpected) ||  // Spoken contains expected
-                    normalizedExpected.includes(normalizedSpoken) ||  // Expected contains spoken
-                    // Phonetic similarity (simple edit distance check)
-                    getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.2));
+                const exactMatch = normalizedSpoken === normalizedExpected;
+                const containsMatch = normalizedSpoken.includes(normalizedExpected) || normalizedExpected.includes(normalizedSpoken);
+                const editDistanceMatch = getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.3));
+                
+                const isCorrect = exactMatch || containsMatch || editDistanceMatch;
+                
+                console.log('🎯 Talk to Me Matching:', { 
+                    exactMatch, 
+                    containsMatch, 
+                    editDistanceMatch, 
+                    finalResult: isCorrect 
+                });
 
                 if (isCorrect) {
                     talkToMeFeedback.textContent = "Correct! Well done!";
@@ -3933,14 +4230,85 @@ async function fetchNotes() {
                             displayNextTalkToMe(currentVocabularyPart);
                         }, 2500);
                     } else {
-                        talkToMeFeedback.textContent = `Try ${attempts}/3: Expected "${item.lang1}". Try again or click the word to hear it.`;
-                        talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
-                        playIncorrectSound();
-                        
-                        // Allow another attempt
-                        nextTalkToMeBtn.classList.remove('hidden');
+                        // Show "They matched correctly" button if texts are similar
+                        const similarity = 1 - (getEditDistance(normalizedSpoken, normalizedExpected) / Math.max(normalizedSpoken.length, normalizedExpected.length));
+                        if (similarity > 0.7) {
+                            showTalkToMeMatchButton(spokenText, item.lang1, item);
+                        } else {
+                            talkToMeFeedback.textContent = `Try ${attempts}/3: Expected "${item.lang1}". Try again or click the word to hear it.`;
+                            talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                            playIncorrectSound();
+                            
+                            // Allow another attempt
+                            nextTalkToMeBtn.classList.remove('hidden');
+                        }
                     }
                 }
+            }
+
+            function showTalkToMeMatchButton(spokenText, expectedText, item) {
+                // Create a "They matched correctly" button
+                const matchButtonContainer = document.createElement('div');
+                matchButtonContainer.id = 'talkToMeMatchContainer';
+                matchButtonContainer.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3 text-center';
+                matchButtonContainer.innerHTML = `
+                    <p class="text-sm text-yellow-800 mb-2">
+                        Heard: "<strong>${spokenText}</strong>" | Expected: "<strong>${expectedText}</strong>"
+                    </p>
+                    <p class="text-xs text-yellow-700 mb-3">Do these match? Sometimes pronunciation differences aren't detected correctly.</p>
+                    <div class="flex gap-2 justify-center">
+                        <button id="talkToMeConfirmMatch" class="btn btn-primary text-sm py-1 px-3">✅ They Match Correctly</button>
+                        <button id="talkToMeRejectMatch" class="btn btn-secondary text-sm py-1 px-3">❌ They Don't Match</button>
+                    </div>
+                `;
+                
+                // Insert after feedback area
+                const feedbackArea = document.getElementById('talkToMeFeedback');
+                feedbackArea.parentNode.insertBefore(matchButtonContainer, feedbackArea.nextSibling);
+                
+                // Add event listeners
+                document.getElementById('talkToMeConfirmMatch').addEventListener('click', () => {
+                    console.log('🎯 Talk to Me: User confirmed match');
+                    matchButtonContainer.remove();
+                    
+                    talkToMeFeedback.textContent = "Correct! Well done!";
+                    talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-green-600";
+                    playCorrectMatchSound();
+
+                    // Auto-advance after a short delay
+                    setTimeout(() => {
+                        currentTalkToMeIndex++;
+                        displayNextTalkToMe(currentVocabularyPart);
+                    }, 1500);
+                });
+                
+                document.getElementById('talkToMeRejectMatch').addEventListener('click', () => {
+                    console.log('🎯 Talk to Me: User rejected match');
+                    matchButtonContainer.remove();
+                    
+                    const questionKey = `${currentTalkToMeIndex}_${item.lang1}`;
+                    const attempts = window.talkToMeAttempts[questionKey];
+                    
+                    talkToMeFeedback.textContent = `Try ${attempts}/3: Expected "${item.lang1}". Try again or click the word to hear it.`;
+                    talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                    playIncorrectSound();
+                    
+                    // Allow another attempt
+                    nextTalkToMeBtn.classList.remove('hidden');
+                });
+                
+                // Auto-remove after 10 seconds
+                setTimeout(() => {
+                    if (document.getElementById('talkToMeMatchContainer')) {
+                        matchButtonContainer.remove();
+                        const questionKey = `${currentTalkToMeIndex}_${item.lang1}`;
+                        const attempts = window.talkToMeAttempts[questionKey];
+                        
+                        talkToMeFeedback.textContent = `Try ${attempts}/3: Expected "${item.lang1}". Try again or click the word to hear it.`;
+                        talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-orange-600";
+                        nextTalkToMeBtn.classList.remove('hidden');
+                    }
+                }, 10000);
             }
 
             function initFindTheWordsGame() {
@@ -4416,10 +4784,88 @@ if (languageSelectorInGame) {
                     if ('speechSynthesis' in window && text) {
                         window.speechSynthesis.cancel();
                         const utterance = new SpeechSynthesisUtterance(text);
-                        utterance.lang = lang || activeTargetStudyLanguage || 'en-GB';
-                        utterance.onend = resolve;
-                        utterance.onerror = () => resolve();
-                        window.speechSynthesis.speak(utterance);
+                        
+                        // Force correct accents and override device defaults
+                        let targetLang = lang || activeTargetStudyLanguage || 'en-GB';
+                        
+                        // Force specific accents as requested
+                        if (targetLang.startsWith('en')) {
+                            targetLang = 'en-GB'; // Always use UK English
+                        } else if (targetLang.startsWith('es')) {
+                            targetLang = 'es-ES'; // Always use Spain Spanish
+                        }
+                        
+                        utterance.lang = targetLang;
+                        
+                        // Wait for voices to load
+                        let voicesLoaded = false;
+                        const loadVoices = () => {
+                            if (voicesLoaded) return;
+                            voicesLoaded = true;
+                            
+                            const voices = window.speechSynthesis.getVoices();
+                            console.log('🔊 Available voices:', voices.map(v => ({ name: v.name, lang: v.lang, localService: v.localService })));
+                            
+                            let selectedVoice = null;
+                            
+                            if (targetLang.startsWith('en')) {
+                                // Prioritize UK English voices
+                                selectedVoice = voices.find(voice => 
+                                    voice.lang.includes('en-GB') && voice.localService
+                                ) || voices.find(voice => 
+                                    voice.lang.includes('en-GB')
+                                ) || voices.find(voice => 
+                                    voice.lang.includes('en') && voice.name.toLowerCase().includes('british')
+                                ) || voices.find(voice => 
+                                    voice.lang.includes('en') && voice.name.toLowerCase().includes('uk')
+                                );
+                            } else if (targetLang.startsWith('es')) {
+                                // Prioritize Spain Spanish voices
+                                selectedVoice = voices.find(voice => 
+                                    voice.lang.includes('es-ES') && voice.localService
+                                ) || voices.find(voice => 
+                                    voice.lang.includes('es-ES')
+                                ) || voices.find(voice => 
+                                    voice.lang.includes('es') && voice.name.toLowerCase().includes('spain')
+                                ) || voices.find(voice => 
+                                    voice.lang.includes('es') && !voice.name.toLowerCase().includes('mexico') && !voice.name.toLowerCase().includes('us')
+                                );
+                            } else {
+                                // For other languages, try to find the most appropriate voice
+                                selectedVoice = voices.find(voice => 
+                                    voice.lang === targetLang && voice.localService
+                                ) || voices.find(voice => 
+                                    voice.lang === targetLang
+                                ) || voices.find(voice => 
+                                    voice.lang.startsWith(targetLang.split('-')[0])
+                                );
+                            }
+                            
+                            if (selectedVoice) {
+                                utterance.voice = selectedVoice;
+                                console.log('🔊 Selected voice:', selectedVoice.name, selectedVoice.lang);
+                            } else {
+                                console.log('🔊 No specific voice found, using default for:', targetLang);
+                            }
+                            
+                            // Adjust speech settings for better clarity
+                            utterance.rate = 0.8;
+                            utterance.pitch = 1.0;
+                            utterance.volume = 1.0;
+                            
+                            utterance.onend = resolve;
+                            utterance.onerror = () => resolve();
+                            window.speechSynthesis.speak(utterance);
+                        };
+                        
+                        // Handle voices loading
+                        if (window.speechSynthesis.getVoices().length > 0) {
+                            loadVoices();
+                        } else {
+                            window.speechSynthesis.addEventListener('voiceschanged', loadVoices, { once: true });
+                            // Fallback timeout
+                            setTimeout(loadVoices, 1000);
+                        }
                     } else {
                         resolve();
                     }
