@@ -915,10 +915,100 @@ async function fetchNotes() {
             }));
             console.log('📊 saveNotes: Preparing to insert into Supabase:', notesWithUser.length, 'notes');
             console.log('📊 saveNotes: Sample note data:', notesWithUser.slice(0, 1));
+            
+            // Check for duplicates before inserting
+            console.log('🔍 saveNotes: Checking for duplicate terms...');
+            const duplicates = [];
+            const newNotes = [];
+            
+            for (const note of notesWithUser) {
+                // Check if this term already exists for this user and deck
+                const { data: existingNotes, error: checkError } = await supabaseClient
+                    .from('notes')
+                    .select('term, definition')
+                    .eq('user_id', userResult.data.user.id)
+                    .eq('term', note.term)
+                    .eq('note_set_id', note.note_set_id);
+                
+                if (checkError) {
+                    console.error('❌ Error checking for duplicates:', checkError);
+                    // Continue with insert on error
+                    newNotes.push(note);
+                } else if (existingNotes && existingNotes.length > 0) {
+                    // Found duplicate
+                    duplicates.push({
+                        term: note.term,
+                        existingDefinition: existingNotes[0].definition,
+                        newDefinition: note.definition
+                    });
+                } else {
+                    // No duplicate found
+                    newNotes.push(note);
+                }
+            }
+            
+            // Handle duplicates if found
+            if (duplicates.length > 0) {
+                console.log('⚠️ Found', duplicates.length, 'duplicate terms');
+                
+                const handleDuplicates = await showDuplicateConfirmationModal(duplicates);
+                
+                if (handleDuplicates.action === 'cancel') {
+                    console.log('🚫 User cancelled upload due to duplicates');
+                    if (uploadStatus) {
+                        uploadStatus.textContent = 'Upload cancelled due to duplicates.';
+                        uploadStatus.className = 'text-sm text-gray-600 mt-2 h-5';
+                    }
+                    return false;
+                } else if (handleDuplicates.action === 'replace') {
+                    // Update existing notes instead of inserting new ones
+                    console.log('🔄 Replacing', handleDuplicates.selectedTerms.length, 'duplicate terms');
+                    
+                    for (const term of handleDuplicates.selectedTerms) {
+                        const noteToUpdate = notesWithUser.find(n => n.term === term);
+                        if (noteToUpdate) {
+                            const { error: updateError } = await supabaseClient
+                                .from('notes')
+                                .update({
+                                    definition: noteToUpdate.definition,
+                                    definition_lang: noteToUpdate.definition_lang
+                                })
+                                .eq('user_id', userResult.data.user.id)
+                                .eq('term', term)
+                                .eq('note_set_id', noteToUpdate.note_set_id);
+                            
+                            if (updateError) {
+                                console.error('❌ Error updating duplicate term:', term, updateError);
+                            } else {
+                                console.log('✅ Updated duplicate term:', term);
+                            }
+                        }
+                    }
+                    
+                    // Remove duplicates from newNotes if user chose to replace some
+                    const finalNewNotes = newNotes.filter(note => 
+                        !handleDuplicates.selectedTerms.includes(note.term)
+                    );
+                    
+                    if (finalNewNotes.length > 0) {
+                        console.log('💾 saveNotes: Executing INSERT query for', finalNewNotes.length, 'new notes...');
+                        const { data, error } = await supabaseClient.from('notes').insert(finalNewNotes);
+                        
+                        if (error) {
+                            console.error('❌ saveNotes: Error saving new notes:', error);
+                            return false;
+                        }
+                    }
+                    
+                    const totalProcessed = handleDuplicates.selectedTerms.length + (finalNewNotes?.length || 0);
+                    console.log('✅ saveNotes: Successfully processed', totalProcessed, 'notes (updates + new)');
+                    return true;
+                }
+            }
 
-            console.log('💾 saveNotes: Executing INSERT query...');
+            console.log('💾 saveNotes: Executing INSERT query for', newNotes.length, 'unique notes...');
             const insertStartTime = Date.now();
-            const { data, error } = await supabaseClient.from('notes').insert(notesWithUser);
+            const { data, error } = await supabaseClient.from('notes').insert(newNotes);
             const insertDuration = Date.now() - insertStartTime;
             
             console.log('💾 saveNotes: INSERT completed in', insertDuration, 'ms');
@@ -1630,6 +1720,95 @@ async function fetchNotes() {
             console.error('Error updating note in database:', error);
             return false;
         }
+    }
+    
+    // Show duplicate confirmation modal
+    async function showDuplicateConfirmationModal(duplicates) {
+        return new Promise((resolve) => {
+            // Create modal dynamically
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full';
+            modal.style.zIndex = '1005';
+            
+            const content = document.createElement('div');
+            content.className = 'relative top-20 mx-auto p-6 border w-3/4 max-w-2xl shadow-lg rounded-md bg-white';
+            
+            content.innerHTML = `
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">⚠️ Duplicate Words Found</h3>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Found ${duplicates.length} word(s) that already exist in your notes. 
+                        Choose what to do with each duplicate:
+                    </p>
+                    
+                    <div class="max-h-60 overflow-y-auto mb-4 border border-gray-200 rounded">
+                        ${duplicates.map((dup, index) => `
+                            <div class="p-3 border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1">
+                                        <strong class="text-gray-900">"${dup.term}"</strong>
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            <div>Existing: "${dup.existingDefinition}"</div>
+                                            <div>New: "${dup.newDefinition}"</div>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <input type="checkbox" id="replace_${index}" class="replace-checkbox rounded border-gray-300" data-term="${dup.term}">
+                                        <label for="replace_${index}" class="ml-2 text-sm text-gray-700">Replace</label>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="space-x-2">
+                            <button id="selectAllBtn" class="text-sm btn btn-outline">Select All</button>
+                            <button id="selectNoneBtn" class="text-sm btn btn-outline">Select None</button>
+                        </div>
+                        <div class="space-x-3">
+                            <button id="cancelUploadBtn" class="btn btn-secondary">Cancel Upload</button>
+                            <button id="proceedBtn" class="btn btn-primary">Proceed</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            // Event handlers
+            const selectAllBtn = content.querySelector('#selectAllBtn');
+            const selectNoneBtn = content.querySelector('#selectNoneBtn');
+            const cancelBtn = content.querySelector('#cancelUploadBtn');
+            const proceedBtn = content.querySelector('#proceedBtn');
+            const checkboxes = content.querySelectorAll('.replace-checkbox');
+            
+            selectAllBtn.addEventListener('click', () => {
+                checkboxes.forEach(cb => cb.checked = true);
+            });
+            
+            selectNoneBtn.addEventListener('click', () => {
+                checkboxes.forEach(cb => cb.checked = false);
+            });
+            
+            cancelBtn.addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resolve({ action: 'cancel' });
+            });
+            
+            proceedBtn.addEventListener('click', () => {
+                const selectedTerms = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.dataset.term);
+                
+                document.body.removeChild(modal);
+                resolve({ 
+                    action: 'replace', 
+                    selectedTerms: selectedTerms 
+                });
+            });
+        });
     }
     
     function checkForWordPairCompletion(text, cursorPosition) {
@@ -2964,6 +3143,11 @@ async function fetchNotes() {
                 const timeDiff = now - noteDate;
                 
                 switch (timeFilter) {
+                    case 'hour':
+                        return timeDiff <= 60 * 60 * 1000; // 1 hour
+                    case 'yesterday':
+                        // Yesterday: 24-48 hours ago
+                        return timeDiff > 24 * 60 * 60 * 1000 && timeDiff <= 48 * 60 * 60 * 1000;
                     case 'today':
                         return timeDiff <= 24 * 60 * 60 * 1000; // 1 day
                     case 'week':
