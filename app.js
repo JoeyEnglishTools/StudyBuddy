@@ -3886,25 +3886,17 @@ async function fetchNotes() {
             editBtn.addEventListener('touchend', cancelEditTimer);
             editBtn.addEventListener('touchcancel', cancelEditTimer);
             
-            // Add delete button with instant delete on click
+            // Add delete button with click-only delete (no touch instant delete)
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn-instant';
+            deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn-safe';
             deleteBtn.innerHTML = '✕';
             deleteBtn.title = 'Delete note';
             
-            // Instant delete on click
+            // Only allow delete via explicit click on X button
             deleteBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('🗑️ populateNotesList: Instant delete triggered for note:', note);
-                deleteNote(originalIndex, note);
-            });
-            
-            // Touch events for mobile delete - instant delete
-            deleteBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🗑️ populateNotesList: Touch delete triggered for note:', note);
+                console.log('🗑️ populateNotesList: Delete button clicked for note:', note);
                 deleteNote(originalIndex, note);
             });
             
@@ -3912,39 +3904,66 @@ async function fetchNotes() {
             noteItem.appendChild(editBtn);
             noteItem.appendChild(deleteBtn);
             
-            // Add swipe-to-delete for mobile
+            // Add swipe-to-delete for mobile (40% threshold)
             let startX = 0;
             let currentX = 0;
             let isDragging = false;
+            let hasMoved = false;
             
             noteItem.addEventListener('touchstart', (e) => {
+                // Only start drag if not touching the delete button
+                if (e.target.closest('.delete-btn-safe') || e.target.closest('.edit-btn-safe')) {
+                    return;
+                }
                 startX = e.touches[0].clientX;
+                currentX = startX;
                 isDragging = true;
+                hasMoved = false;
             }, { passive: true });
             
             noteItem.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
+                
                 currentX = e.touches[0].clientX;
                 const diffX = startX - currentX;
+                hasMoved = Math.abs(diffX) > 10; // Minimum movement to be considered a swipe
                 
                 if (diffX > 50) {
-                    noteItem.style.transform = `translateX(-${Math.min(diffX, 100)}px)`;
-                    noteItem.style.backgroundColor = '#fee2e2';
+                    const elementWidth = noteItem.offsetWidth;
+                    const maxSwipe = elementWidth * 0.4; // 40% of element width
+                    const swipeDistance = Math.min(diffX, maxSwipe);
+                    
+                    noteItem.style.transform = `translateX(-${swipeDistance}px)`;
+                    noteItem.style.backgroundColor = diffX > maxSwipe * 0.8 ? '#fee2e2' : '#fef3cd';
                 }
             }, { passive: true });
             
-            noteItem.addEventListener('touchend', () => {
+            noteItem.addEventListener('touchend', (e) => {
                 if (!isDragging) return;
-                const diffX = startX - currentX;
                 
-                if (diffX > 150) {  // Increased threshold for more complete swipe
-                    console.log('📱 populateNotesList: Swipe delete triggered for note:', note);
+                const diffX = startX - currentX;
+                const elementWidth = noteItem.offsetWidth;
+                const deleteThreshold = elementWidth * 0.4; // 40% of element width
+                
+                if (hasMoved && diffX > deleteThreshold) {
+                    console.log('📱 populateNotesList: Swipe delete triggered (40% threshold) for note:', note);
                     deleteNote(originalIndex, note);
                 } else {
+                    // Reset position if not enough swipe
                     noteItem.style.transform = '';
                     noteItem.style.backgroundColor = '';
                 }
+                
                 isDragging = false;
+                hasMoved = false;
+            }, { passive: true });
+            
+            // Prevent accidental delete on simple tap
+            noteItem.addEventListener('touchcancel', () => {
+                noteItem.style.transform = '';
+                noteItem.style.backgroundColor = '';
+                isDragging = false;
+                hasMoved = false;
             }, { passive: true });
             
             notesList.appendChild(noteItem);
@@ -4268,6 +4287,17 @@ async function fetchNotes() {
         'nl-NL': null
     };
     let voicesLoaded = false;
+    let voiceLoadingWarningShown = false;
+    
+    // Check if voices were loaded in this session
+    function isVoicesLoadedInSession() {
+        return sessionStorage.getItem('voicesLoadedThisSession') === 'true';
+    }
+    
+    // Mark voices as loaded for this session
+    function markVoicesLoadedInSession() {
+        sessionStorage.setItem('voicesLoadedThisSession', 'true');
+    }
     
     // Initialize voice selection when voices are available
     function initializeVoiceSelection() {
@@ -4288,6 +4318,8 @@ async function fetchNotes() {
         selectedVoices['nl-NL'] = findBestVoice(voices, 'nl-NL', ['Ellen']);
         
         voicesLoaded = true;
+        markVoicesLoadedInSession();
+        hideVoiceLoadingWarning();
         
         // Log selected voices
         Object.entries(selectedVoices).forEach(([lang, voice]) => {
@@ -4332,9 +4364,21 @@ async function fetchNotes() {
     // Wait for voices to load and initialize selection
     function ensureVoicesLoaded() {
         return new Promise((resolve) => {
+            // If voices were already loaded in this session, skip waiting
+            if (isVoicesLoadedInSession() && voicesLoaded) {
+                resolve();
+                return;
+            }
+            
             if (voicesLoaded || initializeVoiceSelection()) {
                 resolve();
                 return;
+            }
+            
+            // Show warning if not loaded in session and not shown yet
+            if (!isVoicesLoadedInSession() && !voiceLoadingWarningShown) {
+                showVoiceLoadingWarning();
+                voiceLoadingWarningShown = true;
             }
             
             // Wait for voiceschanged event
@@ -4350,9 +4394,60 @@ async function fetchNotes() {
             // Fallback timeout
             setTimeout(() => {
                 window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+                hideVoiceLoadingWarning();
                 resolve();
-            }, 3000);
+            }, 10000); // Increased timeout to 10 seconds for better loading
         });
+    }
+    
+    // Show voice loading warning
+    function showVoiceLoadingWarning() {
+        // Create warning overlay if it doesn't exist
+        let voiceWarning = document.getElementById('voiceLoadingWarning');
+        if (!voiceWarning) {
+            voiceWarning = document.createElement('div');
+            voiceWarning.id = 'voiceLoadingWarning';
+            voiceWarning.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            voiceWarning.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-md mx-4 text-center">
+                    <div class="mb-4">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">🎙️ Loading High-Quality Voices</h3>
+                        <p class="text-gray-600 mb-4">Please wait while we download premium Google voices for the best audio experience. This only happens once per session.</p>
+                        <div class="text-sm text-gray-500">
+                            <p>• Premium voice quality with Google voices</p>
+                            <p>• Enhanced pronunciation accuracy</p>
+                            <p>• Better learning experience</p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        Loading voices... Please do not start any games yet.
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(voiceWarning);
+        }
+        voiceWarning.classList.remove('hidden');
+    }
+    
+    // Hide voice loading warning
+    function hideVoiceLoadingWarning() {
+        const voiceWarning = document.getElementById('voiceLoadingWarning');
+        if (voiceWarning) {
+            voiceWarning.classList.add('hidden');
+        }
+    }
+    
+    // Check if voices are ready before allowing game access
+    function checkVoicesReadyForGame() {
+        if (!isVoicesLoadedInSession() && !voicesLoaded) {
+            showVoiceLoadingWarning();
+            ensureVoicesLoaded().then(() => {
+                console.log('🎙️ Voices ready for game access');
+            });
+            return false;
+        }
+        return true;
     }
     
     async function speakText(text, lang = 'en-GB') {
@@ -4544,18 +4639,21 @@ async function fetchNotes() {
     }
 
     function startGame(gameType) {
-        if (!audioInitialized) initializeAudio();
-        partSelectionContainer.classList.add('hidden');
-        resetGameStats();
-        switch (gameType) {
-            case 'matching': initMatchingGame(); break;
-            case 'memoryTest': initMemoryTestGame(); break;
-            case 'multipleChoice': initMultipleChoiceGame(); break;
-            case 'typeTranslation': initTypeTranslationGame(); break;
-            case 'talkToMe': initTalkToMeGame(); break;
-            case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
-            case 'findTheWords': initFindTheWordsGame(); break;
-        }
+        // Ensure voices are loaded before starting game
+        ensureVoicesLoaded().then(() => {
+            if (!audioInitialized) initializeAudio();
+            partSelectionContainer.classList.add('hidden');
+            resetGameStats();
+            switch (gameType) {
+                case 'matching': initMatchingGame(); break;
+                case 'memoryTest': initMemoryTestGame(); break;
+                case 'multipleChoice': initMultipleChoiceGame(); break;
+                case 'typeTranslation': initTypeTranslationGame(); break;
+                case 'talkToMe': initTalkToMeGame(); break;
+                case 'fillInTheBlanks': initFillInTheBlanksGame(); break;
+                case 'findTheWords': initFindTheWordsGame(); break;
+            }
+        });
     }
 
     // --- HELPER & CORE GAME MECHANICS ---
@@ -6131,17 +6229,56 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
             showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
             backToMainSelectionFromEssentialsBtn.addEventListener('click', showMainSelection);
             backToEssentialsCategoriesBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); });
-            reviewEssentialsCategoryBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); gameArea.classList.remove('hidden'); startGame('matching'); });
-            playGamesWithEssentialsBtn.addEventListener('click', () => { initializeAudio(); essentialsCategoryOptionsSection.classList.add('hidden'); showGameSelection(); });
+            reviewEssentialsCategoryBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                essentialsCategoryOptionsSection.classList.add('hidden'); 
+                gameArea.classList.remove('hidden'); 
+                ensureVoicesLoaded().then(() => startGame('matching')); 
+            });
+            playGamesWithEssentialsBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                essentialsCategoryOptionsSection.classList.add('hidden'); 
+                ensureVoicesLoaded().then(() => showGameSelection()); 
+            });
             backToGameSelectionBtn.addEventListener('click', showGameSelection);
             backToSourceSelectionBtn.addEventListener('click', () => { gameSelectionSection.classList.add('hidden'); if (isEssentialsMode) { essentialsCategoryOptionsSection.classList.remove('hidden'); } else { showMainSelection(); } });
-            matchingBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('matching'); });
-            memoryTestBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('memoryTest'); });
-            multipleChoiceBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('multipleChoice'); });
-            typeTranslationBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('typeTranslation'); });
-            talkToMeBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('talkToMe'); });
-            fillInTheBlanksBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('fillInTheBlanks'); });
-            findTheWordsBtn.addEventListener('click', () => { initializeAudio(); showPartSelection('findTheWords'); });
+            matchingBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                ensureVoicesLoaded().then(() => showPartSelection('matching')); 
+            });
+            memoryTestBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                ensureVoicesLoaded().then(() => showPartSelection('memoryTest')); 
+            });
+            multipleChoiceBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                ensureVoicesLoaded().then(() => showPartSelection('multipleChoice')); 
+            });
+            typeTranslationBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                ensureVoicesLoaded().then(() => showPartSelection('typeTranslation')); 
+            });
+            talkToMeBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                ensureVoicesLoaded().then(() => showPartSelection('talkToMe')); 
+            });
+            fillInTheBlanksBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                ensureVoicesLoaded().then(() => showPartSelection('fillInTheBlanks')); 
+            });
+            findTheWordsBtn.addEventListener('click', () => { 
+                if (!checkVoicesReadyForGame()) return;
+                initializeAudio(); 
+                ensureVoicesLoaded().then(() => showPartSelection('findTheWords')); 
+            });
             uploadBtn.addEventListener('click', () => handleFileUpload());
             csvFileInput.addEventListener('change', (e) => {
                 // Only process file changes if user is not in the middle of authentication
@@ -6691,6 +6828,12 @@ if (languageSelectorInGame) {
                 } else if (isPanelOpen) {
                     mainContent.classList.add('panel-open');
                 }
+            });
+
+            // Initialize voice loading early in the session
+            console.log('🎙️ Starting voice initialization...');
+            ensureVoicesLoaded().then(() => {
+                console.log('🎙️ Voice initialization complete');
             });
 
         });
