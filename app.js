@@ -2299,14 +2299,14 @@ async function fetchNotes() {
                 const word = dashMatches[1].trim();
                 const translation = dashMatches[2].trim();
                 
-                console.log(`💾 Found word: "${word}", translation: "${translation}"`);
+                console.log(`💾 Found word: "${word}", translation: "${translation}" (empty: ${translation === ''})`);
                 
                 // Save both complete pairs AND incomplete ones (word without translation)
                 if (word) {
                     const hasCompletePattern = dashMatches && word && translation;
                     const isIncomplete = word && !translation; // Word with dash but no translation
                     
-                    console.log(`💾 Word "${word}" - hasCompletePattern: ${hasCompletePattern}, isIncomplete: ${isIncomplete}`);
+                    console.log(`💾 Word "${word}" - hasCompletePattern: ${hasCompletePattern}, isIncomplete: ${isIncomplete}, will save: true`);
                     
                     // Save all word pairs - both complete and incomplete
                     completedData.push({
@@ -2487,7 +2487,11 @@ async function fetchNotes() {
             
             // Filter and prepare notes for saving
             const notesToSave = completedNotesData
-                .filter(note => note.targetLang.trim() !== '') // Only need a word, translation can be empty
+                .filter(note => {
+                    const shouldSave = note.targetLang.trim() !== ''; // Only need a word, translation can be empty
+                    console.log(`💾 Filter check for "${note.targetLang}" with translation "${note.translation}": shouldSave=${shouldSave}`);
+                    return shouldSave;
+                })
                 .map(note => ({
                     lang1: note.targetLang.trim(),
                     lang2: note.translation ? note.translation.trim() : '', // Allow empty translation for incomplete pairs
