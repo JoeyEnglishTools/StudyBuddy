@@ -131,12 +131,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             console.log('✅ Authenticated as:', user.email);
             
-            // 3. Test a simple query
+            // 3. Test a simple query with timeout
             console.log('📡 Testing direct database query...');
-            const { data, error } = await supabaseClient
+            
+            // Add timeout wrapper for the database query
+            const queryPromise = supabaseClient
                 .from('notes')
                 .select('count')
                 .limit(1);
+                
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Database query timeout')), 10000)
+            );
+            
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
                 
             if (error) {
                 console.error('❌ Database error:', error);
@@ -483,15 +491,15 @@ async function fetchNotes() {
             console.log(`📝 Processing ${data.length} notes...`);
             
             const mappedVocabulary = data.map((note, index) => {
-                // Validate each note has required fields
-                if (!note.term || !note.definition) {
-                    console.warn(`⚠️ Note at index ${index} is missing required fields:`, note);
+                // Validate each note has required fields - only term is required, definition can be empty
+                if (!note.term) {
+                    console.warn(`⚠️ Note at index ${index} is missing required term:`, note);
                     return null;
                 }
                 
                 return {
                     lang1: note.term,
-                    lang2: note.definition,
+                    lang2: note.definition || '', // Handle empty definitions
                     term_lang: note.term_lang || 'en-GB', // Include language info
                     created_at: note.created_at, // Include timestamp for filtering
                     note_set_id: note.note_set_id, // Include deck info
