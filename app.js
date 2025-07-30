@@ -1487,9 +1487,35 @@ async function fetchNotes() {
             clearTimeout(window.autoSaveTimeout);
         }
         
-        // Set new timer
+        // Show "Changes pending" immediately when timer starts
+        updateSaveStatus('Changes pending', 'text-orange-600');
+        
+        // Start countdown from 20 seconds
+        let countdownSeconds = 20;
+        
+        // Show initial countdown in console
+        console.log(`⏱️ Auto-save countdown started: ${countdownSeconds} seconds remaining`);
+        
+        // Real-time countdown display
+        const countdownInterval = setInterval(() => {
+            countdownSeconds--;
+            console.log(`⏱️ Auto-save countdown: ${countdownSeconds} seconds remaining`);
+            
+            if (countdownSeconds > 0) {
+                updateSaveStatus(`Auto-save in ${countdownSeconds}s...`, 'text-blue-600');
+            }
+            
+            if (countdownSeconds <= 0) {
+                clearInterval(countdownInterval);
+            }
+        }, 1000);
+        
+        // Set new timer for actual save
         window.autoSaveTimeout = setTimeout(() => {
+            clearInterval(countdownInterval);
             if (pendingChanges) {
+                console.log('⏱️ Auto-save timer triggered - saving notes');
+                updateSaveStatus('Saving...', 'text-orange-600');
                 saveLiveNotes();
             }
         }, 20000); // Auto-save after 20 seconds of inactivity
@@ -1553,8 +1579,19 @@ async function fetchNotes() {
         }
     }
     
-    function updateSaveStatus(message, className, isClickable = false) {
+    function updateSaveStatus(message = null, className = null, isClickable = false) {
         if (saveStatus) {
+            // Set default message if none provided
+            if (message === null) {
+                if (pendingChanges) {
+                    message = 'Changes pending';
+                    className = 'text-orange-600';
+                } else {
+                    message = 'All saved';
+                    className = 'text-green-600';
+                }
+            }
+            
             saveStatus.textContent = message;
             saveStatus.className = `text-sm ${className}`;
             
@@ -1576,9 +1613,9 @@ async function fetchNotes() {
         
         // Update cloud icon
         if (cloudIcon) {
-            if (className.includes('green')) {
+            if (className && className.includes('green')) {
                 cloudIcon.className = 'w-5 h-5 text-blue-500';
-            } else if (className.includes('red')) {
+            } else if (className && className.includes('red')) {
                 cloudIcon.className = 'w-5 h-5 text-red-500';
             } else {
                 cloudIcon.className = 'w-5 h-5 text-orange-500';
@@ -1986,7 +2023,17 @@ async function fetchNotes() {
 
     function handleNotepadInput(event) {
         // Get content from contenteditable div
-        notepadContent = getNotesTextContent();
+        let content = getNotesTextContent();
+        
+        // Auto-add space before dashes if missing
+        content = content.replace(/(\w)-(\s|$)/g, '$1 -$2');
+        
+        // Update content if we made changes
+        if (content !== getNotesTextContent()) {
+            setNotesContent(content);
+        }
+        
+        notepadContent = content;
         pendingChanges = true;
         
         // Save content to localStorage for persistence
@@ -2125,7 +2172,7 @@ async function fetchNotes() {
         // Split content into lines
         const lines = content.split('\n');
         
-        // Parse all lines with content
+        // Parse all lines with content (including incomplete ones)
         const completedData = [];
         
         lines.forEach((line, index) => {
@@ -2139,27 +2186,31 @@ async function fetchNotes() {
             trimmedLine = normalizeSymbolsInText(trimmedLine);
             
             // Look for dash separator (-, –, —)
-            const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+            const dashMatches = trimmedLine.match(/^(.+?)\s*[-–—]\s*(.*)$/);
             if (dashMatches) {
                 const word = dashMatches[1].trim();
                 const translation = dashMatches[2].trim();
                 
-                if (word && translation) {
+                // Save both complete pairs AND incomplete ones (word without translation)
+                if (word) {
                     const isCurrentLine = index === currentLineIndex;
                     const hasCompletePattern = dashMatches && word && translation;
+                    const isIncomplete = word && !translation; // Word with dash but no translation
                     
                     // Allow saving if:
                     // 1. It's not the current line (completed previous lines)
                     // 2. OR it's the current line but has a complete pattern (single pair completion)
                     // 3. OR it's the current line and user manually triggered save
-                    const shouldSave = !isCurrentLine || (isCurrentLine && hasCompletePattern);
+                    // 4. OR it's an incomplete word pair (word -) to save progress
+                    const shouldSave = !isCurrentLine || (isCurrentLine && hasCompletePattern) || isIncomplete;
                     
                     if (shouldSave) {
                         completedData.push({
                             targetLang: word,
-                            translation: translation,
+                            translation: translation || '', // Allow empty translation for incomplete pairs
                             lineNumber: index,
                             saved: false,
+                            isIncomplete: isIncomplete,
                             wasEdited: !isCurrentLine || (isCurrentLine && index < lines.length - 1) // Consider it an edit if it's not the last line or not currently being typed
                         });
                     }
@@ -2351,11 +2402,12 @@ async function fetchNotes() {
             
             // Filter and prepare notes for saving
             const notesToSave = completedNotesData
-                .filter(note => note.targetLang.trim() !== '' && note.translation.trim() !== '')
+                .filter(note => note.targetLang.trim() !== '') // Only need a word, translation can be empty
                 .map(note => ({
                     lang1: note.targetLang.trim(),
-                    lang2: note.translation.trim(),
+                    lang2: note.translation ? note.translation.trim() : '', // Allow empty translation for incomplete pairs
                     lineNumber: note.lineNumber, // Track line number for replacements
+                    isIncomplete: note.isIncomplete || false, // Track if this is incomplete
                     isEdit: note.wasEdited || false // Track if this is an edit to existing content
                 }));
             
@@ -2481,6 +2533,7 @@ async function fetchNotes() {
             await fetchNotes();
             
             // Update save status to success
+            pendingChanges = false; // Reset pending changes flag
             updateSaveStatus('All saved', 'text-green-600');
         } else {
             console.error('❌ saveLiveNotes: Failed to save notes');
@@ -2593,22 +2646,30 @@ async function fetchNotes() {
                 return;
             }
             
-            // Get both plain text content and HTML content for proper detection
+            // Get plain text content from contenteditable - this removes HTML formatting
             const text = getNotesTextContent();
-            const htmlContent = liveNotesTextarea.innerHTML;
+            console.log('🔍 Translation detection - Raw text content:', text);
+            
             const lines = text.split('\n');
+            console.log('🔍 Translation detection - Split into lines:', lines);
             
             // Find lines that need translation (end with dash but no definition)
-            // We need to be more intelligent about detection to handle mixed HTML/text content
             const linesToTranslate = [];
             lines.forEach((line, index) => {
                 const trimmedLine = line.trim();
+                console.log(`🔍 Processing line ${index}: "${trimmedLine}"`);
                 
                 // Check if line ends with just a dash (needs translation)
                 // This handles cases where we have: "word -" but not "word - translation"
-                if (trimmedLine.match(/^.+\s*-\s*$/) && !trimmedLine.match(/^.+\s*-\s+.+$/)) {
+                const isDashOnly = trimmedLine.match(/^.+\s*-\s*$/);
+                const hasTranslation = trimmedLine.match(/^.+\s*-\s+.+$/);
+                
+                console.log(`🔍 Line ${index} - isDashOnly: ${!!isDashOnly}, hasTranslation: ${!!hasTranslation}`);
+                
+                if (isDashOnly && !hasTranslation) {
                     const wordToTranslate = trimmedLine.replace(/\s*-\s*$/, '').trim();
                     if (wordToTranslate) {
+                        console.log(`✅ Found word to translate: "${wordToTranslate}"`);
                         linesToTranslate.push({ index, word: wordToTranslate, originalLine: line });
                     }
                 }
