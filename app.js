@@ -3654,56 +3654,19 @@ async function fetchNotes() {
             editBtn.addEventListener('touchend', cancelEditTimer);
             editBtn.addEventListener('touchcancel', cancelEditTimer);
             
-            // Add delete button with safety measures
+            // Add delete button with instant delete on click
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn-safe';
+            deleteBtn.className = 'ml-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded delete-btn-instant';
             deleteBtn.innerHTML = '✕';
-            deleteBtn.title = 'Delete note (hold for 0.25 seconds)';
+            deleteBtn.title = 'Delete note';
             
-            let deleteTimeout = null;
-            let isDeletePressed = false;
-            
-            const startDeleteTimer = () => {
-                isDeletePressed = true;
-                deleteBtn.style.backgroundColor = '#ef4444';
-                deleteBtn.style.color = 'white';
-                deleteBtn.innerHTML = '⏱️';
-                deleteBtn.title = 'Hold to delete... (keep holding)';
-                
-                deleteTimeout = setTimeout(() => {
-                    if (isDeletePressed) {
-                        console.log('🗑️ populateNotesList: Safe delete triggered for note:', note);
-                        deleteNote(originalIndex, note);
-                        resetDeleteButton();
-                    }
-                }, 250); // 250ms hold required (1/4 of previous duration)
-            };
-            
-            const cancelDeleteTimer = () => {
-                isDeletePressed = false;
-                if (deleteTimeout) {
-                    clearTimeout(deleteTimeout);
-                    deleteTimeout = null;
-                }
-                resetDeleteButton();
-            };
-            
-            const resetDeleteButton = () => {
-                deleteBtn.style.backgroundColor = '';
-                deleteBtn.style.color = '';
-                deleteBtn.innerHTML = '✕';
-                deleteBtn.title = 'Delete note (hold for 0.25 seconds)';
-            };
-            
-            // Mouse events for delete
-            deleteBtn.addEventListener('mousedown', (e) => {
+            // Instant delete on click
+            deleteBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                startDeleteTimer();
+                console.log('🗑️ populateNotesList: Instant delete triggered for note:', note);
+                deleteNote(originalIndex, note);
             });
-            
-            deleteBtn.addEventListener('mouseup', cancelDeleteTimer);
-            deleteBtn.addEventListener('mouseleave', cancelDeleteTimer);
             
             // Touch events for mobile delete
             deleteBtn.addEventListener('touchstart', (e) => {
