@@ -2494,7 +2494,7 @@ async function fetchNotes() {
             const learningLangName = getLangaugeName(learningLanguage);
             const nativeLangName = getLangaugeName(nativeLanguage);
             
-            const confirmMsg = `Found ${linesToTranslate.length} word(s) that need translation. This will automatically translate them from ${learningLangName} to ${nativeLangName}. Continue?`;
+            const confirmMsg = `Found ${linesToTranslate.length} word(s) that need translation. This will automatically translate them from ${learningLangName} to ${nativeLangName} with enhanced dictionary details. Continue?`;
             if (!confirm(confirmMsg)) {
                 return;
             }
@@ -2503,55 +2503,21 @@ async function fetchNotes() {
             translateTextBtn.disabled = true;
             translateTextBtn.textContent = '🔄 Translating...';
             
-            console.log('🤖 Starting Live Notes batch translation...', {
+            console.log('🤖 Starting enhanced Live Notes batch translation...', {
                 nativeLanguage,
                 learningLanguage,
                 wordsToTranslate: linesToTranslate.length
             });
             
-            // Determine language pair for translation API
+            // Determine language codes for translation API
             const learningCode = learningLanguage.split('-')[0].toLowerCase(); // 'es' from 'es-ES'
             const nativeCode = nativeLanguage.toLowerCase(); // 'en' from 'EN'
-            const langPair = `${learningCode}|${nativeCode}`; // e.g., 'es|en'
             
-            // Process translations in parallel
-            const translationPromises = linesToTranslate.map(async ({ index, word, originalLine }) => {
-                try {
-                    const translation = await translateTextWithFallback(word, langPair);
-                    if (translation && translation.toLowerCase() !== word.toLowerCase()) {
-                        // Create new line with translation in orange color
-                        const newLine = originalLine.replace(word + ' -', `${word} - <span class="translated-text">${translation}</span>`);
-                        return { index, newLine, success: true, translation };
-                    } else {
-                        console.log(`❌ Translation failed or unchanged for: ${word}`);
-                        return { index, newLine: originalLine, success: false };
-                    }
-                } catch (error) {
-                    console.error(`❌ Translation error for "${word}":`, error);
-                    return { index, newLine: originalLine, success: false };
-                }
-            });
+            // Use enhanced batch translation with dictionary enrichment
+            const result = await batchTranslateWithDictionaryEnrichment(text, learningCode, nativeCode);
             
-            // Wait for all translations to complete
-            const results = await Promise.all(translationPromises);
-            
-            // Update the textarea with translated lines
-            let updatedLines = [...lines];
-            let successCount = 0;
-            let translatedWords = [];
-            
-            results.forEach(({ index, newLine, success, translation }) => {
-                updatedLines[index] = newLine;
-                if (success) {
-                    successCount++;
-                    if (translation) {
-                        translatedWords.push(translation);
-                    }
-                }
-            });
-            
-            // Update textarea content
-            setNotesContent(updatedLines.join('\n'));
+            // Update textarea content with enhanced translations
+            setNotesContent(result.translatedText);
             notepadContent = getNotesTextContent();
             parseNotepadContent();
             
@@ -2559,13 +2525,13 @@ async function fetchNotes() {
             pendingChanges = true;
             
             // Show success message
-            const message = successCount > 0 
-                ? `✅ Successfully translated ${successCount} out of ${linesToTranslate.length} words!`
+            const message = result.translatedCount > 0 
+                ? `✅ Successfully translated ${result.translatedCount} out of ${linesToTranslate.length} words with enhanced dictionary details!`
                 : `❌ No translations could be completed. Please check your internet connection.`;
                 
             updateSaveStatus(message);
             
-            console.log(`🤖 Live Notes translation complete: ${successCount}/${linesToTranslate.length} successful`);
+            console.log(`🤖 Enhanced Live Notes translation complete: ${result.translatedCount}/${linesToTranslate.length} successful`);
             
         } catch (error) {
             console.error('❌ Live Notes translation error:', error);
@@ -2625,6 +2591,165 @@ async function fetchNotes() {
             console.error('MyMemory API translation error:', error);
             return null;
         }
+    }
+
+    /**
+     * Get dictionary meanings for a word including parts of speech and synonyms
+     * Uses Free Dictionary API
+     */
+    async function getDictionaryMeanings(word) {
+        if (!word || typeof word !== 'string') return null;
+        
+        try {
+            const apiUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`;
+            const response = await fetch(apiUrl);
+            
+            if (!response.ok) {
+                console.log(`Dictionary API: No entry found for "${word}"`);
+                return null;
+            }
+            
+            const data = await response.json();
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                return null;
+            }
+            
+            const meanings = [];
+            const firstEntry = data[0];
+            
+            if (firstEntry.meanings && Array.isArray(firstEntry.meanings)) {
+                firstEntry.meanings.forEach(meaning => {
+                    if (meaning.partOfSpeech && meaning.definitions && Array.isArray(meaning.definitions)) {
+                        const partOfSpeech = meaning.partOfSpeech.toLowerCase();
+                        
+                        // Only include noun, verb, and adjective as requested
+                        if (['noun', 'verb', 'adjective'].includes(partOfSpeech)) {
+                            const definition = meaning.definitions[0]?.definition || '';
+                            const synonyms = meaning.definitions[0]?.synonyms || [];
+                            
+                            meanings.push({
+                                partOfSpeech: partOfSpeech,
+                                definition: definition,
+                                synonyms: synonyms.slice(0, 3) // Limit to first 3 synonyms
+                            });
+                        }
+                    }
+                });
+            }
+            
+            return meanings.length > 0 ? meanings : null;
+        } catch (error) {
+            console.error('Dictionary API error:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Enhanced batch translation function with dictionary enrichment
+     * Processes text blocks, finds incomplete lines, and enriches them with
+     * translations, parts of speech, and synonyms
+     * Caps automatic translation at 40 characters
+     */
+    async function batchTranslateWithDictionaryEnrichment(textContent, sourceLang, targetLang) {
+        const lines = textContent.split('\n');
+        const newLines = [];
+        let linesTranslated = 0;
+
+        console.log("Starting enhanced batch translation...");
+
+        for (const line of lines) {
+            // Find lines that look like "word -" (incomplete translations)
+            const match = line.trim().match(/^(.+?)\s*-\s*$/);
+            if (match) {
+                const originalWord = match[1].trim();
+                
+                // Cap automatic translation at 40 characters
+                if (originalWord.length > 40) {
+                    console.log(`Skipping translation for "${originalWord}" - exceeds 40 character limit`);
+                    newLines.push(line);
+                    continue;
+                }
+
+                // 1. Translate the word to target language
+                const langPair = `${sourceLang}|${targetLang}`;
+                const translatedWord = await translateTextWithFallback(originalWord, langPair);
+
+                if (translatedWord && translatedWord.toLowerCase() !== originalWord.toLowerCase()) {
+                    // 2. Get dictionary details for the translated word
+                    const meanings = await getDictionaryMeanings(translatedWord);
+
+                    if (meanings && meanings.length > 0) {
+                        // 3. Filter for only noun, verb, and adjective
+                        const relevantMeanings = meanings.filter(m =>
+                            ["noun", "verb", "adjective"].includes(m.partOfSpeech)
+                        );
+
+                        if (relevantMeanings.length > 0) {
+                            // 4. Format the details string
+                            const partsOfSpeechDetails = relevantMeanings.map(m => {
+                                const abbreviation = {
+                                    "noun": "n",
+                                    "verb": "v",
+                                    "adjective": "adj"
+                                }[m.partOfSpeech];
+
+                                let detail = `(${abbreviation}.)`;
+                                
+                                // Add definition if available
+                                if (m.definition && m.definition.length > 0) {
+                                    // Truncate definition to keep it concise
+                                    const shortDef = m.definition.length > 50 
+                                        ? m.definition.substring(0, 50) + "..."
+                                        : m.definition;
+                                    detail += ` ${shortDef}`;
+                                }
+                                
+                                // Add synonyms if available
+                                if (m.synonyms && m.synonyms.length > 0) {
+                                    const synList = m.synonyms.slice(0, 2).join(", ");
+                                    detail += ` [syn: ${synList}]`;
+                                }
+                                
+                                return detail;
+                            }).join("; ");
+
+                            // Format: "original - translated (enhanced details)"
+                            const enhancedLine = `${originalWord} - <span class="translated-text">${translatedWord} ${partsOfSpeechDetails}</span>`;
+                            newLines.push(enhancedLine);
+                            linesTranslated++;
+                            
+                            console.log(`✅ Enhanced translation: "${originalWord}" → "${translatedWord}" with details`);
+                        } else {
+                            // No relevant meanings found, use simple translation
+                            const simpleLine = `${originalWord} - <span class="translated-text">${translatedWord}</span>`;
+                            newLines.push(simpleLine);
+                            linesTranslated++;
+                            
+                            console.log(`✅ Simple translation: "${originalWord}" → "${translatedWord}"`);
+                        }
+                    } else {
+                        // No dictionary details available, use simple translation
+                        const simpleLine = `${originalWord} - <span class="translated-text">${translatedWord}</span>`;
+                        newLines.push(simpleLine);
+                        linesTranslated++;
+                        
+                        console.log(`✅ Simple translation: "${originalWord}" → "${translatedWord}" (no dictionary data)`);
+                    }
+                } else {
+                    console.log(`❌ Translation failed for: ${originalWord}`);
+                    newLines.push(line);
+                }
+            } else {
+                // Line doesn't need translation, keep as is
+                newLines.push(line);
+            }
+        }
+
+        console.log(`Enhanced batch translation complete: ${linesTranslated} lines translated`);
+        return {
+            translatedText: newLines.join('\n'),
+            translatedCount: linesTranslated
+        };
     }
 
     // --- LIVE TRANSLATION FUNCTIONS ---
