@@ -901,8 +901,28 @@ async function fetchNotes() {
     }
     
     function getNotesTextContent() {
-        // Get plain text content for parsing and saving
-        return liveNotesTextarea.textContent || '';
+        // Get plain text content while preserving line breaks from HTML
+        // This properly handles contenteditable with <br> tags and HTML formatting
+        let content = liveNotesTextarea.innerHTML || '';
+        
+        // Convert HTML to plain text while preserving line structure
+        content = content
+            .replace(/<br\s*\/?>/gi, '\n')  // Convert <br> tags to newlines
+            .replace(/<\/div>/gi, '\n')     // Convert closing div tags to newlines
+            .replace(/<div[^>]*>/gi, '\n')  // Convert opening div tags to newlines  
+            .replace(/<[^>]*>/g, '')        // Strip all other HTML tags
+            .replace(/&nbsp;/g, ' ')        // Convert &nbsp; to regular spaces
+            .replace(/&amp;/g, '&')         // Convert &amp; to &
+            .replace(/&lt;/g, '<')          // Convert &lt; to <
+            .replace(/&gt;/g, '>')          // Convert &gt; to >
+            .replace(/\n\s*\n/g, '\n')      // Remove empty lines created by HTML structure
+            .trim();                        // Remove leading/trailing whitespace
+        
+        console.log('📝 getNotesTextContent: Raw HTML:', liveNotesTextarea.innerHTML);
+        console.log('📝 getNotesTextContent: Converted text:', content);
+        console.log('📝 getNotesTextContent: Split lines:', content.split('\n'));
+        
+        return content;
     }
     const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
     Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
@@ -2027,6 +2047,7 @@ async function fetchNotes() {
         let originalContent = content;
         
         // Auto-add space before dashes if missing
+        // This handles cases like "word-" -> "word -" and "word-something" -> "word - something"
         content = content.replace(/(\w)-(\s|$)/g, '$1 -$2');
         
         // Update content if we made changes
