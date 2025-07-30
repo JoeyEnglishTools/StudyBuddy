@@ -4276,10 +4276,10 @@ async function fetchNotes() {
         
         console.log('🎙️ Initializing voice selection with', voices.length, 'available voices');
         
-        // Select high-quality voices for each language
-        selectedVoices['en-GB'] = findBestVoice(voices, 'en-GB', ['Arthur', 'Daniel', 'Oliver', 'Karen']);
+        // Select high-quality voices for each language (prioritizing Google voices when available)
+        selectedVoices['en-GB'] = findBestVoice(voices, 'en-GB', ['Google UK English Male', 'Arthur', 'Daniel', 'Oliver', 'Karen']);
         selectedVoices['en-US'] = findBestVoice(voices, 'en-US', ['Alex', 'Samantha', 'Victoria', 'Allison']);
-        selectedVoices['es-ES'] = findBestVoice(voices, 'es-ES', ['Monica', 'Jorge', 'Marisol']);
+        selectedVoices['es-ES'] = findBestVoice(voices, 'es-ES', ['Google Español', 'Monica', 'Jorge', 'Marisol']);
         selectedVoices['es-US'] = findBestVoice(voices, 'es-US', ['Diego', 'Esperanza', 'Juan']);
         selectedVoices['fr-FR'] = findBestVoice(voices, 'fr-FR', ['Amelie', 'Thomas']);
         selectedVoices['de-DE'] = findBestVoice(voices, 'de-DE', ['Anna', 'Stefan']);
@@ -4301,9 +4301,17 @@ async function fetchNotes() {
     
     // Find the best voice for a language, preferring specific high-quality voice names
     function findBestVoice(voices, targetLang, preferredNames = []) {
-        // First try to find preferred high-quality voices
+        // First try to find preferred high-quality voices (exact match first, then includes)
         for (const preferredName of preferredNames) {
-            const voice = voices.find(v => 
+            // Try exact match first (for Google voices)
+            let voice = voices.find(v => 
+                v.lang.startsWith(targetLang.split('-')[0]) && 
+                v.name.toLowerCase() === preferredName.toLowerCase()
+            );
+            if (voice) return voice;
+            
+            // Fall back to includes match
+            voice = voices.find(v => 
                 v.lang.startsWith(targetLang.split('-')[0]) && 
                 v.name.toLowerCase().includes(preferredName.toLowerCase())
             );
