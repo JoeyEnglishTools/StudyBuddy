@@ -823,6 +823,35 @@ async function fetchNotes() {
     const findTheWordsGameContainer = document.getElementById("findTheWordsGame"), findTheWordsInstructions = document.getElementById("findTheWordsInstructions"), replayFindTheWordsAudioBtn = document.getElementById("replayFindTheWordsAudioBtn"), findTheWordsRoundCounter = document.getElementById("findTheWordsRoundCounter"), findTheWordsGrid = document.getElementById("findTheWordsGrid"), sendFindTheWordsBtn = document.getElementById("sendFindTheWordsBtn"), findTheWordsFeedback = document.getElementById("findTheWordsFeedback"), nextFindTheWordsRoundBtn = document.getElementById("nextFindTheWordsRoundBtn"), talkToMeGameContainer = document.getElementById("talkToMeGame"), talkToMeInstructions = document.getElementById("talkToMeInstructions"), talkToMePhraseToRead = document.getElementById("talkToMePhraseToRead"), talkToMePhraseText = document.getElementById("talkToMePhraseText"), speakPhraseBtn = document.getElementById("speakPhraseBtn"), listenBtn = document.getElementById("listenBtn"), listenBtnText = document.getElementById("listenBtnText"), nextTalkToMeBtn = document.getElementById("nextTalkToMeBtn"), talkToMeRecognizedText = document.getElementById("talkToMeRecognizedText"), talkToMeFeedback = document.getElementById("talkToMeFeedback"), talkToMeReferenceContainer = document.getElementById("talkToMeReferenceContainer"), talkToMeReferenceLabel = document.getElementById("talkToMeReferenceLabel"), talkToMeReferenceDisplay = document.getElementById("talkToMeReferenceDisplay"), talkToMeCounter = document.getElementById("talkToMeCounter"), speechApiStatus = document.getElementById("speechApiStatus"), hearItOutLoudToggleBtn = document.getElementById("hearItOutLoudToggleBtn"), hearItOutLoudBtnText = document.getElementById("hearItOutLoudBtnText"), ttsGeneralStatus = document.getElementById("ttsGeneralStatus");
 
     // --- DATA ---
+    
+    // Helper functions for contenteditable Live Notes
+    function getNotesContent() {
+        return liveNotesTextarea.textContent || '';
+    }
+    
+    function setNotesContent(content) {
+        // Convert plain text to HTML with styled translations
+        const htmlContent = content
+            .split('\n')
+            .map(line => {
+                // Check if line has a translation (contains " - " pattern)
+                const dashIndex = line.indexOf(' - ');
+                if (dashIndex > 0 && line.length > dashIndex + 3) {
+                    const word = line.substring(0, dashIndex);
+                    const translation = line.substring(dashIndex + 3);
+                    return `${word} - <span class="translated-text">${translation}</span>`;
+                }
+                return line;
+            })
+            .join('<br>');
+        
+        liveNotesTextarea.innerHTML = htmlContent;
+    }
+    
+    function getNotesTextContent() {
+        // Get plain text content for parsing and saving
+        return liveNotesTextarea.textContent || '';
+    }
     const essentialsVocabularyData = { "Travel (EN-ES)": [{ lang1: "passport", lang2: "pasaporte", sentence: "You need a ____ to travel abroad.", correctCount: 0, originalIndex: 0 }, { lang1: "ticket", lang2: "billete", sentence: "I bought a round-trip ____ to Paris.", correctCount: 0, originalIndex: 1 }, { lang1: "luggage", lang2: "equipaje", sentence: "My ____ was too heavy.", correctCount: 0, originalIndex: 2 }, { lang1: "destination", lang2: "destino", sentence: "Our final ____ is Rome.", correctCount: 0, originalIndex: 3 }, { lang1: "reservation", lang2: "reserva", sentence: "I made a hotel ____ online.", correctCount: 0, originalIndex: 4 }], "Business (EN-ES)": [{ lang1: "meeting", lang2: "reunión", sentence: "The client ____ is at 2 PM.", correctCount: 0, originalIndex: 0 }, { lang1: "contract", lang2: "contrato", sentence: "Please review the ____ carefully.", correctCount: 0, originalIndex: 1 }, { lang1: "negotiation", lang2: "negociación", sentence: "The ____ lasted for hours.", correctCount: 0, originalIndex: 2 }, { lang1: "deadline", lang2: "fecha límite", sentence: "We must meet the project ____.", correctCount: 0, originalIndex: 3 }, { lang1: "presentation", lang2: "presentación", sentence: "She gave an excellent ____.", correctCount: 0, originalIndex: 4 }], "Food (EN-FR)": [{ lang1: "bread", lang2: "pain", sentence: "I would like some ____, please.", correctCount: 0, originalIndex: 0 }, { lang1: "water", lang2: "eau", sentence: "Can I have a glass of ____?", correctCount: 0, originalIndex: 1 }] };
     Object.values(essentialsVocabularyData).forEach(e => { e.forEach((e, t) => { if (e.originalIndex === undefined) e.originalIndex = t; if (e.correctCount === undefined) e.correctCount = 0; }) });
 
@@ -1106,49 +1135,44 @@ async function fetchNotes() {
     }
     
     function handleNotepadClick(event) {
-        const textarea = event.target;
-        const cursorPosition = textarea.selectionStart;
-        const content = textarea.value;
+        const content = getNotesTextContent();
         
-        // Find the line where the user clicked
-        const beforeCursor = content.substring(0, cursorPosition);
-        const lines = content.split('\n');
+        // For contenteditable, we need to handle this differently
+        // Get the current selection to determine clicked position
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
         
-        let charCount = 0;
-        let clickedLineIndex = 0;
-        let clickedLine = '';
+        const range = selection.getRangeAt(0);
+        let clickedElement = range.startContainer;
         
-        for (let i = 0; i < lines.length; i++) {
-            const lineLength = lines[i].length + 1; // +1 for newline
-            if (charCount + lineLength > cursorPosition) {
-                clickedLineIndex = i;
-                clickedLine = lines[i];
-                break;
-            }
-            charCount += lineLength;
+        // If we clicked on a text node, get its parent element
+        if (clickedElement.nodeType === Node.TEXT_NODE) {
+            clickedElement = clickedElement.parentElement;
         }
         
-        if (!clickedLine.trim()) return;
-        
-        // Normalize symbols in the line
-        const normalizedLine = normalizeSymbolsInText(clickedLine);
-        
-        // Check if the line contains a dash separator
-        const dashMatches = normalizedLine.match(/^(.+?)\s*[-–—]\s*(.+)$/);
-        if (!dashMatches) return;
-        
-        const targetWord = dashMatches[1].trim();
-        const positionInLine = cursorPosition - charCount;
-        const dashIndex = normalizedLine.indexOf('-');
-        
-        // Check if user clicked on the target word (before the dash)
-        if (positionInLine <= dashIndex && targetWord) {
-            // Get the current language setting for pronunciation
-            const languageSelector = document.getElementById('liveNotesLanguageSelector');
-            const selectedLanguage = languageSelector ? languageSelector.value : 'en-GB';
+        // Find the text content of the line
+        if (clickedElement.tagName === 'SPAN' && clickedElement.classList.contains('translated-text')) {
+            // Clicked on a translation - don't speak
+            return;
+        } else {
+            // Get the full line text
+            const allText = getNotesTextContent();
+            const lines = allText.split('\n');
             
-            console.log('🔊 Speaking word from Live Notes:', targetWord, 'in language:', selectedLanguage);
-            speakText(targetWord, selectedLanguage);
+            // Find which line we're on (simplified approach)
+            for (const line of lines) {
+                if (line.trim() && content.includes(line)) {
+                    const dashIndex = line.indexOf(' - ');
+                    if (dashIndex > 0) {
+                        const termPart = line.substring(0, dashIndex).trim();
+                        if (termPart) {
+                            console.log('🗣️ Speaking term:', termPart);
+                            speakText(termPart, activeTargetStudyLanguage);
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -2000,28 +2024,11 @@ async function fetchNotes() {
     }
     
     function parseNotepadContentForSaving() {
-        // Get textarea and current cursor position
-        const textarea = document.getElementById('liveNotesTextarea');
-        const cursorPosition = textarea.selectionStart;
-        const content = textarea.value;
+        // Get content from contenteditable div
+        const content = getNotesTextContent();
         
         // Split content into lines
         const lines = content.split('\n');
-        
-        // Find which line the cursor is on
-        let charCount = 0;
-        let currentLineIndex = 0;
-        
-        for (let i = 0; i < lines.length; i++) {
-            const lineStart = charCount;
-            const lineEnd = charCount + lines[i].length;
-            
-            if (cursorPosition >= lineStart && cursorPosition <= lineEnd) {
-                currentLineIndex = i;
-                break;
-            }
-            charCount += lines[i].length + 1; // +1 for newline character
-        }
         
         // Parse all lines with content
         const completedData = [];
@@ -2463,8 +2470,7 @@ async function fetchNotes() {
                 return;
             }
             
-            const textarea = liveNotesTextarea;
-            const text = textarea.value;
+            const text = getNotesTextContent();
             const lines = text.split('\n');
             
             // Find lines that need translation (end with dash but no definition)
@@ -2488,7 +2494,7 @@ async function fetchNotes() {
             const learningLangName = getLangaugeName(learningLanguage);
             const nativeLangName = getLangaugeName(nativeLanguage);
             
-            const confirmMsg = `Found ${linesToTranslate.length} word(s) that need translation. This will automatically translate them from ${learningLangName} to ${nativeLangName}. Continue?`;
+            const confirmMsg = `Found ${linesToTranslate.length} word(s) that need translation. This will automatically translate them from ${learningLangName} to ${nativeLangName} with enhanced dictionary details. Continue?`;
             if (!confirm(confirmMsg)) {
                 return;
             }
@@ -2497,69 +2503,35 @@ async function fetchNotes() {
             translateTextBtn.disabled = true;
             translateTextBtn.textContent = '🔄 Translating...';
             
-            console.log('🤖 Starting Live Notes batch translation...', {
+            console.log('🤖 Starting enhanced Live Notes batch translation...', {
                 nativeLanguage,
                 learningLanguage,
                 wordsToTranslate: linesToTranslate.length
             });
             
-            // Determine language pair for translation API
+            // Determine language codes for translation API
             const learningCode = learningLanguage.split('-')[0].toLowerCase(); // 'es' from 'es-ES'
             const nativeCode = nativeLanguage.toLowerCase(); // 'en' from 'EN'
-            const langPair = `${learningCode}|${nativeCode}`; // e.g., 'es|en'
             
-            // Process translations in parallel
-            const translationPromises = linesToTranslate.map(async ({ index, word, originalLine }) => {
-                try {
-                    const translation = await translateTextWithFallback(word, langPair);
-                    if (translation && translation.toLowerCase() !== word.toLowerCase()) {
-                        // Create new line with translation marked with auto-translate indicator
-                        const newLine = originalLine.replace(word + ' -', `${word} - 🤖${translation}`);
-                        return { index, newLine, success: true, translation };
-                    } else {
-                        console.log(`❌ Translation failed or unchanged for: ${word}`);
-                        return { index, newLine: originalLine, success: false };
-                    }
-                } catch (error) {
-                    console.error(`❌ Translation error for "${word}":`, error);
-                    return { index, newLine: originalLine, success: false };
-                }
-            });
+            // Use enhanced batch translation with dictionary enrichment
+            const result = await batchTranslateWithDictionaryEnrichment(text, learningCode, nativeCode);
             
-            // Wait for all translations to complete
-            const results = await Promise.all(translationPromises);
-            
-            // Update the textarea with translated lines
-            let updatedLines = [...lines];
-            let successCount = 0;
-            let translatedWords = [];
-            
-            results.forEach(({ index, newLine, success, translation }) => {
-                updatedLines[index] = newLine;
-                if (success) {
-                    successCount++;
-                    if (translation) {
-                        translatedWords.push(translation);
-                    }
-                }
-            });
-            
-            // Update textarea content
-            textarea.value = updatedLines.join('\n');
-            notepadContent = textarea.value;
+            // Update textarea content with enhanced translations
+            setNotesContent(result.translatedText);
+            notepadContent = getNotesTextContent();
             parseNotepadContent();
             
             // Mark as having pending changes for auto-save
             pendingChanges = true;
             
             // Show success message
-            const message = successCount > 0 
-                ? `✅ Successfully translated ${successCount} out of ${linesToTranslate.length} words!`
+            const message = result.translatedCount > 0 
+                ? `✅ Successfully translated ${result.translatedCount} out of ${linesToTranslate.length} words with enhanced dictionary details!`
                 : `❌ No translations could be completed. Please check your internet connection.`;
                 
             updateSaveStatus(message);
             
-            console.log(`🤖 Live Notes translation complete: ${successCount}/${linesToTranslate.length} successful`);
+            console.log(`🤖 Enhanced Live Notes translation complete: ${result.translatedCount}/${linesToTranslate.length} successful`);
             
         } catch (error) {
             console.error('❌ Live Notes translation error:', error);
@@ -2567,7 +2539,7 @@ async function fetchNotes() {
         } finally {
             // Restore button state
             translateTextBtn.disabled = false;
-            translateTextBtn.textContent = '🤖 Translate Text';
+            translateTextBtn.textContent = 'Translate Text';
         }
     }
     
@@ -2619,6 +2591,165 @@ async function fetchNotes() {
             console.error('MyMemory API translation error:', error);
             return null;
         }
+    }
+
+    /**
+     * Get dictionary meanings for a word including parts of speech and synonyms
+     * Uses Free Dictionary API
+     */
+    async function getDictionaryMeanings(word) {
+        if (!word || typeof word !== 'string') return null;
+        
+        try {
+            const apiUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`;
+            const response = await fetch(apiUrl);
+            
+            if (!response.ok) {
+                console.log(`Dictionary API: No entry found for "${word}"`);
+                return null;
+            }
+            
+            const data = await response.json();
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                return null;
+            }
+            
+            const meanings = [];
+            const firstEntry = data[0];
+            
+            if (firstEntry.meanings && Array.isArray(firstEntry.meanings)) {
+                firstEntry.meanings.forEach(meaning => {
+                    if (meaning.partOfSpeech && meaning.definitions && Array.isArray(meaning.definitions)) {
+                        const partOfSpeech = meaning.partOfSpeech.toLowerCase();
+                        
+                        // Only include noun, verb, and adjective as requested
+                        if (['noun', 'verb', 'adjective'].includes(partOfSpeech)) {
+                            const definition = meaning.definitions[0]?.definition || '';
+                            const synonyms = meaning.definitions[0]?.synonyms || [];
+                            
+                            meanings.push({
+                                partOfSpeech: partOfSpeech,
+                                definition: definition,
+                                synonyms: synonyms.slice(0, 3) // Limit to first 3 synonyms
+                            });
+                        }
+                    }
+                });
+            }
+            
+            return meanings.length > 0 ? meanings : null;
+        } catch (error) {
+            console.error('Dictionary API error:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Enhanced batch translation function with dictionary enrichment
+     * Processes text blocks, finds incomplete lines, and enriches them with
+     * translations, parts of speech, and synonyms
+     * Caps automatic translation at 40 characters
+     */
+    async function batchTranslateWithDictionaryEnrichment(textContent, sourceLang, targetLang) {
+        const lines = textContent.split('\n');
+        const newLines = [];
+        let linesTranslated = 0;
+
+        console.log("Starting enhanced batch translation...");
+
+        for (const line of lines) {
+            // Find lines that look like "word -" (incomplete translations)
+            const match = line.trim().match(/^(.+?)\s*-\s*$/);
+            if (match) {
+                const originalWord = match[1].trim();
+                
+                // Cap automatic translation at 40 characters
+                if (originalWord.length > 40) {
+                    console.log(`Skipping translation for "${originalWord}" - exceeds 40 character limit`);
+                    newLines.push(line);
+                    continue;
+                }
+
+                // 1. Translate the word to target language
+                const langPair = `${sourceLang}|${targetLang}`;
+                const translatedWord = await translateTextWithFallback(originalWord, langPair);
+
+                if (translatedWord && translatedWord.toLowerCase() !== originalWord.toLowerCase()) {
+                    // 2. Get dictionary details for the translated word
+                    const meanings = await getDictionaryMeanings(translatedWord);
+
+                    if (meanings && meanings.length > 0) {
+                        // 3. Filter for only noun, verb, and adjective
+                        const relevantMeanings = meanings.filter(m =>
+                            ["noun", "verb", "adjective"].includes(m.partOfSpeech)
+                        );
+
+                        if (relevantMeanings.length > 0) {
+                            // 4. Format the details string
+                            const partsOfSpeechDetails = relevantMeanings.map(m => {
+                                const abbreviation = {
+                                    "noun": "n",
+                                    "verb": "v",
+                                    "adjective": "adj"
+                                }[m.partOfSpeech];
+
+                                let detail = `(${abbreviation}.)`;
+                                
+                                // Add definition if available
+                                if (m.definition && m.definition.length > 0) {
+                                    // Truncate definition to keep it concise
+                                    const shortDef = m.definition.length > 50 
+                                        ? m.definition.substring(0, 50) + "..."
+                                        : m.definition;
+                                    detail += ` ${shortDef}`;
+                                }
+                                
+                                // Add synonyms if available
+                                if (m.synonyms && m.synonyms.length > 0) {
+                                    const synList = m.synonyms.slice(0, 2).join(", ");
+                                    detail += ` [syn: ${synList}]`;
+                                }
+                                
+                                return detail;
+                            }).join("; ");
+
+                            // Format: "original - translated (enhanced details)"
+                            const enhancedLine = `${originalWord} - <span class="translated-text">${translatedWord} ${partsOfSpeechDetails}</span>`;
+                            newLines.push(enhancedLine);
+                            linesTranslated++;
+                            
+                            console.log(`✅ Enhanced translation: "${originalWord}" → "${translatedWord}" with details`);
+                        } else {
+                            // No relevant meanings found, use simple translation
+                            const simpleLine = `${originalWord} - <span class="translated-text">${translatedWord}</span>`;
+                            newLines.push(simpleLine);
+                            linesTranslated++;
+                            
+                            console.log(`✅ Simple translation: "${originalWord}" → "${translatedWord}"`);
+                        }
+                    } else {
+                        // No dictionary details available, use simple translation
+                        const simpleLine = `${originalWord} - <span class="translated-text">${translatedWord}</span>`;
+                        newLines.push(simpleLine);
+                        linesTranslated++;
+                        
+                        console.log(`✅ Simple translation: "${originalWord}" → "${translatedWord}" (no dictionary data)`);
+                    }
+                } else {
+                    console.log(`❌ Translation failed for: ${originalWord}`);
+                    newLines.push(line);
+                }
+            } else {
+                // Line doesn't need translation, keep as is
+                newLines.push(line);
+            }
+        }
+
+        console.log(`Enhanced batch translation complete: ${linesTranslated} lines translated`);
+        return {
+            translatedText: newLines.join('\n'),
+            translatedCount: linesTranslated
+        };
     }
 
     // --- LIVE TRANSLATION FUNCTIONS ---
@@ -2742,7 +2873,7 @@ async function fetchNotes() {
 
         const { text, translation, cursorPosition } = currentTranslationSuggestion;
         const textarea = liveNotesTextarea;
-        const currentValue = textarea.value;
+        const currentValue = getNotesTextContent();
         
         // Find the position of the text that was translated
         const beforeCursor = currentValue.substring(0, cursorPosition);
@@ -2754,11 +2885,9 @@ async function fetchNotes() {
             const afterCursor = currentValue.substring(cursorPosition);
             const newValue = beforeDash + translation + afterCursor;
             
-            textarea.value = newValue;
+            setNotesContent(newValue);
             
-            // Position cursor after the translation
-            const newCursorPos = beforeDash.length + translation.length;
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
+            // Focus on the contenteditable element
             textarea.focus();
             
             // Update content and trigger parsing
