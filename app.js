@@ -846,6 +846,58 @@ async function fetchNotes() {
             .join('<br>');
         
         liveNotesTextarea.innerHTML = htmlContent;
+        // Trigger placeholder visibility update
+        updatePlaceholderVisibility();
+    }
+    
+    function setCursorPosition(element, position) {
+        // Set cursor position in contenteditable element
+        const selection = window.getSelection();
+        const range = document.createRange();
+        
+        let currentPos = 0;
+        let targetNode = null;
+        let targetOffset = 0;
+        
+        // Walk through text nodes to find the target position
+        function walkTextNodes(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const textLength = node.textContent.length;
+                if (currentPos + textLength >= position) {
+                    targetNode = node;
+                    targetOffset = position - currentPos;
+                    return true;
+                }
+                currentPos += textLength;
+            } else {
+                for (let child of node.childNodes) {
+                    if (walkTextNodes(child)) return true;
+                }
+            }
+            return false;
+        }
+        
+        if (walkTextNodes(element) && targetNode) {
+            range.setStart(targetNode, Math.min(targetOffset, targetNode.textContent.length));
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        } else {
+            // Fallback: position at end
+            range.selectNodeContents(element);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    }
+    
+    function updatePlaceholderVisibility() {
+        const hasContent = liveNotesTextarea.textContent && liveNotesTextarea.textContent.trim().length > 0;
+        if (hasContent) {
+            liveNotesTextarea.removeAttribute('data-show-placeholder');
+        } else {
+            liveNotesTextarea.setAttribute('data-show-placeholder', 'true');
+        }
     }
     
     function getNotesTextContent() {
@@ -1100,7 +1152,7 @@ async function fetchNotes() {
         // Try to restore previous Live Notes content from localStorage
         const savedContent = localStorage.getItem('live_notes_content');
         if (savedContent) {
-            liveNotesTextarea.value = savedContent;
+            setNotesContent(savedContent);
             notepadContent = savedContent;
             parseNotepadContent();
             console.log('📝 Restored Live Notes content from localStorage');
@@ -1108,10 +1160,13 @@ async function fetchNotes() {
             // Clear existing content if no saved content
             notepadContent = '';
             liveNotesData = [];
-            liveNotesTextarea.value = '';
+            setNotesContent('');
         }
         
         pendingChanges = false;
+        
+        // Initialize placeholder visibility
+        updatePlaceholderVisibility();
         
         // Add event listeners to notepad
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
@@ -1393,6 +1448,10 @@ async function fetchNotes() {
         if (window.wordPairAutoSaveTimeout) {
             clearTimeout(window.wordPairAutoSaveTimeout);
             window.wordPairAutoSaveTimeout = null;
+        }
+        if (window.wordPairCountdownInterval) {
+            clearInterval(window.wordPairCountdownInterval);
+            window.wordPairCountdownInterval = null;
         }
         
         // Hide any translation suggestion
@@ -1868,6 +1927,12 @@ async function fetchNotes() {
                 if (window.wordPairAutoSaveTimeout) {
                     clearTimeout(window.wordPairAutoSaveTimeout);
                 }
+                if (window.wordPairCountdownInterval) {
+                    clearInterval(window.wordPairCountdownInterval);
+                }
+                
+                // Start countdown from 20 seconds
+                let countdownSeconds = 20;
                 
                 // Set 20-second timer specifically for this word pair
                 window.wordPairAutoSaveTimeout = setTimeout(() => {
@@ -1875,7 +1940,26 @@ async function fetchNotes() {
                     updateSaveStatus('Saving word pair...', 'text-orange-600');
                     saveLiveNotes(false); // Auto-save, not manual
                     window.wordPairAutoSaveTimeout = null;
+                    if (window.wordPairCountdownInterval) {
+                        clearInterval(window.wordPairCountdownInterval);
+                        window.wordPairCountdownInterval = null;
+                    }
                 }, 20000); // 20 seconds
+                
+                // Real-time countdown display for console and status
+                window.wordPairCountdownInterval = setInterval(() => {
+                    countdownSeconds--;
+                    console.log(`⏱️ Word pair auto-save countdown: ${countdownSeconds} seconds remaining`);
+                    
+                    if (countdownSeconds > 0) {
+                        updateSaveStatus(`Auto-save in ${countdownSeconds}s...`, 'text-blue-600');
+                    }
+                    
+                    if (countdownSeconds <= 0) {
+                        clearInterval(window.wordPairCountdownInterval);
+                        window.wordPairCountdownInterval = null;
+                    }
+                }, 1000);
                 
                 console.log('⏰ Set 20-second auto-save timer for word pair completion');
             }
@@ -1901,7 +1985,8 @@ async function fetchNotes() {
     }
 
     function handleNotepadInput(event) {
-        notepadContent = event.target.value;
+        // Get content from contenteditable div
+        notepadContent = getNotesTextContent();
         pendingChanges = true;
         
         // Save content to localStorage for persistence
@@ -1913,9 +1998,18 @@ async function fetchNotes() {
             autoAdvanceTimer = null;
         }
         
-        // Check for dash and trigger translation - include symbols that get converted to dashes
-        const cursorPosition = event.target.selectionStart;
-        const currentValue = event.target.value;
+        // Get cursor position for contenteditable div
+        const selection = window.getSelection();
+        let cursorPosition = 0;
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(liveNotesTextarea);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            cursorPosition = preCaretRange.toString().length;
+        }
+        
+        const currentValue = notepadContent;
         const charBeforeCursor = currentValue.charAt(cursorPosition - 1);
         
         // If user just typed a dash or symbol that converts to dash, check for translation opportunity
@@ -1932,6 +2026,7 @@ async function fetchNotes() {
         parseNotepadContent();
         updateLineAndParsedCounts();
         updateSaveStatus();
+        updatePlaceholderVisibility();
         
         // Check for word pair completion and trigger 20-second auto-save
         checkForWordPairCompletion(currentValue, cursorPosition);
@@ -2113,35 +2208,62 @@ async function fetchNotes() {
     }
     
     function addNewNoteLine() {
-        const cursorPos = liveNotesTextarea.selectionStart;
-        const text = liveNotesTextarea.value;
-        const beforeCursor = text.substring(0, cursorPos);
-        const afterCursor = text.substring(cursorPos);
+        // Get current selection and position for contenteditable
+        const selection = window.getSelection();
+        let currentContent = getNotesTextContent();
         
-        // Add new line at cursor position
-        let newText;
-        if (beforeCursor.endsWith('\n') || beforeCursor === '') {
-            newText = beforeCursor + '\n' + afterCursor;
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(liveNotesTextarea);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            const cursorPos = preCaretRange.toString().length;
+            
+            const beforeCursor = currentContent.substring(0, cursorPos);
+            const afterCursor = currentContent.substring(cursorPos);
+            
+            // Add new line at cursor position
+            let newText;
+            if (beforeCursor.endsWith('\n') || beforeCursor === '') {
+                newText = beforeCursor + '\n' + afterCursor;
+            } else {
+                newText = beforeCursor + '\n\n' + afterCursor;
+            }
+            
+            setNotesContent(newText);
+            
+            // Position cursor at the start of the new line
+            const newCursorPos = beforeCursor.length + (beforeCursor.endsWith('\n') || beforeCursor === '' ? 1 : 2);
+            setCursorPosition(liveNotesTextarea, newCursorPos);
         } else {
-            newText = beforeCursor + '\n\n' + afterCursor;
+            // Fallback: add line at the end
+            const newText = currentContent + (currentContent.endsWith('\n') ? '\n' : '\n\n');
+            setNotesContent(newText);
+            setCursorPosition(liveNotesTextarea, newText.length);
         }
         
-        liveNotesTextarea.value = newText;
-        
-        // Position cursor at the start of the new line
-        const newCursorPos = beforeCursor.length + (beforeCursor.endsWith('\n') || beforeCursor === '' ? 1 : 2);
-        liveNotesTextarea.setSelectionRange(newCursorPos, newCursorPos);
         liveNotesTextarea.focus();
         
-        // Update content and counts
-        notepadContent = newText;
+        // Update content tracking
+        notepadContent = getNotesTextContent();
         parseNotepadContent();
         updateLineAndParsedCounts();
+        pendingChanges = true;
+        updateSaveStatus();
     }
     
     function goToPreviousLine() {
-        const cursorPos = liveNotesTextarea.selectionStart;
-        const text = liveNotesTextarea.value;
+        // Get current cursor position for contenteditable
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        
+        const range = selection.getRangeAt(0);
+        const preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(liveNotesTextarea);
+        preCaretRange.setEnd(range.endContainer, range.endOffset);
+        const cursorPos = preCaretRange.toString().length;
+        
+        const text = getNotesTextContent();
         const beforeCursor = text.substring(0, cursorPos);
         
         // Find the previous line break
@@ -2151,12 +2273,12 @@ async function fetchNotes() {
             const previousLineStart = secondLastLineBreak + 1;
             const previousLineEnd = lastLineBreak;
             
-            // Move cursor to the end of the previous line
-            liveNotesTextarea.setSelectionRange(previousLineEnd, previousLineEnd);
+            // Move cursor to the beginning of the previous line for better UX
+            setCursorPosition(liveNotesTextarea, previousLineStart);
             liveNotesTextarea.focus();
         } else if (lastLineBreak === 0) {
-            // We're on the second line, go to the end of the first line
-            liveNotesTextarea.setSelectionRange(0, 0);
+            // We're on the second line, go to the beginning of the first line
+            setCursorPosition(liveNotesTextarea, 0);
             liveNotesTextarea.focus();
         }
         // If no previous line, stay where we are
@@ -2406,10 +2528,11 @@ async function fetchNotes() {
         if (confirm('Are you sure you want to clear all notes? Unsaved changes will be lost.')) {
             liveNotesData = [];
             notepadContent = '';
-            liveNotesTextarea.value = '';
+            setNotesContent('');
             pendingChanges = false;
             updateSaveStatus();
             updateLineAndParsedCounts();
+            updatePlaceholderVisibility();
             liveNotesTextarea.focus();
         }
     }
@@ -2470,15 +2593,21 @@ async function fetchNotes() {
                 return;
             }
             
+            // Get both plain text content and HTML content for proper detection
             const text = getNotesTextContent();
+            const htmlContent = liveNotesTextarea.innerHTML;
             const lines = text.split('\n');
             
             // Find lines that need translation (end with dash but no definition)
+            // We need to be more intelligent about detection to handle mixed HTML/text content
             const linesToTranslate = [];
             lines.forEach((line, index) => {
                 const trimmedLine = line.trim();
-                if (trimmedLine.endsWith('-') && !trimmedLine.includes(' - ')) {
-                    const wordToTranslate = trimmedLine.slice(0, -1).trim();
+                
+                // Check if line ends with just a dash (needs translation)
+                // This handles cases where we have: "word -" but not "word - translation"
+                if (trimmedLine.match(/^.+\s*-\s*$/) && !trimmedLine.match(/^.+\s*-\s+.+$/)) {
+                    const wordToTranslate = trimmedLine.replace(/\s*-\s*$/, '').trim();
                     if (wordToTranslate) {
                         linesToTranslate.push({ index, word: wordToTranslate, originalLine: line });
                     }
@@ -2659,9 +2788,10 @@ async function fetchNotes() {
 
         for (const line of lines) {
             // Find lines that look like "word -" (incomplete translations)
-            const match = line.trim().match(/^(.+?)\s*-\s*$/);
-            if (match) {
-                const originalWord = match[1].trim();
+            // Use same detection logic as handleLiveNotesTranslation
+            const trimmedLine = line.trim();
+            if (trimmedLine.match(/^.+\s*-\s*$/) && !trimmedLine.match(/^.+\s*-\s+.+$/)) {
+                const originalWord = trimmedLine.replace(/\s*-\s*$/, '').trim();
                 
                 // Cap automatic translation at 40 characters
                 if (originalWord.length > 40) {
