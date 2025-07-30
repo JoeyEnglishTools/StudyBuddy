@@ -3676,15 +3676,13 @@ async function fetchNotes() {
                 deleteNote(originalIndex, note);
             });
             
-            // Touch events for mobile delete
+            // Touch events for mobile delete - instant delete
             deleteBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                startDeleteTimer();
+                console.log('🗑️ populateNotesList: Touch delete triggered for note:', note);
+                deleteNote(originalIndex, note);
             });
-            
-            deleteBtn.addEventListener('touchend', cancelDeleteTimer);
-            deleteBtn.addEventListener('touchcancel', cancelDeleteTimer);
             
             noteItem.appendChild(noteContent);
             noteItem.appendChild(editBtn);
