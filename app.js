@@ -830,19 +830,11 @@ async function fetchNotes() {
     }
     
     function setNotesContent(content) {
-        // Convert plain text to HTML with styled translations
+        // For the new star-based system, just set content directly as plain text
+        // Convert to HTML format for contenteditable while preserving line breaks
         const htmlContent = content
             .split('\n')
-            .map(line => {
-                // Check if line has a translation (contains " - " pattern)
-                const dashIndex = line.indexOf(' - ');
-                if (dashIndex > 0 && line.length > dashIndex + 3) {
-                    const word = line.substring(0, dashIndex);
-                    const translation = line.substring(dashIndex + 3);
-                    return `${word} - <span class="translated-text">${translation}</span>`;
-                }
-                return line;
-            })
+            .map(line => line.trim())
             .join('<br>');
         
         liveNotesTextarea.innerHTML = htmlContent;
@@ -1225,26 +1217,36 @@ async function fetchNotes() {
             clickedElement = clickedElement.parentElement;
         }
         
-        // Find the text content of the line
-        if (clickedElement.tagName === 'SPAN' && clickedElement.classList.contains('translated-text')) {
-            // Clicked on a translation - don't speak
-            return;
-        } else {
-            // Get the full line text
-            const allText = getNotesTextContent();
-            const lines = allText.split('\n');
-            
-            // Find which line we're on (simplified approach)
-            for (const line of lines) {
-                if (line.trim() && content.includes(line)) {
-                    const dashIndex = line.indexOf(' - ');
-                    if (dashIndex > 0) {
-                        const termPart = line.substring(0, dashIndex).trim();
-                        if (termPart) {
-                            console.log('🗣️ Speaking term:', termPart);
-                            speakText(termPart, activeTargetStudyLanguage);
-                            break;
-                        }
+        // Find the text content of the line - for star-based system
+        // Get the full line text
+        const allText = getNotesTextContent();
+        const lines = allText.split('\n');
+        
+        // Find which line we're on and determine what part was clicked
+        for (const line of lines) {
+            if (line.trim() && content.includes(line)) {
+                const dashIndex = line.indexOf(' - ');
+                if (dashIndex > 0) {
+                    // Check if line has a star (indicating auto-translation)
+                    const hasAutoTranslation = line.includes(' ⭐');
+                    
+                    // Get cursor position to determine if clicking on translated part
+                    const cursorPosition = range.startOffset;
+                    const beforeDash = line.substring(0, dashIndex);
+                    const afterDash = line.substring(dashIndex + 3);
+                    
+                    // If clicking on the part after the dash and it has a star, don't speak
+                    if (hasAutoTranslation && cursorPosition > dashIndex) {
+                        console.log('🗣️ Clicked on auto-translated text (⭐) - not speaking');
+                        return;
+                    }
+                    
+                    // Otherwise, speak the term part (before the dash)
+                    const termPart = beforeDash.trim();
+                    if (termPart) {
+                        console.log('🗣️ Speaking term:', termPart);
+                        speakText(termPart, activeTargetStudyLanguage);
+                        break;
                     }
                 }
             }
@@ -2856,7 +2858,7 @@ async function fetchNotes() {
      * Enhanced batch translation function with dictionary enrichment
      * Processes text blocks, finds incomplete lines, and enriches them with
      * translations, parts of speech, and synonyms
-     * Caps automatic translation at 40 characters
+     * Caps automatic translation at 45 characters
      */
     async function batchTranslateWithDictionaryEnrichment(textContent, sourceLang, targetLang) {
         const lines = textContent.split('\n');
@@ -2872,9 +2874,9 @@ async function fetchNotes() {
             if (trimmedLine.match(/^.+\s*-\s*$/) && !trimmedLine.match(/^.+\s*-\s+.+$/)) {
                 const originalWord = trimmedLine.replace(/\s*-\s*$/, '').trim();
                 
-                // Cap automatic translation at 40 characters
-                if (originalWord.length > 40) {
-                    console.log(`Skipping translation for "${originalWord}" - exceeds 40 character limit`);
+                // Cap automatic translation at 45 characters
+                if (originalWord.length > 45) {
+                    console.log(`Skipping translation for "${originalWord}" - exceeds 45 character limit`);
                     newLines.push(line);
                     continue;
                 }
@@ -2922,15 +2924,15 @@ async function fetchNotes() {
                                 return detail;
                             }).join("; ");
 
-                            // Format: "original - translated (enhanced details)"
-                            const enhancedLine = `${originalWord} - <span class="translated-text">${translatedWord} ${partsOfSpeechDetails}</span>`;
+                            // Format: "original - translated (enhanced details) ⭐"
+                            const enhancedLine = `${originalWord} - ${translatedWord} ${partsOfSpeechDetails} ⭐`;
                             newLines.push(enhancedLine);
                             linesTranslated++;
                             
                             console.log(`✅ Enhanced translation: "${originalWord}" → "${translatedWord}" with details`);
                         } else {
                             // No relevant meanings found, use simple translation
-                            const simpleLine = `${originalWord} - <span class="translated-text">${translatedWord}</span>`;
+                            const simpleLine = `${originalWord} - ${translatedWord} ⭐`;
                             newLines.push(simpleLine);
                             linesTranslated++;
                             
@@ -2938,7 +2940,7 @@ async function fetchNotes() {
                         }
                     } else {
                         // No dictionary details available, use simple translation
-                        const simpleLine = `${originalWord} - <span class="translated-text">${translatedWord}</span>`;
+                        const simpleLine = `${originalWord} - ${translatedWord} ⭐`;
                         newLines.push(simpleLine);
                         linesTranslated++;
                         
@@ -3302,6 +3304,67 @@ async function fetchNotes() {
         reader.readAsText(file);
     }
 
+    // --- CSV EXPORT FUNCTIONS ---
+    
+    /**
+     * Function to convert notes to CSV format
+     */
+    function convertNotesToCSV(notes) {
+        // Add header row
+        let csvContent = "Word,Translation,Language\n";
+
+        // Add data rows
+        notes.forEach(note => {
+            const word = note.lang1.replace(/"/g, '""'); // Escape quotes
+            const translation = note.lang2.replace(/"/g, '""');
+            const language = note.term_lang || csvUploadedTargetLanguage || 'en-GB';
+
+            csvContent += `"${word}","${translation}","${language}"\n`;
+        });
+
+        return csvContent;
+    }
+
+    /**
+     * Function to trigger download of CSV file
+     */
+    function downloadCSV(csvContent, filename = 'vocabulary.csv') {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    /**
+     * Function to handle the export action
+     */
+    function exportNotesToCSV() {
+        // Get filtered notes or all notes
+        const notesToExport = getFilteredVocabulary();
+
+        if (notesToExport.length === 0) {
+            alert('No notes to export.');
+            return;
+        }
+
+        // Generate CSV and download
+        const csvContent = convertNotesToCSV(notesToExport);
+        const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        const filename = `vocabulary-${timestamp}.csv`;
+        
+        downloadCSV(csvContent, filename);
+        
+        // Show success message
+        alert(`Successfully exported ${notesToExport.length} notes to ${filename}`);
+    }
+
     // --- NOTES MANAGEMENT FUNCTIONS ---
     function initializeNotesManagement() {
         console.log('📚 initializeNotesManagement: Opening notes management interface');
@@ -3360,6 +3423,13 @@ async function fetchNotes() {
                     startFilteredMatchingGame(filteredVocab);
                 }
             });
+        }
+        
+        // Setup CSV export functionality
+        const exportNotesBtn = document.getElementById('exportNotesBtn');
+        if (exportNotesBtn) {
+            exportNotesBtn.addEventListener('click', exportNotesToCSV);
+            console.log('📚 initializeNotesManagement: CSV export functionality setup complete');
         }
         
         // Show modal
