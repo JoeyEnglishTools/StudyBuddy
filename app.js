@@ -1155,6 +1155,9 @@ async function fetchNotes() {
         // Show modal first
         liveNotesModal.classList.remove('hidden');
         
+        // Restore database connection immediately
+        await restoreLiveNotesConnection();
+        
         // Initialize Live Notes language selector AFTER showing modal
         await initializeLiveNotesLanguage();
         
@@ -1256,34 +1259,20 @@ async function fetchNotes() {
     async function initializeLiveNotesLanguage() {
         const liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector');
         
-        // Check if we have a stored learning language from CSV upload
-        const storedLanguage = localStorage.getItem('learning_language');
-        const keepPreference = localStorage.getItem('live_notes_keep_preference') === 'true';
-        
-        if (storedLanguage && keepPreference) {
-            // Use the stored language and user wants to keep it
-            liveNotesLanguageSelector.value = storedLanguage;
-            console.log('🌐 Using stored learning language for Live Notes (kept preference):', storedLanguage);
+        // Use deck's language settings instead of modal
+        if (currentDeck && currentDeck.term_lang) {
+            liveNotesLanguageSelector.value = currentDeck.term_lang;
+            console.log('🌐 Using deck learning language for Live Notes:', currentDeck.term_lang);
         } else {
-            // Show the Live Notes language selection modal on top
-            try {
-                const result = await showLiveNotesLanguageModal();
-                liveNotesLanguageSelector.value = result.language;
-                
-                // Store the language and preference setting
-                localStorage.setItem('learning_language', result.language);
-                localStorage.setItem('live_notes_keep_preference', result.keepPreference.toString());
-                
-                console.log('🌐 Selected learning language for Live Notes:', result.language, 'Keep preference:', result.keepPreference);
-            } catch (error) {
-                if (error === 'cancelled') {
-                    // User cancelled, close Live Notes
-                    closeLiveNotes();
-                    return;
-                }
-                console.error('Error selecting language:', error);
-                // Fall back to default
+            // Fall back to stored language if no deck is selected
+            const storedLanguage = localStorage.getItem('learning_language');
+            if (storedLanguage) {
+                liveNotesLanguageSelector.value = storedLanguage;
+                console.log('🌐 Using stored learning language for Live Notes (fallback):', storedLanguage);
+            } else {
+                // Final fallback to English
                 liveNotesLanguageSelector.value = 'en-GB';
+                console.log('🌐 Using default language for Live Notes (final fallback): en-GB');
             }
         }
     }
@@ -2805,17 +2794,42 @@ async function fetchNotes() {
 
     /**
      * Get dictionary meanings for a word including parts of speech and synonyms
-     * Uses Free Dictionary API
+     * Uses Free Dictionary API with native language support
      */
-    async function getDictionaryMeanings(word) {
+    async function getDictionaryMeanings(word, nativeLanguageCode = 'en') {
         if (!word || typeof word !== 'string') return null;
         
+        // Map language codes to dictionary API language codes
+        const langMap = {
+            'en': 'en',
+            'es': 'es',
+            'fr': 'fr', 
+            'de': 'de',
+            'pt': 'pt',
+            'it': 'it',
+            'ru': 'ru',
+            'ja': 'ja',
+            'ko': 'ko',
+            'hi': 'hi',
+            'ar': 'ar'
+        };
+        
+        const targetLang = langMap[nativeLanguageCode.toLowerCase()] || 'en';
+        
         try {
-            const apiUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`;
-            const response = await fetch(apiUrl);
+            // Try the native language dictionary first
+            let apiUrl = `https://api.dictionaryapi.dev/api/v2/entries/${targetLang}/${encodeURIComponent(word.toLowerCase())}`;
+            let response = await fetch(apiUrl);
+            
+            // If native language fails, fallback to English
+            if (!response.ok && targetLang !== 'en') {
+                console.log(`Dictionary API: No entry found for "${word}" in ${targetLang}, trying English...`);
+                apiUrl = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`;
+                response = await fetch(apiUrl);
+            }
             
             if (!response.ok) {
-                console.log(`Dictionary API: No entry found for "${word}"`);
+                console.log(`Dictionary API: No entry found for "${word}" in any language`);
                 return null;
             }
             
@@ -2886,8 +2900,8 @@ async function fetchNotes() {
                 const translatedWord = await translateTextWithFallback(originalWord, langPair);
 
                 if (translatedWord && translatedWord.toLowerCase() !== originalWord.toLowerCase()) {
-                    // 2. Get dictionary details for the translated word
-                    const meanings = await getDictionaryMeanings(translatedWord);
+                    // 2. Get dictionary details for the translated word in the target (native) language
+                    const meanings = await getDictionaryMeanings(translatedWord, targetLang);
 
                     if (meanings && meanings.length > 0) {
                         // 3. Filter for only noun, verb, and adjective
