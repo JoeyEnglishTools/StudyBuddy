@@ -123,8 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
             
-            // 2. Get authenticated user
-            const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+            // 2. Get authenticated user with timeout
+            console.log('🔐 Checking authentication...');
+            const authPromise = supabaseClient.auth.getUser();
+            const authTimeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Authentication timeout after 5 seconds')), 5000)
+            );
+            
+            const { data: { user }, error: userError } = await Promise.race([authPromise, authTimeoutPromise]);
             if (userError || !user) {
                 console.error('❌ Authentication error:', userError || 'No user found');
                 return false;
@@ -134,27 +140,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // 3. Test a simple query with timeout
             console.log('📡 Testing direct database query...');
             
-            // Add timeout wrapper for the database query
             const queryPromise = supabaseClient
                 .from('notes')
                 .select('count')
                 .limit(1);
                 
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Database query timeout')), 10000)
+                setTimeout(() => reject(new Error('Database query timeout after 8 seconds')), 8000)
             );
             
-            const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
-                
-            if (error) {
-                console.error('❌ Database error:', error);
+            const result = await Promise.race([queryPromise, timeoutPromise]);
+            
+            if (result.error) {
+                console.error('❌ Database error:', result.error);
                 return false;
             }
             
-            console.log('✅ Database connection successful:', data);
+            console.log('✅ Database connection successful:', result.data);
             return true;
         } catch (err) {
-            console.error('💥 Unexpected error during test:', err);
+            console.error('💥 Database connection test failed:', err.message || err);
             return false;
         }
     }
@@ -1159,12 +1164,17 @@ async function fetchNotes() {
     }
 
     // --- LIVE NOTES FUNCTIONS ---
+    let connectionCheckInterval = null;
+    
     async function initializeLiveNotes() {
         // Show modal first
         liveNotesModal.classList.remove('hidden');
         
         // Restore database connection immediately
         await restoreLiveNotesConnection();
+        
+        // Start periodic connection checking to maintain connection during use
+        startConnectionMonitoring();
         
         // Initialize Live Notes language selector AFTER showing modal
         await initializeLiveNotesLanguage();
@@ -1213,54 +1223,90 @@ async function fetchNotes() {
     }
     
     function handleNotepadClick(event) {
-        const content = getNotesTextContent();
+        console.log('🗣️ handleNotepadClick: Click detected');
         
-        // For contenteditable, we need to handle this differently
-        // Get the current selection to determine clicked position
+        // Get current selection and position
         const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-        
-        const range = selection.getRangeAt(0);
-        let clickedElement = range.startContainer;
-        
-        // If we clicked on a text node, get its parent element
-        if (clickedElement.nodeType === Node.TEXT_NODE) {
-            clickedElement = clickedElement.parentElement;
+        if (!selection.rangeCount) {
+            console.log('🗣️ No selection range found');
+            return;
         }
         
-        // Find the text content of the line - for star-based system
-        // Get the full line text
-        const allText = getNotesTextContent();
-        const lines = allText.split('\n');
+        const range = selection.getRangeAt(0);
+        const clickedElement = range.startContainer;
         
-        // Find which line we're on and determine what part was clicked
-        for (const line of lines) {
-            if (line.trim() && content.includes(line)) {
-                const dashIndex = line.indexOf(' - ');
-                if (dashIndex > 0) {
-                    // Check if line has a star (indicating auto-translation)
-                    const hasAutoTranslation = line.includes(' ⭐');
-                    
-                    // Get cursor position to determine if clicking on translated part
-                    const cursorPosition = range.startOffset;
-                    const beforeDash = line.substring(0, dashIndex);
-                    const afterDash = line.substring(dashIndex + 3);
-                    
-                    // If clicking on the part after the dash and it has a star, don't speak
-                    if (hasAutoTranslation && cursorPosition > dashIndex) {
-                        console.log('🗣️ Clicked on auto-translated text (⭐) - not speaking');
-                        return;
-                    }
-                    
-                    // Otherwise, speak the term part (before the dash)
-                    const termPart = beforeDash.trim();
+        // Get the text content up to the cursor position to determine the line
+        const fullText = getNotesTextContent();
+        console.log('🗣️ Full text content:', fullText);
+        
+        // Split into lines
+        const lines = fullText.split('\n');
+        console.log('🗣️ Lines found:', lines.length);
+        
+        // Try to determine which line was clicked by getting text before cursor
+        let textBeforeCursor = '';
+        try {
+            // Create a range from start of content to cursor position
+            const fullRange = document.createRange();
+            fullRange.selectNodeContents(liveNotesTextarea);
+            fullRange.setEnd(range.startContainer, range.startOffset);
+            textBeforeCursor = fullRange.toString();
+        } catch (e) {
+            console.log('🗣️ Could not determine cursor position, using simpler method');
+            // Fallback: just look for any line with a dash
+            for (const line of lines) {
+                if (line.includes(' - ') && line.trim() !== '') {
+                    const dashIndex = line.indexOf(' - ');
+                    const termPart = line.substring(0, dashIndex).trim();
                     if (termPart) {
-                        console.log('🗣️ Speaking term:', termPart);
+                        console.log('🗣️ Speaking term (fallback):', termPart);
                         speakText(termPart, activeTargetStudyLanguage);
-                        break;
+                        return;
                     }
                 }
             }
+            return;
+        }
+        
+        // Count newlines to determine which line we're on
+        const linesBefore = textBeforeCursor.split('\n').length - 1;
+        console.log('🗣️ Lines before cursor:', linesBefore);
+        
+        if (linesBefore < lines.length) {
+            const currentLine = lines[linesBefore];
+            console.log('🗣️ Current line:', currentLine);
+            
+            // Check if this line has a dash separator
+            const dashIndex = currentLine.indexOf(' - ');
+            if (dashIndex > 0) {
+                // Check if line has a star (indicating auto-translation)
+                const hasAutoTranslation = currentLine.includes(' ⭐');
+                
+                // Get position within the current line
+                const linesBeforeText = textBeforeCursor.split('\n').slice(0, -1).join('\n');
+                const positionInLine = textBeforeCursor.length - linesBeforeText.length - (linesBefore > 0 ? 1 : 0);
+                
+                console.log('🗣️ Position in line:', positionInLine, 'Dash at:', dashIndex);
+                
+                // If clicking on the part after the dash and it has a star, don't speak
+                if (hasAutoTranslation && positionInLine > dashIndex) {
+                    console.log('🗣️ Clicked on auto-translated text (⭐) - not speaking');
+                    return;
+                }
+                
+                // Otherwise, speak the term part (before the dash)
+                const termPart = currentLine.substring(0, dashIndex).trim();
+                if (termPart) {
+                    console.log('🗣️ Speaking term:', termPart);
+                    speakText(termPart, activeTargetStudyLanguage);
+                } else {
+                    console.log('🗣️ No term part found to speak');
+                }
+            } else {
+                console.log('🗣️ No dash found in current line');
+            }
+        } else {
+            console.log('🗣️ Line index out of bounds');
         }
     }
     
@@ -1457,6 +1503,9 @@ async function fetchNotes() {
             translationTimeout = null;
         }
         
+        // Stop connection monitoring when closing Live Notes
+        stopConnectionMonitoring();
+        
         // Clear auto-save timeout
         if (window.autoSaveTimeout) {
             clearTimeout(window.autoSaveTimeout);
@@ -1573,6 +1622,39 @@ async function fetchNotes() {
             if (liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
                 setupAutoSaveTimer();
             }
+        }
+    }
+    
+    function startConnectionMonitoring() {
+        // Clear any existing interval
+        if (connectionCheckInterval) {
+            clearInterval(connectionCheckInterval);
+        }
+        
+        // Check connection every 30 seconds while Live Notes is open
+        connectionCheckInterval = setInterval(async () => {
+            if (liveNotesModal && !liveNotesModal.classList.contains('hidden')) {
+                console.log('🔍 Periodic connection check...');
+                const isConnected = await testDatabaseConnection();
+                if (!isConnected) {
+                    console.log('⚠️ Connection lost during Live Notes session');
+                    updateSaveStatus('Connection Lost - Click to Refresh', 'text-red-600 cursor-pointer', true);
+                    showConnectionLostPrompt();
+                }
+            } else {
+                // Stop monitoring if Live Notes is closed
+                stopConnectionMonitoring();
+            }
+        }, 30000); // Check every 30 seconds
+        
+        console.log('🔍 Started connection monitoring for Live Notes');
+    }
+    
+    function stopConnectionMonitoring() {
+        if (connectionCheckInterval) {
+            clearInterval(connectionCheckInterval);
+            connectionCheckInterval = null;
+            console.log('🔍 Stopped connection monitoring');
         }
     }
     
