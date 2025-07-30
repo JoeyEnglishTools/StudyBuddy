@@ -532,7 +532,15 @@
             pointer-events: none;
         }
         
-        #liveNotesTextarea:focus:empty:before {
+        #liveNotesTextarea[data-show-placeholder="true"]:before {
+            content: attr(data-placeholder);
+            color: #9CA3AF;
+            white-space: pre-wrap;
+            pointer-events: none;
+        }
+        
+        #liveNotesTextarea:focus:empty:before,
+        #liveNotesTextarea:focus[data-show-placeholder="true"]:before {
             color: #D1D5DB;
         }
 
