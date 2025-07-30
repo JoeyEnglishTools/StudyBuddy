@@ -1152,7 +1152,7 @@ async function fetchNotes() {
         // Try to restore previous Live Notes content from localStorage
         const savedContent = localStorage.getItem('live_notes_content');
         if (savedContent) {
-            liveNotesTextarea.value = savedContent;
+            setNotesContent(savedContent);
             notepadContent = savedContent;
             parseNotepadContent();
             console.log('📝 Restored Live Notes content from localStorage');
@@ -1160,10 +1160,13 @@ async function fetchNotes() {
             // Clear existing content if no saved content
             notepadContent = '';
             liveNotesData = [];
-            liveNotesTextarea.value = '';
+            setNotesContent('');
         }
         
         pendingChanges = false;
+        
+        // Initialize placeholder visibility
+        updatePlaceholderVisibility();
         
         // Add event listeners to notepad
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
@@ -2248,12 +2251,6 @@ async function fetchNotes() {
         pendingChanges = true;
         updateSaveStatus();
     }
-        
-        // Update content and counts
-        notepadContent = newText;
-        parseNotepadContent();
-        updateLineAndParsedCounts();
-    }
     
     function goToPreviousLine() {
         // Get current cursor position for contenteditable
@@ -2531,10 +2528,11 @@ async function fetchNotes() {
         if (confirm('Are you sure you want to clear all notes? Unsaved changes will be lost.')) {
             liveNotesData = [];
             notepadContent = '';
-            liveNotesTextarea.value = '';
+            setNotesContent('');
             pendingChanges = false;
             updateSaveStatus();
             updateLineAndParsedCounts();
+            updatePlaceholderVisibility();
             liveNotesTextarea.focus();
         }
     }
