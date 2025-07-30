@@ -518,10 +518,9 @@
             word-wrap: break-word;
         }
         
-        /* Style for translated text */
+        /* Style for translated text - no special color, just normal styling */
         .translated-text {
-            color: #FF5433 !important;
-            font-weight: 500;
+            font-weight: normal;
         }
         
         /* Placeholder functionality for contenteditable */
@@ -1205,6 +1204,7 @@
                         <!-- Quick Action Buttons -->
                         <div class="flex gap-2 mb-3">
                             <button id="studyFilteredNotesBtn" class="btn btn-outline text-sm py-1 px-3 hidden">🎮 Study Filtered Notes</button>
+                            <button id="exportNotesBtn" class="btn btn-secondary text-sm py-1 px-3">📥 Export CSV</button>
                             <span id="filteredNotesCount" class="text-sm text-gray-600"></span>
                         </div>
                         
