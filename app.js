@@ -1225,6 +1225,9 @@ async function fetchNotes() {
     function handleNotepadClick(event) {
         console.log('🗣️ handleNotepadClick: Click detected');
         
+        // Ensure voices are loaded for speaking
+        ensureVoicesLoaded();
+        
         // Get current selection and position
         const selection = window.getSelection();
         if (!selection.rangeCount) {
@@ -1233,80 +1236,115 @@ async function fetchNotes() {
         }
         
         const range = selection.getRangeAt(0);
-        const clickedElement = range.startContainer;
         
-        // Get the text content up to the cursor position to determine the line
+        // Get the text content to work with
         const fullText = getNotesTextContent();
         console.log('🗣️ Full text content:', fullText);
         
         // Split into lines
         const lines = fullText.split('\n');
-        console.log('🗣️ Lines found:', lines.length);
+        console.log('🗣️ Lines found:', lines.length, lines);
         
         // Try to determine which line was clicked by getting text before cursor
         let textBeforeCursor = '';
+        let linesBefore = 0;
+        
         try {
             // Create a range from start of content to cursor position
             const fullRange = document.createRange();
             fullRange.selectNodeContents(liveNotesTextarea);
             fullRange.setEnd(range.startContainer, range.startOffset);
             textBeforeCursor = fullRange.toString();
+            linesBefore = textBeforeCursor.split('\n').length - 1;
+            console.log('🗣️ Text before cursor:', textBeforeCursor);
+            console.log('🗣️ Lines before cursor:', linesBefore);
         } catch (e) {
-            console.log('🗣️ Could not determine cursor position, using simpler method');
-            // Fallback: just look for any line with a dash
-            for (const line of lines) {
+            console.log('🗣️ Could not determine cursor position, trying alternative method');
+            
+            // Alternative method: use the clicked position more directly
+            const clickedNode = event.target;
+            if (clickedNode.nodeType === Node.TEXT_NODE) {
+                // Get the text content of the parent element
+                const parentText = clickedNode.parentElement.textContent || clickedNode.textContent;
+                console.log('🗣️ Parent text content:', parentText);
+                
+                // Find this text in our lines
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].includes(parentText.trim()) || parentText.includes(lines[i].trim())) {
+                        console.log('🗣️ Found matching line at index:', i);
+                        linesBefore = i;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Fallback: If we still can't determine the line, look for any line with content
+        if (linesBefore >= lines.length || linesBefore < 0) {
+            console.log('🗣️ Line index out of bounds, using fallback method');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
                 if (line.includes(' - ') && line.trim() !== '') {
                     const dashIndex = line.indexOf(' - ');
                     const termPart = line.substring(0, dashIndex).trim();
                     if (termPart) {
                         console.log('🗣️ Speaking term (fallback):', termPart);
-                        speakText(termPart, activeTargetStudyLanguage);
+                        speakText(termPart, activeTargetStudyLanguage || 'en-GB');
                         return;
                     }
                 }
             }
+            console.log('🗣️ No suitable line found for fallback speaking');
             return;
         }
         
-        // Count newlines to determine which line we're on
-        const linesBefore = textBeforeCursor.split('\n').length - 1;
-        console.log('🗣️ Lines before cursor:', linesBefore);
+        // Get the current line
+        const currentLine = lines[linesBefore];
+        console.log('🗣️ Current line:', currentLine);
         
-        if (linesBefore < lines.length) {
-            const currentLine = lines[linesBefore];
-            console.log('🗣️ Current line:', currentLine);
+        if (!currentLine || currentLine.trim() === '') {
+            console.log('🗣️ Current line is empty');
+            return;
+        }
+        
+        // Check if this line has a dash separator
+        const dashIndex = currentLine.indexOf(' - ');
+        if (dashIndex > 0) {
+            // Check if line has a star (indicating auto-translation)
+            const hasAutoTranslation = currentLine.includes(' ⭐');
             
-            // Check if this line has a dash separator
-            const dashIndex = currentLine.indexOf(' - ');
-            if (dashIndex > 0) {
-                // Check if line has a star (indicating auto-translation)
-                const hasAutoTranslation = currentLine.includes(' ⭐');
-                
-                // Get position within the current line
-                const linesBeforeText = textBeforeCursor.split('\n').slice(0, -1).join('\n');
-                const positionInLine = textBeforeCursor.length - linesBeforeText.length - (linesBefore > 0 ? 1 : 0);
-                
-                console.log('🗣️ Position in line:', positionInLine, 'Dash at:', dashIndex);
-                
-                // If clicking on the part after the dash and it has a star, don't speak
-                if (hasAutoTranslation && positionInLine > dashIndex) {
-                    console.log('🗣️ Clicked on auto-translated text (⭐) - not speaking');
-                    return;
-                }
-                
-                // Otherwise, speak the term part (before the dash)
-                const termPart = currentLine.substring(0, dashIndex).trim();
-                if (termPart) {
-                    console.log('🗣️ Speaking term:', termPart);
-                    speakText(termPart, activeTargetStudyLanguage);
-                } else {
-                    console.log('🗣️ No term part found to speak');
-                }
+            // Get position within the current line
+            const linesBeforeText = textBeforeCursor.split('\n').slice(0, -1).join('\n');
+            const positionInLine = textBeforeCursor.length - linesBeforeText.length - (linesBefore > 0 ? 1 : 0);
+            
+            console.log('🗣️ Position in line:', positionInLine, 'Dash at:', dashIndex);
+            
+            // If clicking on the part after the dash and it has a star, don't speak
+            if (hasAutoTranslation && positionInLine > dashIndex) {
+                console.log('🗣️ Clicked on auto-translated text (⭐) - not speaking');
+                return;
+            }
+            
+            // Otherwise, speak the term part (before the dash)
+            const termPart = currentLine.substring(0, dashIndex).trim();
+            if (termPart) {
+                console.log('🗣️ Speaking term:', termPart);
+                const languageToUse = activeTargetStudyLanguage || currentDeck?.term_lang || 'en-GB';
+                console.log('🗣️ Using language:', languageToUse);
+                speakText(termPart, languageToUse);
             } else {
-                console.log('🗣️ No dash found in current line');
+                console.log('🗣️ No term part found to speak');
             }
         } else {
-            console.log('🗣️ Line index out of bounds');
+            // Line doesn't have a dash, might be a single word - speak it anyway
+            const singleWord = currentLine.trim();
+            if (singleWord && !singleWord.includes('⭐')) {
+                console.log('🗣️ Speaking single word/phrase:', singleWord);
+                const languageToUse = activeTargetStudyLanguage || currentDeck?.term_lang || 'en-GB';
+                speakText(singleWord, languageToUse);
+            } else {
+                console.log('🗣️ No dash found in current line and no single word to speak');
+            }
         }
     }
     
@@ -1487,6 +1525,40 @@ async function fetchNotes() {
     }
     
     function closeLiveNotes() {
+        // Check for unsaved changes and ask for confirmation
+        const content = getNotesTextContent();
+        const hasUnsavedContent = content && content.trim() !== '';
+        
+        if (hasUnsavedContent && pendingChanges) {
+            const userWantsToSave = confirm(
+                "You have unsaved changes in Live Notes.\n\n" +
+                "Click 'OK' to save your changes before closing.\n" +
+                "Click 'Cancel' to close without saving (changes will be lost)."
+            );
+            
+            if (userWantsToSave) {
+                // Save before closing
+                console.log('🚪 User chose to save before closing');
+                saveLiveNotes(true); // Force immediate save
+                // Continue with closing process after a brief delay to allow save to complete
+                setTimeout(() => {
+                    finalizeLiveNotesClosing();
+                }, 1000);
+                return;
+            } else {
+                // User chose to discard changes
+                console.log('🚪 User chose to discard changes and close');
+                // Clear any saved content in localStorage
+                localStorage.removeItem('live_notes_content');
+                pendingChanges = false;
+            }
+        }
+        
+        // Proceed with immediate closing
+        finalizeLiveNotesClosing();
+    }
+    
+    function finalizeLiveNotesClosing() {
         // Clear timers first to stop any running processes
         if (autoSaveTimer) {
             clearInterval(autoSaveTimer);
@@ -1529,11 +1601,6 @@ async function fetchNotes() {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('focus', handleWindowFocus);
         window.removeEventListener('blur', handleWindowBlur);
-        
-        // Save any pending changes before closing
-        if (pendingChanges) {
-            saveLiveNotes();
-        }
         
         // Check if we should auto-trigger games after closing Live Notes
         setTimeout(() => {
@@ -1640,6 +1707,10 @@ async function fetchNotes() {
                     console.log('⚠️ Connection lost during Live Notes session');
                     updateSaveStatus('Connection Lost - Click to Refresh', 'text-red-600 cursor-pointer', true);
                     showConnectionLostPrompt();
+                } else {
+                    console.log('✅ Connection check passed - checking for auto-save opportunities');
+                    // Connection is good, check for new/updated content to auto-save
+                    await checkAndAutoSaveChanges();
                 }
             } else {
                 // Stop monitoring if Live Notes is closed
@@ -1648,6 +1719,73 @@ async function fetchNotes() {
         }, 30000); // Check every 30 seconds
         
         console.log('🔍 Started connection monitoring for Live Notes');
+    }
+    
+    // New function to automatically check and save changes during connection monitoring
+    async function checkAndAutoSaveChanges() {
+        try {
+            const content = getNotesTextContent();
+            if (!content || content.trim() === '') {
+                console.log('💾 Auto-check: No content to check');
+                return;
+            }
+            
+            const parsedNotes = parseNotepadContentForSaving(content);
+            console.log('💾 Auto-check: Found', parsedNotes.length, 'notes to process');
+            
+            // Check if there are any new or updated complete pairs (term - definition)
+            const completePairs = parsedNotes.filter(note => 
+                note.targetLang.trim() !== '' && 
+                note.translation.trim() !== '' && 
+                !note.translation.includes('⭐') // Don't auto-save auto-translated content
+            );
+            
+            if (completePairs.length > 0) {
+                console.log('💾 Auto-check: Found', completePairs.length, 'complete pairs ready for auto-save');
+                
+                // Check against existing vocabulary to see if these are truly new
+                const existingTerms = new Set();
+                if (vocabulary && Array.isArray(vocabulary)) {
+                    vocabulary.forEach(item => {
+                        if (item.lang1) existingTerms.add(item.lang1.toLowerCase().trim());
+                    });
+                }
+                
+                const newPairs = completePairs.filter(note => 
+                    !existingTerms.has(note.targetLang.toLowerCase().trim())
+                );
+                
+                if (newPairs.length > 0) {
+                    console.log('💾 Auto-check: Auto-saving', newPairs.length, 'new complete pairs');
+                    updateSaveStatus('Auto-saving new content...', 'text-blue-600');
+                    
+                    // Convert to the format expected by saveNotes
+                    const notesToSave = newPairs.map(note => ({
+                        lang1: note.targetLang,
+                        lang2: note.translation
+                    }));
+                    
+                    const success = await saveNotes(notesToSave);
+                    if (success) {
+                        console.log('✅ Auto-check: Successfully auto-saved', newPairs.length, 'notes');
+                        updateSaveStatus('Auto-saved', 'text-green-600');
+                        
+                        // Refresh vocabulary to reflect the new additions
+                        await fetchNotes();
+                    } else {
+                        console.log('❌ Auto-check: Failed to auto-save notes');
+                        updateSaveStatus('Auto-save failed', 'text-red-600');
+                    }
+                } else {
+                    console.log('💾 Auto-check: All complete pairs already exist in vocabulary');
+                }
+            } else {
+                console.log('💾 Auto-check: No complete pairs found for auto-save');
+            }
+            
+        } catch (error) {
+            console.error('💥 Auto-check error:', error);
+        }
     }
     
     function stopConnectionMonitoring() {
@@ -4117,48 +4255,150 @@ async function fetchNotes() {
         });
     }
     
-    function speakText(text, lang = 'en-GB') {
-        if ('speechSynthesis' in window && text) {
-            // Cancel any ongoing speech
-            window.speechSynthesis.cancel();
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            
-            // Ensure proper language mapping for better cross-browser support
-            if (lang === 'es-US' || lang === 'es-ES') {
-                // Force es-US for better pronunciation on Safari/Mac
-                utterance.lang = 'es-US';
-            } else if (lang === 'en-US' || lang === 'en-GB') {
-                // Force en-GB as default English
-                utterance.lang = 'en-GB';
-            } else {
-                utterance.lang = lang;
+    // Voice selection cache to persist through session
+    let selectedVoices = {
+        'en-GB': null,
+        'en-US': null, 
+        'es-ES': null,
+        'es-US': null,
+        'fr-FR': null,
+        'de-DE': null,
+        'pt-PT': null,
+        'pt-BR': null,
+        'nl-NL': null
+    };
+    let voicesLoaded = false;
+    
+    // Initialize voice selection when voices are available
+    function initializeVoiceSelection() {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length === 0) return false;
+        
+        console.log('🎙️ Initializing voice selection with', voices.length, 'available voices');
+        
+        // Select high-quality voices for each language (prioritizing Google voices when available)
+        selectedVoices['en-GB'] = findBestVoice(voices, 'en-GB', ['Google UK English Male', 'Arthur', 'Daniel', 'Oliver', 'Karen']);
+        selectedVoices['en-US'] = findBestVoice(voices, 'en-US', ['Alex', 'Samantha', 'Victoria', 'Allison']);
+        selectedVoices['es-ES'] = findBestVoice(voices, 'es-ES', ['Google Español', 'Monica', 'Jorge', 'Marisol']);
+        selectedVoices['es-US'] = findBestVoice(voices, 'es-US', ['Diego', 'Esperanza', 'Juan']);
+        selectedVoices['fr-FR'] = findBestVoice(voices, 'fr-FR', ['Amelie', 'Thomas']);
+        selectedVoices['de-DE'] = findBestVoice(voices, 'de-DE', ['Anna', 'Stefan']);
+        selectedVoices['pt-PT'] = findBestVoice(voices, 'pt-PT', ['Catarina']);
+        selectedVoices['pt-BR'] = findBestVoice(voices, 'pt-BR', ['Luciana']);
+        selectedVoices['nl-NL'] = findBestVoice(voices, 'nl-NL', ['Ellen']);
+        
+        voicesLoaded = true;
+        
+        // Log selected voices
+        Object.entries(selectedVoices).forEach(([lang, voice]) => {
+            if (voice) {
+                console.log(`🎙️ Selected voice for ${lang}: ${voice.name} (${voice.voiceURI})`);
             }
+        });
+        
+        return true;
+    }
+    
+    // Find the best voice for a language, preferring specific high-quality voice names
+    function findBestVoice(voices, targetLang, preferredNames = []) {
+        // First try to find preferred high-quality voices (exact match first, then includes)
+        for (const preferredName of preferredNames) {
+            // Try exact match first (for Google voices)
+            let voice = voices.find(v => 
+                v.lang.startsWith(targetLang.split('-')[0]) && 
+                v.name.toLowerCase() === preferredName.toLowerCase()
+            );
+            if (voice) return voice;
             
-            utterance.rate = 0.8;
-            utterance.pitch = 1;
-            utterance.volume = 1;
-            
-            // Additional Safari/Mac compatibility
-            if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
-                utterance.rate = 0.9;
-                // Force voice selection for better pronunciation on Safari
-                const voices = window.speechSynthesis.getVoices();
-                if (utterance.lang.startsWith('es')) {
-                    const spanishVoice = voices.find(voice => 
-                        voice.lang.includes('es-US') || voice.lang.includes('es-MX') || voice.lang.includes('es')
-                    );
-                    if (spanishVoice) utterance.voice = spanishVoice;
-                } else if (utterance.lang.startsWith('en')) {
-                    const englishVoice = voices.find(voice => 
-                        voice.lang.includes('en-GB') || voice.lang.includes('en-US')
-                    );
-                    if (englishVoice) utterance.voice = englishVoice;
-                }
-            }
-            
-            window.speechSynthesis.speak(utterance);
+            // Fall back to includes match
+            voice = voices.find(v => 
+                v.lang.startsWith(targetLang.split('-')[0]) && 
+                v.name.toLowerCase().includes(preferredName.toLowerCase())
+            );
+            if (voice) return voice;
         }
+        
+        // Fall back to any voice with exact language match
+        let voice = voices.find(v => v.lang === targetLang);
+        if (voice) return voice;
+        
+        // Fall back to any voice with same language code
+        voice = voices.find(v => v.lang.startsWith(targetLang.split('-')[0]));
+        if (voice) return voice;
+        
+        return null;
+    }
+    
+    // Wait for voices to load and initialize selection
+    function ensureVoicesLoaded() {
+        return new Promise((resolve) => {
+            if (voicesLoaded || initializeVoiceSelection()) {
+                resolve();
+                return;
+            }
+            
+            // Wait for voiceschanged event
+            const handleVoicesChanged = () => {
+                if (initializeVoiceSelection()) {
+                    window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+                    resolve();
+                }
+            };
+            
+            window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+            
+            // Fallback timeout
+            setTimeout(() => {
+                window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+                resolve();
+            }, 3000);
+        });
+    }
+    
+    async function speakText(text, lang = 'en-GB') {
+        if (!('speechSynthesis' in window) || !text) return;
+        
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        // Ensure voices are loaded
+        await ensureVoicesLoaded();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Normalize language code
+        let normalizedLang = lang;
+        if (lang === 'es-US' || lang === 'es-ES') {
+            normalizedLang = 'es-ES'; // Prefer Spanish from Spain for better quality
+        } else if (lang === 'en-US' || lang === 'en-GB') {
+            normalizedLang = 'en-GB'; // Prefer British English for better quality
+        }
+        
+        utterance.lang = normalizedLang;
+        
+        // Use selected high-quality voice if available
+        const selectedVoice = selectedVoices[normalizedLang];
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log(`🎙️ Using selected voice for ${normalizedLang}: ${selectedVoice.name}`);
+        } else {
+            console.log(`🎙️ No selected voice for ${normalizedLang}, using default`);
+        }
+        
+        // Optimize speech parameters
+        utterance.rate = 0.85;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Additional fine-tuning for specific languages
+        if (normalizedLang.startsWith('es')) {
+            utterance.rate = 0.8; // Slightly slower for Spanish
+        } else if (normalizedLang.startsWith('en')) {
+            utterance.rate = 0.9; // Natural pace for English
+        }
+        
+        console.log(`🗣️ Speaking "${text}" in ${normalizedLang}`);
+        window.speechSynthesis.speak(utterance);
     }
     
     function closeNotesManagement() {
