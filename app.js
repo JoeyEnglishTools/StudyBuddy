@@ -2024,13 +2024,15 @@ async function fetchNotes() {
     function handleNotepadInput(event) {
         // Get content from contenteditable div
         let content = getNotesTextContent();
+        let originalContent = content;
         
         // Auto-add space before dashes if missing
         content = content.replace(/(\w)-(\s|$)/g, '$1 -$2');
         
         // Update content if we made changes
-        if (content !== getNotesTextContent()) {
+        if (content !== originalContent) {
             setNotesContent(content);
+            console.log('🔧 Auto-corrected spacing: dash without space -> dash with space');
         }
         
         notepadContent = content;
@@ -2168,9 +2170,11 @@ async function fetchNotes() {
     function parseNotepadContentForSaving() {
         // Get content from contenteditable div
         const content = getNotesTextContent();
+        console.log('💾 parseNotepadContentForSaving - Raw content:', content);
         
         // Split content into lines
         const lines = content.split('\n');
+        console.log('💾 parseNotepadContentForSaving - Lines:', lines);
         
         // Parse all lines with content (including incomplete ones)
         const completedData = [];
@@ -2182,6 +2186,8 @@ async function fetchNotes() {
             let trimmedLine = line.trim();
             if (trimmedLine === '') return;
             
+            console.log(`💾 Processing line ${index}: "${trimmedLine}"`);
+            
             // Normalize symbols first
             trimmedLine = normalizeSymbolsInText(trimmedLine);
             
@@ -2191,33 +2197,31 @@ async function fetchNotes() {
                 const word = dashMatches[1].trim();
                 const translation = dashMatches[2].trim();
                 
+                console.log(`💾 Found word: "${word}", translation: "${translation}"`);
+                
                 // Save both complete pairs AND incomplete ones (word without translation)
                 if (word) {
-                    const isCurrentLine = index === currentLineIndex;
                     const hasCompletePattern = dashMatches && word && translation;
                     const isIncomplete = word && !translation; // Word with dash but no translation
                     
-                    // Allow saving if:
-                    // 1. It's not the current line (completed previous lines)
-                    // 2. OR it's the current line but has a complete pattern (single pair completion)
-                    // 3. OR it's the current line and user manually triggered save
-                    // 4. OR it's an incomplete word pair (word -) to save progress
-                    const shouldSave = !isCurrentLine || (isCurrentLine && hasCompletePattern) || isIncomplete;
+                    console.log(`💾 Word "${word}" - hasCompletePattern: ${hasCompletePattern}, isIncomplete: ${isIncomplete}`);
                     
-                    if (shouldSave) {
-                        completedData.push({
-                            targetLang: word,
-                            translation: translation || '', // Allow empty translation for incomplete pairs
-                            lineNumber: index,
-                            saved: false,
-                            isIncomplete: isIncomplete,
-                            wasEdited: !isCurrentLine || (isCurrentLine && index < lines.length - 1) // Consider it an edit if it's not the last line or not currently being typed
-                        });
-                    }
+                    // Save all word pairs - both complete and incomplete
+                    completedData.push({
+                        targetLang: word,
+                        translation: translation || '', // Allow empty translation for incomplete pairs
+                        lineNumber: index,
+                        saved: false,
+                        isIncomplete: isIncomplete,
+                        wasEdited: false // Simplified - consider all as edited for saving
+                    });
+                    
+                    console.log(`✅ Added to save queue: "${word}" -> "${translation || '[incomplete]'}"`);
                 }
             }
         });
         
+        console.log('💾 parseNotepadContentForSaving - Total items to save:', completedData.length);
         return completedData;
     }
     
@@ -2349,27 +2353,6 @@ async function fetchNotes() {
                 autoSaveCountdown = 300; // Reset for next cycle
             }
         }, 1000);
-    }
-    
-    function updateSaveStatus() {
-        if (!saveStatus || !cloudIcon || !uploadArrow) {
-            console.log('Save status elements not found, skipping update');
-            return; // Prevent errors if elements don't exist
-        }
-        
-        if (pendingChanges) {
-            // Show pending state - orange cloud with upload arrow
-            cloudIcon.className = 'w-5 h-5 text-amber-500 pending';
-            uploadArrow.classList.remove('hidden');
-            saveStatus.textContent = 'Changes pending';
-            saveStatus.className = 'text-sm text-amber-600';
-        } else {
-            // Show saved state - light blue cloud, no arrow
-            cloudIcon.className = 'w-5 h-5 text-blue-400 saved';
-            uploadArrow.classList.add('hidden');
-            saveStatus.textContent = 'All saved';
-            saveStatus.className = 'text-sm text-blue-600';
-        }
     }
     
     async function saveLiveNotes(isManualSave = false) {
@@ -2657,14 +2640,26 @@ async function fetchNotes() {
             const linesToTranslate = [];
             lines.forEach((line, index) => {
                 const trimmedLine = line.trim();
-                console.log(`🔍 Processing line ${index}: "${trimmedLine}"`);
+                console.log(`🔍 Processing line ${index}: "${trimmedLine}" (length: ${trimmedLine.length})`);
                 
                 // Check if line ends with just a dash (needs translation)
                 // This handles cases where we have: "word -" but not "word - translation"
                 const isDashOnly = trimmedLine.match(/^.+\s*-\s*$/);
                 const hasTranslation = trimmedLine.match(/^.+\s*-\s+.+$/);
                 
-                console.log(`🔍 Line ${index} - isDashOnly: ${!!isDashOnly}, hasTranslation: ${!!hasTranslation}`);
+                // Additional debugging: check different patterns
+                const endsWithDash = trimmedLine.endsWith('-');
+                const endsWithDashSpace = trimmedLine.endsWith(' -');
+                const containsDash = trimmedLine.includes('-');
+                
+                console.log(`🔍 Line ${index} debugging:`, {
+                    isDashOnly: !!isDashOnly,
+                    hasTranslation: !!hasTranslation,
+                    endsWithDash,
+                    endsWithDashSpace,
+                    containsDash,
+                    trimmedLine
+                });
                 
                 if (isDashOnly && !hasTranslation) {
                     const wordToTranslate = trimmedLine.replace(/\s*-\s*$/, '').trim();
@@ -2672,6 +2667,8 @@ async function fetchNotes() {
                         console.log(`✅ Found word to translate: "${wordToTranslate}"`);
                         linesToTranslate.push({ index, word: wordToTranslate, originalLine: line });
                     }
+                } else {
+                    console.log(`❌ Line ${index} doesn't match translation criteria`);
                 }
             });
             
