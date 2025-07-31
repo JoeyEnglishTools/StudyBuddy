@@ -762,6 +762,11 @@
             #deckSidePanel {
                 width: 40%;
                 max-width: 400px;
+                transform: translateX(-100%); /* Ensure it's hidden by default on tablet */
+            }
+            
+            #deckSidePanel.open {
+                transform: translateX(0); /* Show when open */
             }
             
             #deckSidePanelToggle.open {
