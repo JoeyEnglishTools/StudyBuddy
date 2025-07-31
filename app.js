@@ -624,8 +624,11 @@ async function fetchNotes() {
         
         // Update state
         currentlySelectedDeckId = deckId;
+        currentDeck = selectedDeck; // Set the global currentDeck variable
         csvUploadedTargetLanguage = deckLanguage;
         activeTargetStudyLanguage = deckLanguage;
+        
+        console.log('🎯 Global currentDeck set to:', currentDeck);
         
         // Store selected deck for session persistence
         localStorage.setItem('lastSelectedDeckId', deckId);
@@ -784,6 +787,7 @@ async function fetchNotes() {
     // --- DECK MANAGEMENT STATE ---
     let currentlySelectedDeckId = null;
     let userDecks = [];
+    let currentDeck = null;
     let isPanelOpen = false;
     
     // Helper function to check if user has already defined a learning language
@@ -1206,6 +1210,10 @@ async function fetchNotes() {
         liveNotesTextarea.addEventListener('keydown', handleNotepadKeydown);
         liveNotesTextarea.addEventListener('click', handleNotepadClick);
         
+        // Add touch event handling for better mobile/stylus experience
+        liveNotesTextarea.addEventListener('touchstart', handleNotepadTouchStart, { passive: false });
+        liveNotesTextarea.addEventListener('touchend', handleNotepadTouchEnd, { passive: false });
+        
         // Add page visibility listeners to handle device lock/unlock
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleWindowFocus);
@@ -1348,8 +1356,88 @@ async function fetchNotes() {
         }
     }
     
+    // Touch event handlers for better mobile/stylus experience
+    let touchStartTime = 0;
+    let touchStartPos = { x: 0, y: 0 };
+    
+    function handleNotepadTouchStart(event) {
+        console.log('📱 Touch start detected in Live Notes');
+        touchStartTime = Date.now();
+        if (event.touches && event.touches.length > 0) {
+            touchStartPos.x = event.touches[0].clientX;
+            touchStartPos.y = event.touches[0].clientY;
+        }
+        
+        // For stylus/Apple Pencil, ensure we don't interfere with normal text input
+        // We only want to handle positioning, not prevent writing
+    }
+    
+    function handleNotepadTouchEnd(event) {
+        console.log('📱 Touch end detected in Live Notes');
+        const touchEndTime = Date.now();
+        const touchDuration = touchEndTime - touchStartTime;
+        
+        // If it's a quick tap (not a drag or long press), handle cursor positioning
+        if (touchDuration < 300 && event.changedTouches && event.changedTouches.length > 0) {
+            const touchEndPos = {
+                x: event.changedTouches[0].clientX,
+                y: event.changedTouches[0].clientY
+            };
+            
+            const moveDistance = Math.sqrt(
+                Math.pow(touchEndPos.x - touchStartPos.x, 2) + 
+                Math.pow(touchEndPos.y - touchStartPos.y, 2)
+            );
+            
+            // If it's a tap (not a drag)
+            if (moveDistance < 10) {
+                console.log('📱 Quick tap detected - checking if this is a new line tap');
+                
+                // Use a small delay to let the browser handle the default behavior first
+                setTimeout(() => {
+                    // Check if we should position cursor at start of a new line
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const textBeforeCursor = getTextBeforeCursor(range);
+                        const lines = textBeforeCursor.split('\n');
+                        const currentLineIndex = lines.length - 1;
+                        const currentLineText = lines[currentLineIndex] || '';
+                        
+                        // If the user tapped at the end of a line area, ensure cursor is positioned correctly
+                        console.log('📱 Touch positioning - current line text:', currentLineText);
+                        
+                        // Prevent accidentally taking characters from previous line when creating new line
+                        if (currentLineText.trim() === '' && lines.length > 1) {
+                            // We're on an empty line - this is good, no adjustment needed
+                            console.log('📱 Touch on empty line - cursor positioning looks correct');
+                        }
+                    }
+                }, 50);
+            }
+        }
+    }
+    
+    function getTextBeforeCursor(range) {
+        try {
+            const fullRange = document.createRange();
+            fullRange.selectNodeContents(liveNotesTextarea);
+            fullRange.setEnd(range.startContainer, range.startOffset);
+            return fullRange.toString();
+        } catch (e) {
+            console.log('📱 Could not get text before cursor:', e);
+            return '';
+        }
+    }
+    
     async function initializeLiveNotesLanguage() {
         const liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector');
+        
+        // Ensure currentDeck is set if we have a selected deck ID but currentDeck is null
+        if (!currentDeck && currentlySelectedDeckId && userDecks.length > 0) {
+            currentDeck = userDecks.find(deck => deck.id === currentlySelectedDeckId);
+            console.log('🔧 initializeLiveNotesLanguage: Restored currentDeck from userDecks:', currentDeck);
+        }
         
         // Use deck's language settings instead of modal
         if (currentDeck && currentDeck.term_lang) {
@@ -2853,8 +2941,10 @@ async function fetchNotes() {
 
     async function handleLiveNotesTranslation() {
         try {
-            // Get current deck language preferences from the deck data
-            const currentDeck = userDecks.find(deck => deck.id === currentlySelectedDeckId);
+            // Use the global currentDeck variable or fallback to finding it if needed
+            if (!currentDeck && currentlySelectedDeckId) {
+                currentDeck = userDecks.find(deck => deck.id === currentlySelectedDeckId);
+            }
             
             let learningLanguage, nativeLanguage;
             
@@ -3900,6 +3990,14 @@ async function fetchNotes() {
                 deleteNote(originalIndex, note);
             });
             
+            // Add touch event for mobile delete button
+            deleteBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🗑️ populateNotesList: Delete button touched for note:', note);
+                deleteNote(originalIndex, note);
+            });
+            
             noteItem.appendChild(noteContent);
             noteItem.appendChild(editBtn);
             noteItem.appendChild(deleteBtn);
@@ -3913,8 +4011,10 @@ async function fetchNotes() {
             noteItem.addEventListener('touchstart', (e) => {
                 // Only start drag if not touching the delete button
                 if (e.target.closest('.delete-btn-safe') || e.target.closest('.edit-btn-safe')) {
+                    console.log('📱 Touch start on delete/edit button - skipping swipe');
                     return;
                 }
+                console.log('📱 Touch start for swipe detection');
                 startX = e.touches[0].clientX;
                 currentX = startX;
                 isDragging = true;
@@ -3933,6 +4033,7 @@ async function fetchNotes() {
                     const maxSwipe = elementWidth * 0.4; // 40% of element width
                     const swipeDistance = Math.min(diffX, maxSwipe);
                     
+                    console.log('📱 Swiping - diffX:', diffX, 'elementWidth:', elementWidth, 'swipeDistance:', swipeDistance);
                     noteItem.style.transform = `translateX(-${swipeDistance}px)`;
                     noteItem.style.backgroundColor = diffX > maxSwipe * 0.8 ? '#fee2e2' : '#fef3cd';
                 }
@@ -3941,15 +4042,19 @@ async function fetchNotes() {
             noteItem.addEventListener('touchend', (e) => {
                 if (!isDragging) return;
                 
+                console.log('📱 Touch end - isDragging:', isDragging, 'hasMoved:', hasMoved);
                 const diffX = startX - currentX;
                 const elementWidth = noteItem.offsetWidth;
                 const deleteThreshold = elementWidth * 0.4; // 40% of element width
+                
+                console.log('📱 Swipe end - diffX:', diffX, 'deleteThreshold:', deleteThreshold);
                 
                 if (hasMoved && diffX > deleteThreshold) {
                     console.log('📱 populateNotesList: Swipe delete triggered (40% threshold) for note:', note);
                     deleteNote(originalIndex, note);
                 } else {
                     // Reset position if not enough swipe
+                    console.log('📱 Swipe not enough - resetting position');
                     noteItem.style.transform = '';
                     noteItem.style.backgroundColor = '';
                 }
