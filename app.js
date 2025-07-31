@@ -842,7 +842,7 @@ async function fetchNotes() {
     let isEssentialsMode = false, currentEssentialsCategoryName = "";
     let audioInitialized = false;
     let mcqAnswered = false, typeTranslationAnswered = false, fillBlanksAnswered = false;
-    let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0;
+    let currentMcqIndex = 0, currentTypeTranslationIndex = 0, currentFillBlanksIndex = 0, currentTalkToMeIndex = 0;
     let findWordsSessionPool = [], currentFindWordsRound = 0, findWordsCurrentChoices = [], findWordsTargetWords = [], findWordsSelectedWords = [];
     let selectedMatchCard = null, matchedPairs = 0, pairsToMatch = 0;
     
