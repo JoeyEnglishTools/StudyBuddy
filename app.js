@@ -1214,6 +1214,9 @@ async function fetchNotes() {
         liveNotesTextarea.addEventListener('touchstart', handleNotepadTouchStart, { passive: false });
         liveNotesTextarea.addEventListener('touchend', handleNotepadTouchEnd, { passive: false });
         
+        // Add input event listener to handle stylus dots conversion to new lines
+        liveNotesTextarea.addEventListener('input', handleNotepadInput);
+        
         // Add page visibility listeners to handle device lock/unlock
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleWindowFocus);
@@ -1417,6 +1420,48 @@ async function fetchNotes() {
             }
         }
     }
+    
+    // Input event handler to detect stylus dots and convert to new lines
+    function handleNotepadInput(event) {
+        // Only process if the input was from touch/stylus (recent touch event)
+        const timeSinceTouch = Date.now() - touchStartTime;
+        if (timeSinceTouch > 500) return; // Not from recent touch
+        
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        
+        const range = selection.getRangeAt(0);
+        const textNode = range.startContainer;
+        
+        // Check if the last character added was a dot
+        if (textNode.nodeType === Node.TEXT_NODE) {
+            const content = textNode.textContent;
+            const cursorPos = range.startOffset;
+            
+            // If the character just before cursor is a dot
+            if (cursorPos > 0 && content[cursorPos - 1] === '.') {
+                console.log('📱 Stylus dot detected - converting to new line');
+                
+                // Prevent the default behavior and replace with new line
+                event.preventDefault();
+                
+                // Remove the dot and add a new line
+                const newContent = content.substring(0, cursorPos - 1) + '\n' + content.substring(cursorPos);
+                textNode.textContent = newContent;
+                
+                // Position cursor at start of new line
+                const newRange = document.createRange();
+                newRange.setStart(textNode, cursorPos);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+                
+                // Update display
+                updateLineAndParsedCounts();
+            }
+        }
+    }
+    
     
     function getTextBeforeCursor(range) {
         try {
@@ -5018,6 +5063,9 @@ async function fetchNotes() {
                                 }
                             }
                         }
+                        
+                        // Reset selectedMatchCard after correct match
+                        selectedMatchCard = null;
                     } else {
                         // Track wrong matches for bonus round
                         const gameState = window.matchingGameState;
@@ -5047,7 +5095,6 @@ async function fetchNotes() {
                             selectedMatchCard = null;
                         }, 400);
                     }
-                    if (selectedMatchCard) selectedMatchCard = null;
                 }
             }
 
@@ -5252,10 +5299,10 @@ async function fetchNotes() {
                         expected: normalizedExpected 
                     });
                     
-                    // Multiple matching strategies for better accuracy
+                    // Multiple matching strategies for better accuracy (more lenient)
                     const exactMatch = normalizedSpoken === normalizedExpected;
                     const containsMatch = normalizedSpoken.includes(normalizedExpected) || normalizedExpected.includes(normalizedSpoken);
-                    const editDistanceMatch = getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.3));
+                    const editDistanceMatch = getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.5)); // Increased from 0.3 to 0.5
                     
                     const isCorrect = exactMatch || containsMatch || editDistanceMatch;
                     
@@ -5269,9 +5316,9 @@ async function fetchNotes() {
                     if (isCorrect) {
                         handleMemoryTestCorrect(cardElement);
                     } else {
-                        // Show "They matched correctly" button if the texts look similar
+                        // Show "They matched correctly" button if the texts look similar (more lenient threshold)
                         const similarity = 1 - (getEditDistance(normalizedSpoken, normalizedExpected) / Math.max(normalizedSpoken.length, normalizedExpected.length));
-                        if (similarity > 0.7) {
+                        if (similarity > 0.5) { // Lowered from 0.7 to 0.5 for more leniency
                             showMemoryTestMatchButton(cardElement, spokenText, expectedAnswer);
                         } else {
                             handleMemoryTestIncorrect(cardElement, `Expected: "${expectedAnswer}"`);
@@ -5830,10 +5877,10 @@ async function fetchNotes() {
                     expected: normalizedExpected 
                 });
                 
-                // Multiple matching strategies for better accuracy
+                // Multiple matching strategies for better accuracy (more lenient)
                 const exactMatch = normalizedSpoken === normalizedExpected;
                 const containsMatch = normalizedSpoken.includes(normalizedExpected) || normalizedExpected.includes(normalizedSpoken);
-                const editDistanceMatch = getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.3));
+                const editDistanceMatch = getEditDistance(normalizedSpoken, normalizedExpected) <= Math.max(1, Math.floor(normalizedExpected.length * 0.5)); // Increased from 0.3 to 0.5
                 
                 const isCorrect = exactMatch || containsMatch || editDistanceMatch;
                 
@@ -5879,9 +5926,9 @@ async function fetchNotes() {
                             displayNextTalkToMe(currentVocabularyPart);
                         }, 2500);
                     } else {
-                        // Show "They matched correctly" button if texts are similar
+                        // Show "They matched correctly" button if texts are similar (more lenient threshold)
                         const similarity = 1 - (getEditDistance(normalizedSpoken, normalizedExpected) / Math.max(normalizedSpoken.length, normalizedExpected.length));
-                        if (similarity > 0.7) {
+                        if (similarity > 0.5) { // Lowered from 0.7 to 0.5 for more leniency
                             showTalkToMeMatchButton(spokenText, item.lang1, item);
                         } else {
                             talkToMeFeedback.textContent = `Try ${attempts}/3: Expected "${item.lang1}". Try again or click the word to hear it.`;
