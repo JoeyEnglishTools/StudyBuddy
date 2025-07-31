@@ -712,6 +712,14 @@ async function fetchNotes() {
         }
     }
     
+    // Track when user actively works with a deck (playing games or adding notes)
+    function trackDeckActivity(deckId, activityType) {
+        console.log(`📊 Tracking deck activity: ${activityType} on deck ${deckId}`);
+        localStorage.setItem('lastWorkedDeckId', deckId);
+        localStorage.setItem('lastWorkedDeckTimestamp', new Date().toISOString());
+        localStorage.setItem('lastWorkedDeckActivity', activityType);
+    }
+    
     // Initialize deck management
     async function initializeDeckManagement() {
         console.log('🏗️ Initializing deck management...');
@@ -741,11 +749,27 @@ async function fetchNotes() {
                 console.log('👤 Existing user - rendering decks');
                 renderDecks(userDecks);
                 
-                // Try to restore last selected deck, otherwise select first one
+                // Try to restore last worked deck first, then last selected deck, otherwise select first one
+                const lastWorkedDeckId = localStorage.getItem('lastWorkedDeckId');
                 const lastSelectedDeckId = localStorage.getItem('lastSelectedDeckId');
                 let deckToSelect = userDecks[0]; // Default to first deck
                 
-                if (lastSelectedDeckId) {
+                if (lastWorkedDeckId) {
+                    const lastWorkedDeck = userDecks.find(deck => deck.id === lastWorkedDeckId);
+                    if (lastWorkedDeck) {
+                        deckToSelect = lastWorkedDeck;
+                        console.log('🎮 Restoring last worked deck:', lastWorkedDeck.name);
+                    } else {
+                        console.log('⚠️ Last worked deck not found, trying last selected deck');
+                        if (lastSelectedDeckId) {
+                            const lastDeck = userDecks.find(deck => deck.id === lastSelectedDeckId);
+                            if (lastDeck) {
+                                deckToSelect = lastDeck;
+                                console.log('🔄 Restoring last selected deck:', lastDeck.name);
+                            }
+                        }
+                    }
+                } else if (lastSelectedDeckId) {
                     const lastDeck = userDecks.find(deck => deck.id === lastSelectedDeckId);
                     if (lastDeck) {
                         deckToSelect = lastDeck;
@@ -1171,6 +1195,11 @@ async function fetchNotes() {
     let connectionCheckInterval = null;
     
     async function initializeLiveNotes() {
+        // Track deck activity when using Live Notes
+        if (currentlySelectedDeckId) {
+            trackDeckActivity(currentlySelectedDeckId, 'using_live_notes');
+        }
+        
         // Show modal first
         liveNotesModal.classList.remove('hidden');
         
@@ -2074,7 +2103,7 @@ async function fetchNotes() {
                 .from('notes')
                 .update({
                     ease_factor: ease_factor,
-                    interval_days: interval_days,
+                    interval: interval_days,
                     next_review: nextReviewDate,
                     last_reviewed: now
                 })
@@ -3748,6 +3777,11 @@ async function fetchNotes() {
 
     // --- NOTES MANAGEMENT FUNCTIONS ---
     function initializeNotesManagement() {
+        // Track deck activity when managing notes
+        if (currentlySelectedDeckId) {
+            trackDeckActivity(currentlySelectedDeckId, 'managing_notes');
+        }
+        
         console.log('📚 initializeNotesManagement: Opening notes management interface');
         console.log('📚 initializeNotesManagement: Current vocabulary state:', {
             vocabularyLength: vocabulary.length,
@@ -4789,6 +4823,11 @@ async function fetchNotes() {
     }
 
     function startGame(gameType) {
+        // Track deck activity when starting a game
+        if (currentlySelectedDeckId) {
+            trackDeckActivity(currentlySelectedDeckId, `playing_${gameType}`);
+        }
+        
         // Ensure voices are loaded before starting game
         ensureVoicesLoaded().then(() => {
             if (!audioInitialized) initializeAudio();
@@ -4814,6 +4853,15 @@ async function fetchNotes() {
             [newArray[i], newArray[j]] = [newArray[j], newArray[i]]; 
         } 
         return newArray; 
+    }
+    
+    // Function to automatically return to game selection after game completion
+    function autoReturnToGameSelection(delay = 3000) {
+        console.log('🔄 Game completed - auto-returning to game selection in', delay, 'ms');
+        setTimeout(() => {
+            console.log('🎮 Auto-returning to game selection');
+            showGameSelection();
+        }, delay);
     }
     function normalizeText(text) { 
         return text.trim().toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,""); 
@@ -5060,6 +5108,7 @@ async function fetchNotes() {
                                 } else {
                                     matchingFeedback.textContent = "All rounds complete! Perfect game!";
                                     window.matchingGameState = null;
+                                    autoReturnToGameSelection();
                                 }
                             }
                         }
@@ -5556,6 +5605,8 @@ async function fetchNotes() {
                 setTimeout(() => {
                     gameOverMessage.classList.remove('hidden');
                     memoryTestGameContainer.classList.add('hidden');
+                    // Auto-return to game selection after showing completion message
+                    autoReturnToGameSelection(2000);
                 }, 2000);
             }
             
@@ -5613,6 +5664,7 @@ async function fetchNotes() {
                     // Reset bonus round tracking
                     window.mcqWrongAnswers = [];
                     window.mcqBonusRoundActive = false;
+                    autoReturnToGameSelection();
                     return;
                 }
                 const currentItem = gameVocab[currentMcqIndex];
@@ -5705,6 +5757,7 @@ async function fetchNotes() {
                 if (currentTypeTranslationIndex >= gameVocab.length) {
                     typeTranslationPhrase.textContent = "Part Complete!";
                     typeTranslationInput.style.display = 'none';
+                    autoReturnToGameSelection();
                     return;
                 }
                 const item = gameVocab[currentTypeTranslationIndex];
@@ -5786,6 +5839,7 @@ async function fetchNotes() {
                         return;
                     } else {
                         talkToMePhraseText.textContent = window.talkToMeBonusRoundActive ? "Bonus Round Complete!" : "Part Complete!";
+                        autoReturnToGameSelection();
                         return;
                     }
                 }
@@ -6041,6 +6095,7 @@ async function startFindTheWordsRound(pool) {
     if (currentFindWordsRound >= MAX_FIND_WORDS_ROUNDS || pool.length < WORDS_PER_FIND_WORDS_TARGET) {
         findTheWordsInstructions.textContent = "Game Complete!";
         findTheWordsGrid.innerHTML = '';
+        autoReturnToGameSelection();
         return;
     }
     currentFindWordsRound++;
