@@ -660,13 +660,89 @@
         .deck-item {
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: space-between;
             padding: 12px;
             margin: 4px 0;
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.2s ease;
             color: rgba(255, 255, 255, 0.8);
+            position: relative;
+        }
+        
+        .deck-item-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-grow: 1;
+            min-width: 0;
+        }
+        
+        .deck-menu-container {
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        .deck-menu-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .deck-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .deck-menu-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 140px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        
+        .deck-menu-dropdown.hidden {
+            display: none;
+        }
+        
+        .deck-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 12px;
+            border: none;
+            background: transparent;
+            color: #374151;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            text-align: left;
+        }
+        
+        .deck-menu-item:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .deck-menu-item:last-child {
+            color: #dc2626;
+        }
+        
+        .deck-menu-item:last-child:hover {
+            background-color: #fef2f2;
         }
         
         .deck-item:hover {
