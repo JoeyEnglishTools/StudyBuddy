@@ -123,11 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
             
-            // 2. Get authenticated user with timeout
+            // 2. Get authenticated user with longer timeout for mobile networks
             console.log('🔐 Checking authentication...');
             const authPromise = supabaseClient.auth.getUser();
             const authTimeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Authentication timeout after 5 seconds')), 5000)
+                setTimeout(() => reject(new Error('Authentication timeout after 10 seconds')), 10000)
             );
             
             const { data: { user }, error: userError } = await Promise.race([authPromise, authTimeoutPromise]);
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             console.log('✅ Authenticated as:', user.email);
             
-            // 3. Test a simple query with timeout
+            // 3. Test a simple query with longer timeout for mobile networks
             console.log('📡 Testing direct database query...');
             
             const queryPromise = supabaseClient
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .limit(1);
                 
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Database query timeout after 8 seconds')), 8000)
+                setTimeout(() => reject(new Error('Database query timeout after 15 seconds')), 15000)
             );
             
             const result = await Promise.race([queryPromise, timeoutPromise]);
@@ -590,12 +590,35 @@ async function fetchNotes() {
                          data-deck-id="${deck.id}" 
                          data-deck-name="${deck.name}"
                          data-deck-language="${deck.language}">
-                        <svg class="deck-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                        </svg>
-                        <span class="deck-item-text">${deck.name}</span>
-                        <span class="deck-item-count">${deck.notes_count || 0}</span>
+                        <div class="deck-item-main">
+                            <svg class="deck-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                            </svg>
+                            <span class="deck-item-text">${deck.name}</span>
+                            <span class="deck-item-count">${deck.notes_count || 0}</span>
+                        </div>
+                        <div class="deck-menu-container">
+                            <button class="deck-menu-btn" data-deck-id="${deck.id}" data-deck-name="${deck.name}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zM12 13a1 1 0 110-2 1 1 0 010 2zM12 20a1 1 0 110-2 1 1 0 010 2z"></path>
+                                </svg>
+                            </button>
+                            <div class="deck-menu-dropdown hidden" data-deck-id="${deck.id}">
+                                <button class="deck-menu-item edit-deck-btn" data-deck-id="${deck.id}" data-deck-name="${deck.name}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit Name
+                                </button>
+                                <button class="deck-menu-item delete-deck-btn" data-deck-id="${deck.id}" data-deck-name="${deck.name}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                    Delete Deck
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `).join('')}
             `;
@@ -605,14 +628,168 @@ async function fetchNotes() {
         
         // Add click listeners to deck items
         decksList.querySelectorAll('.deck-item').forEach(item => {
-            item.addEventListener('click', async () => {
-                const deckId = item.getAttribute('data-deck-id');
-                const deckName = item.getAttribute('data-deck-name');
-                const deckLanguage = item.getAttribute('data-deck-language');
+            // Add click listener to main deck area (not the menu button)
+            const mainArea = item.querySelector('.deck-item-main');
+            if (mainArea) {
+                mainArea.addEventListener('click', async () => {
+                    const deckId = item.getAttribute('data-deck-id');
+                    const deckName = item.getAttribute('data-deck-name');
+                    const deckLanguage = item.getAttribute('data-deck-language');
+                    
+                    await selectDeck(deckId, deckName, deckLanguage);
+                });
+            }
+        });
+
+        // Add menu functionality for deck editing/deleting
+        decksList.querySelectorAll('.deck-menu-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent deck selection
+                const deckId = btn.getAttribute('data-deck-id');
+                const dropdown = decksList.querySelector(`.deck-menu-dropdown[data-deck-id="${deckId}"]`);
                 
-                await selectDeck(deckId, deckName, deckLanguage);
+                // Close all other dropdowns
+                decksList.querySelectorAll('.deck-menu-dropdown').forEach(d => {
+                    if (d !== dropdown) d.classList.add('hidden');
+                });
+                
+                // Toggle current dropdown
+                dropdown.classList.toggle('hidden');
             });
         });
+
+        // Add edit deck functionality
+        decksList.querySelectorAll('.edit-deck-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const deckId = btn.getAttribute('data-deck-id');
+                const currentName = btn.getAttribute('data-deck-name');
+                
+                const newName = prompt(`Edit deck name:`, currentName);
+                if (newName && newName.trim() && newName.trim() !== currentName) {
+                    await editDeckName(deckId, newName.trim());
+                }
+                
+                // Hide dropdown
+                const dropdown = btn.closest('.deck-menu-dropdown');
+                dropdown.classList.add('hidden');
+            });
+        });
+
+        // Add delete deck functionality
+        decksList.querySelectorAll('.delete-deck-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const deckId = btn.getAttribute('data-deck-id');
+                const deckName = btn.getAttribute('data-deck-name');
+                
+                if (confirm(`Are you sure you want to delete "${deckName}"? This action cannot be undone.`)) {
+                    await deleteDeck(deckId);
+                }
+                
+                // Hide dropdown
+                const dropdown = btn.closest('.deck-menu-dropdown');
+                dropdown.classList.add('hidden');
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            decksList.querySelectorAll('.deck-menu-dropdown').forEach(dropdown => {
+                dropdown.classList.add('hidden');
+            });
+        });
+    }
+
+    // Edit deck name function
+    async function editDeckName(deckId, newName) {
+        try {
+            console.log('✏️ Editing deck name:', { deckId, newName });
+            
+            const { data, error } = await supabaseClient
+                .from('note_sets')
+                .update({ name: newName })
+                .eq('id', deckId)
+                .select();
+
+            if (error) {
+                console.error('❌ Error updating deck name:', error);
+                alert('Failed to update deck name. Please try again.');
+                return false;
+            }
+
+            console.log('✅ Deck name updated successfully:', data);
+            
+            // Refresh decks list
+            userDecks = await fetchUserDecks();
+            renderDecks(userDecks);
+            
+            return true;
+        } catch (err) {
+            console.error('💥 Unexpected error updating deck name:', err);
+            alert('Unexpected error updating deck name. Please try again.');
+            return false;
+        }
+    }
+
+    // Delete deck function
+    async function deleteDeck(deckId) {
+        try {
+            console.log('🗑️ Deleting deck:', deckId);
+            
+            // First delete all notes in the deck
+            const { error: notesError } = await supabaseClient
+                .from('notes')
+                .delete()
+                .eq('note_set_id', deckId);
+
+            if (notesError) {
+                console.error('❌ Error deleting deck notes:', notesError);
+                alert('Failed to delete deck notes. Please try again.');
+                return false;
+            }
+
+            // Then delete the deck itself
+            const { error: deckError } = await supabaseClient
+                .from('note_sets')
+                .delete()
+                .eq('id', deckId);
+
+            if (deckError) {
+                console.error('❌ Error deleting deck:', deckError);
+                alert('Failed to delete deck. Please try again.');
+                return false;
+            }
+
+            console.log('✅ Deck deleted successfully');
+            
+            // If we deleted the currently selected deck, clear selection
+            if (currentlySelectedDeckId === deckId) {
+                currentlySelectedDeckId = null;
+                currentDeck = null;
+                vocabulary = [];
+                hideGameSelection();
+            }
+            
+            // Refresh decks list
+            userDecks = await fetchUserDecks();
+            renderDecks(userDecks);
+            
+            // If no decks left, show welcome modal
+            if (userDecks.length === 0) {
+                showWelcomeModal();
+            } else if (!currentlySelectedDeckId) {
+                // Auto-select first available deck
+                const firstDeck = userDecks[0];
+                await selectDeck(firstDeck.id, firstDeck.name, firstDeck.language);
+            }
+            
+            return true;
+        } catch (err) {
+            console.error('💥 Unexpected error deleting deck:', err);
+            alert('Unexpected error deleting deck. Please try again.');
+            return false;
+        }
     }
     
     // Select a deck and update the UI
@@ -663,8 +840,8 @@ async function fetchNotes() {
             }, 500); // Small delay to ensure UI is ready
         }
         
-        // Close panel on mobile
-        if (window.innerWidth <= 768) {
+        // Close panel on all devices after deck selection
+        if (isPanelOpen) {
             toggleDeckPanel();
         }
         
@@ -1233,6 +1410,21 @@ async function fetchNotes() {
         
         // Initialize placeholder visibility
         updatePlaceholderVisibility();
+        
+        // Set cursor to top-left for stylus/touch input
+        setTimeout(() => {
+            liveNotesTextarea.focus();
+            // Position cursor at the beginning for better stylus experience
+            if (liveNotesTextarea.textContent.length === 0) {
+                const range = document.createRange();
+                const sel = window.getSelection();
+                range.setStart(liveNotesTextarea, 0);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                console.log('📝 Cursor positioned at top-left for stylus input');
+            }
+        }, 100);
         
         // Add event listeners to notepad
         liveNotesTextarea.addEventListener('input', handleNotepadInput);
@@ -3379,15 +3571,42 @@ async function fetchNotes() {
         const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
         
         try {
-            const response = await fetch(apiUrl);
+            console.log('📡 Starting translation request for mobile...', { text, langPair });
+            
+            // Add timeout for mobile networks and better error handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for mobile
+            
+            const response = await fetch(apiUrl, {
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'StudyBuddy-Mobile-App'
+                }
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                console.error('❌ Translation API response not ok:', response.status, response.statusText);
+                return "Translation failed.";
+            }
+            
             const data = await response.json();
-            if (data.responseData) {
+            console.log('✅ Translation response received:', data);
+            
+            if (data.responseData && data.responseData.translatedText) {
                 return data.responseData.translatedText;
             } else {
+                console.error('❌ Translation response missing data:', data);
                 return "Translation failed.";
             }
         } catch (error) {
-            console.error('Translation API error:', error);
+            if (error.name === 'AbortError') {
+                console.error('⏰ Translation timeout (network may be slow):', error);
+                return "Translation timeout - check connection.";
+            }
+            console.error('💥 Translation API error:', error);
             return "Translation error.";
         }
     }
