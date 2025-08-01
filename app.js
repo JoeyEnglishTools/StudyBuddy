@@ -7452,7 +7452,7 @@ if (languageSelectorInGame) {
                     console.log('📤 Sharing deck:', currentlySelectedDeckId, 'Name:', deckName);
                     
                     // Get current deck vocabulary
-                    const deckVocab = vocabulary.filter(item => item.deck_id === currentlySelectedDeckId);
+                    const deckVocab = vocabulary.filter(item => item.note_set_id === currentlySelectedDeckId);
                     console.log('📋 Found vocabulary for deck:', deckVocab.length, 'items');
                     
                     if (deckVocab.length === 0) {
