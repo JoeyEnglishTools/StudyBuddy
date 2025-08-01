@@ -17,6 +17,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
     <style>
         * { box-sizing: border-box; } /* More predictable box model */
         /* General Styles */
@@ -1311,6 +1312,7 @@
                         <div class="flex gap-2 mb-3">
                             <button id="studyFilteredNotesBtn" class="btn btn-outline text-sm py-1 px-3 hidden">🎮 Study Filtered Notes</button>
                             <button id="exportNotesBtn" class="btn btn-secondary text-sm py-1 px-3">📥 Export CSV</button>
+                            <button id="shareCurrentDeckBtn" class="btn btn-primary text-sm py-1 px-3">📤 Share Current Deck</button>
                             <span id="filteredNotesCount" class="text-sm text-gray-600"></span>
                         </div>
                         
@@ -1544,6 +1546,36 @@ Symbols like _, ·, •, →, ← are automatically converted to dashes."
                         Create Deck
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Shared Deck Modal -->
+    <div id="importDeckModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Import Shared Deck</h3>
+            <p class="text-sm text-gray-600 mb-4">You are importing "<span id="importDeckName" class="font-bold"></span>". Where would you like to save it?</p>
+            
+            <div class="space-y-3">
+                <button id="importToNewDeckBtn" class="w-full btn btn-primary">
+                    📁 Create New Deck
+                </button>
+                
+                <div id="existingDecksSection" class="hidden">
+                    <p class="text-sm text-gray-600 mb-2">Or add to existing deck:</p>
+                    <select id="existingDeckSelect" class="form-select w-full">
+                        <option value="">-- Select Existing Deck --</option>
+                    </select>
+                    <button id="importToExistingDeckBtn" class="w-full btn btn-secondary mt-2">
+                        📂 Add to Selected Deck
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button id="cancelImportBtn" class="flex-1 btn btn-secondary">
+                    Cancel
+                </button>
             </div>
         </div>
     </div>

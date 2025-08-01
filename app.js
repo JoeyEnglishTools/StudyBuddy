@@ -112,6 +112,20 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Failed to initialize Supabase client:', error);
     }
     
+    // Game Categories for Skill Tracking
+    const GAME_CATEGORIES = {
+        // Listening Skills
+        'memory': 'listening',
+        'multiple_choice': 'listening',
+        
+        // Speaking Skills  
+        'talk_to_me': 'speaking',
+        
+        // Writing Skills
+        'matching': 'writing',
+        'find_words': 'writing'
+    };
+    
     // --- REPLACEMENT: Database Testing and Fetch Notes Functions ---
     async function testDatabaseConnection() {
         console.log('🧪 Testing database connection...');
@@ -2267,7 +2281,7 @@ async function fetchNotes() {
     // Make functions globally accessible for onclick handlers
     window.hideConnectionLostPrompt = hideConnectionLostPrompt;
     
-    // Update note progress for spaced repetition with game-specific scoring
+    // Update note progress for spaced repetition with skill-based tracking
     async function updateNoteProgress(term, definition, isCorrect, gameType = 'unknown') {
         try {
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -2293,75 +2307,72 @@ async function fetchNotes() {
             }
             
             const now = new Date().toISOString();
-            let ease_factor, interval_days;
+            let ease_factor, interval;
             
-            // Initialize game scores if not present
-            const gameScores = {
-                matching_score: existingNote?.matching_score || 0,
-                memory_score: existingNote?.memory_score || 0,
-                multiple_choice_score: existingNote?.multiple_choice_score || 0,
-                talk_to_me_score: existingNote?.talk_to_me_score || 0,
-                find_words_score: existingNote?.find_words_score || 0
+            // Initialize skill scores if not present
+            const skillScores = {
+                listening_score: existingNote?.listening_score || 0,
+                speaking_score: existingNote?.speaking_score || 0,
+                writing_score: existingNote?.writing_score || 0
             };
             
-            // Update score for current game type
+            // Determine which skill category this game belongs to
+            const skillCategory = GAME_CATEGORIES[gameType];
+            if (!skillCategory) {
+                console.warn(`⚠️ Unknown game type: ${gameType}, defaulting to writing`);
+                skillCategory = 'writing';
+            }
+            
+            // Update score for current skill category
             if (isCorrect) {
-                switch (gameType) {
-                    case 'matching':
-                        gameScores.matching_score = 1;
+                switch (skillCategory) {
+                    case 'listening':
+                        skillScores.listening_score = 1;
                         break;
-                    case 'memory':
-                        gameScores.memory_score = 1;
+                    case 'speaking':
+                        skillScores.speaking_score = 1;
                         break;
-                    case 'multiple_choice':
-                        gameScores.multiple_choice_score = 1;
-                        break;
-                    case 'talk_to_me':
-                        gameScores.talk_to_me_score = 1;
-                        break;
-                    case 'find_words':
-                        gameScores.find_words_score = 1;
+                    case 'writing':
+                        skillScores.writing_score = 1;
                         break;
                 }
             } else {
-                // Reset all scores on any mistake
-                gameScores.matching_score = 0;
-                gameScores.memory_score = 0;
-                gameScores.multiple_choice_score = 0;
-                gameScores.talk_to_me_score = 0;
-                gameScores.find_words_score = 0;
+                // Reset ALL skill scores on any mistake
+                skillScores.listening_score = 0;
+                skillScores.speaking_score = 0;
+                skillScores.writing_score = 0;
             }
             
-            // Check if user has mastered this word (scored on all game types)
-            const totalScore = Object.values(gameScores).reduce((sum, score) => sum + score, 0);
-            const isMastered = totalScore >= 5; // All 5 game types scored
+            // Check if user has mastered this word (scored on all 3 skill categories)
+            const totalScore = Object.values(skillScores).reduce((sum, score) => sum + score, 0);
+            const isMastered = totalScore >= 3; // All 3 skill categories scored
             
             if (isMastered) {
                 ease_factor = 5;
-                interval_days = 45;
-                console.log(`🎯 "${term}" MASTERED! All games scored - ease_factor: ${ease_factor}, interval: ${interval_days} days`);
+                interval = 45;
+                console.log(`🎯 "${term}" MASTERED! All skills scored - ease_factor: ${ease_factor}, interval: ${interval} days`);
             } else if (isCorrect) {
                 ease_factor = 2;
-                interval_days = 3; // Short interval until mastery
-                console.log(`✅ "${term}" correct in ${gameType} (${totalScore}/5 games) - ease_factor: ${ease_factor}, interval: ${interval_days} days`);
+                interval = 3; // Short interval until mastery
+                console.log(`✅ "${term}" correct in ${skillCategory} (${totalScore}/3 skills) - ease_factor: ${ease_factor}, interval: ${interval} days`);
             } else {
                 ease_factor = 1;
-                interval_days = 1;
-                console.log(`❌ "${term}" incorrect - ALL SCORES RESET - ease_factor: ${ease_factor}, interval: ${interval_days} day`);
+                interval = 1;
+                console.log(`❌ "${term}" incorrect - ALL SKILL SCORES RESET - ease_factor: ${ease_factor}, interval: ${interval} day`);
             }
             
             // Calculate next review date
             const nextReview = new Date();
-            nextReview.setDate(nextReview.getDate() + interval_days);
+            nextReview.setDate(nextReview.getDate() + interval);
             const nextReviewDate = nextReview.toISOString();
             
-            // Update note with all game scores and spaced repetition data
+            // Update note with all skill scores and spaced repetition data
             const updateData = {
                 ease_factor: ease_factor,
-                interval: interval_days,
+                interval: interval,
                 next_review: nextReviewDate,
                 last_reviewed: now,
-                ...gameScores
+                ...skillScores
             };
             
             const { error } = await supabaseClient
@@ -2373,11 +2384,11 @@ async function fetchNotes() {
             
             if (error) {
                 console.error('❌ Error updating note progress:', error);
-                console.warn('⚠️ Note: This might be because game score columns don\'t exist yet');
+                console.warn('⚠️ Note: This might be because skill score columns don\'t exist yet');
                 return false;
             }
             
-            console.log(`📈 Successfully updated progress for "${term}" - Scores: ${JSON.stringify(gameScores)}, Interval: ${interval_days} days`);
+            console.log(`📈 Successfully updated progress for "${term}" - Skills: ${JSON.stringify(skillScores)}, Interval: ${interval} days`);
             return true;
         } catch (error) {
             console.error('💥 Unexpected error updating note progress:', error);
@@ -7459,6 +7470,275 @@ if (languageSelectorInGame) {
             console.log('🎙️ Starting voice initialization...');
             ensureVoicesLoaded().then(() => {
                 console.log('🎙️ Voice initialization complete');
+            });
+
+            // QR Code Sharing and Import Functions
+            async function shareCurrentDeck() {
+                try {
+                    if (!currentDeckId) {
+                        alert('No deck selected to share');
+                        return;
+                    }
+
+                    console.log('📤 Sharing deck:', currentDeckId);
+                    
+                    // Get current deck vocabulary
+                    const deckVocab = vocabulary.filter(item => item.deck_id === currentDeckId);
+                    if (deckVocab.length === 0) {
+                        alert('This deck is empty. Add some vocabulary before sharing.');
+                        return;
+                    }
+
+                    // Prepare share data
+                    const shareData = {
+                        deck_name: currentDeckName || 'Shared Deck',
+                        notes: deckVocab.map(item => ({
+                            term: item.lang1,
+                            definition: item.lang2
+                        }))
+                    };
+
+                    console.log('📦 Sharing data:', shareData);
+
+                    // Call Supabase Edge Function to create share
+                    const { data, error } = await supabaseClient.functions.invoke('share-deck', {
+                        body: shareData
+                    });
+
+                    if (error) {
+                        console.error('❌ Error creating share:', error);
+                        alert('Failed to create share link. Please try again.');
+                        return;
+                    }
+
+                    console.log('✅ Share created:', data);
+                    
+                    // Generate QR code and show modal
+                    const shareUrl = data.share_url;
+                    await showQRModal(shareUrl, shareData.deck_name);
+
+                } catch (error) {
+                    console.error('💥 Error sharing deck:', error);
+                    alert('Failed to share deck. Please check your connection and try again.');
+                }
+            }
+
+            async function showQRModal(shareUrl, deckName) {
+                // Create QR modal if it doesn't exist
+                let qrModal = document.getElementById('qrShareModal');
+                if (!qrModal) {
+                    qrModal = document.createElement('div');
+                    qrModal.id = 'qrShareModal';
+                    qrModal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                    qrModal.innerHTML = `
+                        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Share "${deckName}"</h3>
+                            <div class="text-center mb-4">
+                                <canvas id="qrCanvas" class="mx-auto border rounded"></canvas>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">Share this QR code or link:</p>
+                            <input type="text" id="shareUrlInput" class="form-input w-full mb-4" readonly>
+                            <div class="flex gap-3">
+                                <button id="copyShareUrlBtn" class="flex-1 btn btn-primary">📋 Copy Link</button>
+                                <button id="closeQrModalBtn" class="flex-1 btn btn-secondary">Close</button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">⏰ This link expires in 10 minutes</p>
+                        </div>
+                    `;
+                    document.body.appendChild(qrModal);
+                }
+
+                // Generate QR code
+                const canvas = document.getElementById('qrCanvas');
+                await QRCode.toCanvas(canvas, shareUrl, { width: 200 });
+
+                // Set share URL
+                document.getElementById('shareUrlInput').value = shareUrl;
+
+                // Show modal
+                qrModal.classList.remove('hidden');
+
+                // Add event listeners
+                document.getElementById('copyShareUrlBtn').onclick = () => {
+                    navigator.clipboard.writeText(shareUrl);
+                    alert('Link copied to clipboard!');
+                };
+
+                document.getElementById('closeQrModalBtn').onclick = () => {
+                    qrModal.classList.add('hidden');
+                };
+            }
+
+            async function handleImportFromUrl(url) {
+                try {
+                    console.log('📥 Importing from URL:', url);
+                    
+                    // Extract share ID from URL
+                    const urlParams = new URLSearchParams(new URL(url).search);
+                    const shareId = urlParams.get('share');
+                    
+                    if (!shareId) {
+                        alert('Invalid share link');
+                        return;
+                    }
+
+                    // Call Supabase Edge Function to get shared data
+                    const { data, error } = await supabaseClient.functions.invoke('get-shared-deck', {
+                        body: { share_id: shareId }
+                    });
+
+                    if (error) {
+                        console.error('❌ Error fetching shared deck:', error);
+                        alert('Failed to load shared deck. The link may have expired.');
+                        return;
+                    }
+
+                    console.log('✅ Received shared deck:', data);
+                    await showImportModal(data);
+
+                } catch (error) {
+                    console.error('💥 Error importing deck:', error);
+                    alert('Failed to import deck. Please check the link and try again.');
+                }
+            }
+
+            async function showImportModal(sharedDeckData) {
+                const modal = document.getElementById('importDeckModal');
+                const deckNameSpan = document.getElementById('importDeckName');
+                
+                deckNameSpan.textContent = sharedDeckData.deck_name;
+                
+                // Populate existing decks dropdown
+                const deckSelect = document.getElementById('existingDeckSelect');
+                deckSelect.innerHTML = '<option value="">-- Select Existing Deck --</option>';
+                
+                if (userDecks && userDecks.length > 0) {
+                    userDecks.forEach(deck => {
+                        const option = document.createElement('option');
+                        option.value = deck.id;
+                        option.textContent = deck.name;
+                        deckSelect.appendChild(option);
+                    });
+                    document.getElementById('existingDecksSection').classList.remove('hidden');
+                } else {
+                    document.getElementById('existingDecksSection').classList.add('hidden');
+                }
+                
+                modal.classList.remove('hidden');
+                
+                // Handle import to new deck
+                document.getElementById('importToNewDeckBtn').onclick = async () => {
+                    await importToNewDeck(sharedDeckData);
+                };
+                
+                // Handle import to existing deck
+                document.getElementById('importToExistingDeckBtn').onclick = async () => {
+                    const selectedDeckId = deckSelect.value;
+                    if (!selectedDeckId) {
+                        alert('Please select a deck');
+                        return;
+                    }
+                    await importToExistingDeck(sharedDeckData, selectedDeckId);
+                };
+                
+                // Handle cancel
+                document.getElementById('cancelImportBtn').onclick = () => {
+                    modal.classList.add('hidden');
+                };
+            }
+
+            async function importToNewDeck(sharedDeckData) {
+                try {
+                    const deckName = prompt('Enter name for new deck:', sharedDeckData.deck_name);
+                    if (!deckName) return;
+                    
+                    // Get user language preferences
+                    const nativeLanguage = localStorage.getItem('user_native_language') || 'EN';
+                    const learningLanguage = localStorage.getItem('user_learning_language') || 'es-ES';
+                    
+                    // Create new deck
+                    const newDeck = await createDeck(deckName, learningLanguage, nativeLanguage);
+                    if (!newDeck) {
+                        alert('Failed to create deck');
+                        return;
+                    }
+                    
+                    // Import notes to new deck
+                    await importNotesToDeck(sharedDeckData.notes, newDeck.id);
+                    
+                    // Update UI
+                    userDecks = await fetchUserDecks();
+                    renderDecks(userDecks);
+                    await selectDeck(newDeck.id, newDeck.name, newDeck.language);
+                    
+                    document.getElementById('importDeckModal').classList.add('hidden');
+                    alert(`Successfully imported ${sharedDeckData.notes.length} notes to new deck "${deckName}"`);
+                    
+                } catch (error) {
+                    console.error('💥 Error importing to new deck:', error);
+                    alert('Failed to import deck. Please try again.');
+                }
+            }
+
+            async function importToExistingDeck(sharedDeckData, deckId) {
+                try {
+                    await importNotesToDeck(sharedDeckData.notes, deckId);
+                    
+                    // Refresh current deck if it's the one we imported to
+                    if (deckId === currentDeckId) {
+                        vocabulary = await fetchNotes();
+                        renderNotes();
+                    }
+                    
+                    document.getElementById('importDeckModal').classList.add('hidden');
+                    alert(`Successfully imported ${sharedDeckData.notes.length} notes to selected deck`);
+                    
+                } catch (error) {
+                    console.error('💥 Error importing to existing deck:', error);
+                    alert('Failed to import deck. Please try again.');
+                }
+            }
+
+            async function importNotesToDeck(notes, deckId) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) throw new Error('No user authenticated');
+                
+                const notesToInsert = notes.map(note => ({
+                    user_id: user.id,
+                    deck_id: deckId,
+                    term: note.term,
+                    definition: note.definition,
+                    created_at: new Date().toISOString()
+                }));
+                
+                const { error } = await supabaseClient
+                    .from('notes')
+                    .insert(notesToInsert);
+                
+                if (error) {
+                    console.error('❌ Error inserting notes:', error);
+                    throw error;
+                }
+                
+                console.log(`✅ Successfully imported ${notes.length} notes`);
+            }
+
+            // Add event listeners for sharing
+            document.addEventListener('DOMContentLoaded', () => {
+                const shareBtn = document.getElementById('shareCurrentDeckBtn');
+                if (shareBtn) {
+                    shareBtn.addEventListener('click', shareCurrentDeck);
+                }
+
+                // Check if page was opened via share link
+                const urlParams = new URLSearchParams(window.location.search);
+                const shareId = urlParams.get('share');
+                if (shareId) {
+                    // Wait for initialization then handle import
+                    setTimeout(() => {
+                        handleImportFromUrl(window.location.href);
+                    }, 1000);
+                }
             });
 
         });
