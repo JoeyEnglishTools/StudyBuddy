@@ -7436,8 +7436,14 @@ if (languageSelectorInGame) {
             // QR Code Sharing and Import Functions
             async function shareCurrentDeck() {
                 try {
+                    console.log('📤 Starting deck share process...');
+                    console.log('Current deck ID:', currentDeckId);
+                    console.log('Current deck name:', currentDeckName);
+                    console.log('Vocabulary length:', vocabulary ? vocabulary.length : 0);
+                    
                     if (!currentDeckId) {
-                        alert('No deck selected to share');
+                        console.error('❌ No deck selected to share');
+                        alert('No deck selected to share. Please select a deck first.');
                         return;
                     }
 
@@ -7445,7 +7451,10 @@ if (languageSelectorInGame) {
                     
                     // Get current deck vocabulary
                     const deckVocab = vocabulary.filter(item => item.deck_id === currentDeckId);
+                    console.log('📋 Found vocabulary for deck:', deckVocab.length, 'items');
+                    
                     if (deckVocab.length === 0) {
+                        console.error('❌ This deck is empty');
                         alert('This deck is empty. Add some vocabulary before sharing.');
                         return;
                     }
@@ -7459,16 +7468,26 @@ if (languageSelectorInGame) {
                         }))
                     };
 
-                    console.log('📦 Sharing data:', shareData);
+                    console.log('📦 Sharing data:', {
+                        deck_name: shareData.deck_name,
+                        notes_count: shareData.notes.length
+                    });
 
                     // Call Supabase Edge Function to create share
+                    console.log('🔄 Calling Supabase edge function...');
                     const { data, error } = await supabaseClient.functions.invoke('share-deck', {
                         body: shareData
                     });
 
                     if (error) {
                         console.error('❌ Error creating share:', error);
-                        alert('Failed to create share link. Please try again.');
+                        alert(`Failed to create share link: ${error.message || 'Please try again.'}`);
+                        return;
+                    }
+
+                    if (!data || !data.share_url) {
+                        console.error('❌ No share URL returned from server');
+                        alert('Failed to create share link. Server did not return a URL.');
                         return;
                     }
 
@@ -7480,53 +7499,121 @@ if (languageSelectorInGame) {
 
                 } catch (error) {
                     console.error('💥 Error sharing deck:', error);
-                    alert('Failed to share deck. Please check your connection and try again.');
+                    alert(`Failed to share deck: ${error.message || 'Please check your connection and try again.'}`);
                 }
             }
 
             async function showQRModal(shareUrl, deckName) {
+                console.log('📱 Showing QR modal for:', deckName, shareUrl);
+                
                 // Create QR modal if it doesn't exist
                 let qrModal = document.getElementById('qrShareModal');
                 if (!qrModal) {
+                    console.log('🔨 Creating QR modal...');
                     qrModal = document.createElement('div');
                     qrModal.id = 'qrShareModal';
                     qrModal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                     qrModal.innerHTML = `
                         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Share "${deckName}"</h3>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">📤 Share "${deckName}"</h3>
                             <div class="text-center mb-4">
-                                <canvas id="qrCanvas" class="mx-auto border rounded"></canvas>
+                                <div id="qrCodeContainer" class="flex justify-center mb-2">
+                                    <canvas id="qrCanvas" class="border rounded shadow-sm"></canvas>
+                                </div>
+                                <p class="text-xs text-gray-500">Scan with your phone camera</p>
                             </div>
-                            <p class="text-sm text-gray-600 mb-4">Share this QR code or link:</p>
-                            <input type="text" id="shareUrlInput" class="form-input w-full mb-4" readonly>
+                            <p class="text-sm text-gray-600 mb-2">Or share this link:</p>
+                            <div class="flex gap-2 mb-4">
+                                <input type="text" id="shareUrlInput" class="form-input flex-1 text-sm" readonly>
+                                <button id="copyShareUrlBtn" class="btn btn-primary text-sm px-3">📋 Copy</button>
+                            </div>
                             <div class="flex gap-3">
-                                <button id="copyShareUrlBtn" class="flex-1 btn btn-primary">📋 Copy Link</button>
                                 <button id="closeQrModalBtn" class="flex-1 btn btn-secondary">Close</button>
                             </div>
-                            <p class="text-xs text-gray-500 mt-2">⏰ This link expires in 10 minutes</p>
+                            <p class="text-xs text-center text-gray-500 mt-3">⏰ This link expires in 10 minutes</p>
                         </div>
                     `;
                     document.body.appendChild(qrModal);
                 }
 
-                // Generate QR code
-                const canvas = document.getElementById('qrCanvas');
-                await QRCode.toCanvas(canvas, shareUrl, { width: 200 });
+                try {
+                    // Clear any existing QR code
+                    const qrContainer = document.getElementById('qrCodeContainer');
+                    const existingCanvas = document.getElementById('qrCanvas');
+                    if (existingCanvas) {
+                        existingCanvas.remove();
+                    }
+                    
+                    // Create new canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'qrCanvas';
+                    canvas.className = 'border rounded shadow-sm';
+                    qrContainer.appendChild(canvas);
+
+                    // Generate QR code using the correct method for qrcode.min.js
+                    console.log('🔄 Generating QR code...');
+                    await QRCode.toCanvas(canvas, shareUrl, { 
+                        width: 200,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff'
+                        }
+                    });
+                    console.log('✅ QR code generated successfully');
+
+                } catch (error) {
+                    console.error('❌ Error generating QR code:', error);
+                    // Show error message in modal
+                    document.getElementById('qrCodeContainer').innerHTML = `
+                        <div class="text-center text-red-500 text-sm p-4 border border-red-200 rounded">
+                            ❌ Failed to generate QR code<br>
+                            <span class="text-xs">You can still copy the link below</span>
+                        </div>
+                    `;
+                }
 
                 // Set share URL
                 document.getElementById('shareUrlInput').value = shareUrl;
 
                 // Show modal
                 qrModal.classList.remove('hidden');
+                console.log('👁️ QR modal displayed');
 
-                // Add event listeners
-                document.getElementById('copyShareUrlBtn').onclick = () => {
-                    navigator.clipboard.writeText(shareUrl);
-                    alert('Link copied to clipboard!');
+                // Add event listeners (remove existing ones first to avoid duplicates)
+                const copyBtn = document.getElementById('copyShareUrlBtn');
+                const closeBtn = document.getElementById('closeQrModalBtn');
+                
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        copyBtn.textContent = '✅ Copied!';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋 Copy';
+                        }, 2000);
+                    } catch (error) {
+                        console.error('Failed to copy:', error);
+                        // Fallback for older browsers
+                        const urlInput = document.getElementById('shareUrlInput');
+                        urlInput.select();
+                        document.execCommand('copy');
+                        copyBtn.textContent = '✅ Copied!';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋 Copy';
+                        }, 2000);
+                    }
                 };
 
-                document.getElementById('closeQrModalBtn').onclick = () => {
+                closeBtn.onclick = () => {
                     qrModal.classList.add('hidden');
+                    console.log('❌ QR modal closed');
+                };
+                
+                // Close modal when clicking outside
+                qrModal.onclick = (e) => {
+                    if (e.target === qrModal) {
+                        qrModal.classList.add('hidden');
+                    }
                 };
             }
 
@@ -7684,22 +7771,31 @@ if (languageSelectorInGame) {
                 console.log(`✅ Successfully imported ${notes.length} notes`);
             }
 
-            // Add event listeners for sharing
-            document.addEventListener('DOMContentLoaded', () => {
+            // Add event listeners for sharing (fix nested DOMContentLoaded issue)
+            const initShareButton = () => {
                 const shareBtn = document.getElementById('shareCurrentDeckBtn');
                 if (shareBtn) {
+                    console.log('🔗 Share button found, attaching event listener');
                     shareBtn.addEventListener('click', shareCurrentDeck);
+                } else {
+                    console.log('⚠️ Share button not found, will retry...');
+                    // Retry after a short delay if button not found yet
+                    setTimeout(initShareButton, 500);
                 }
+            };
+            
+            // Initialize share button
+            initShareButton();
 
-                // Check if page was opened via share link
-                const urlParams = new URLSearchParams(window.location.search);
-                const shareId = urlParams.get('share');
-                if (shareId) {
-                    // Wait for initialization then handle import
-                    setTimeout(() => {
-                        handleImportFromUrl(window.location.href);
-                    }, 1000);
-                }
-            });
+            // Check if page was opened via share link
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareId = urlParams.get('share');
+            if (shareId) {
+                console.log('📥 Share link detected, preparing to import...');
+                // Wait for initialization then handle import
+                setTimeout(() => {
+                    handleImportFromUrl(window.location.href);
+                }, 1000);
+            }
 
         });
