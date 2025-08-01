@@ -7223,6 +7223,17 @@ if (languageSelectorInGame) {
                             // ALWAYS re-enable file upload after authentication, even if there were errors
                             isAuthenticating = false;
                             console.log('✅ Authentication process completed, file upload re-enabled');
+                            
+                            // Check for pending shared deck import after authentication
+                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                            if (pendingSharedDeckUrl) {
+                                console.log('📥 Processing pending shared deck import after authentication...');
+                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
+                                // Process the import with a slight delay to ensure UI is ready
+                                setTimeout(() => {
+                                    handleImportFromUrl(pendingSharedDeckUrl);
+                                }, 1000);
+                            }
                         }
                     } else {
                         console.log('❌ No user session, showing login');
@@ -7274,6 +7285,17 @@ if (languageSelectorInGame) {
                             const deckSidePanel = document.getElementById('deckSidePanel');
                             if (deckSidePanel) {
                                 deckSidePanel.classList.remove('open');
+                            }
+                        } else {
+                            // User is already authenticated, check for pending shared deck import
+                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                            if (pendingSharedDeckUrl) {
+                                console.log('📥 Processing pending shared deck import for already authenticated user...');
+                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
+                                // Process the import with a delay to ensure app is fully initialized
+                                setTimeout(() => {
+                                    handleImportFromUrl(pendingSharedDeckUrl);
+                                }, 2000);
                             }
                         }
                     }).catch(error => {
@@ -7793,11 +7815,9 @@ if (languageSelectorInGame) {
             const urlParams = new URLSearchParams(window.location.search);
             const shareId = urlParams.get('share');
             if (shareId) {
-                console.log('📥 Share link detected, preparing to import...');
-                // Wait for initialization then handle import
-                setTimeout(() => {
-                    handleImportFromUrl(window.location.href);
-                }, 1000);
+                console.log('📥 Share link detected, storing for post-authentication import...');
+                // Store the share URL for processing after authentication
+                localStorage.setItem('pendingSharedDeckUrl', window.location.href);
             }
 
         });
