@@ -68,6 +68,27 @@
 
 document.addEventListener('DOMContentLoaded', () => {     
 
+    // Check QRCode library availability early
+    let qrCodeCheckRetries = 0;
+    const checkQRCodeLibrary = () => {
+        if (typeof QRCode !== 'undefined') {
+            console.log('✅ QRCode library loaded successfully');
+            return true;
+        } else {
+            qrCodeCheckRetries++;
+            console.warn(`⚠️ QRCode library not loaded (attempt ${qrCodeCheckRetries}/10)`);
+            if (qrCodeCheckRetries < 10) {
+                setTimeout(checkQRCodeLibrary, 100);
+            } else {
+                console.error('❌ QRCode library failed to load after 10 attempts');
+            }
+            return false;
+        }
+    };
+    
+    // Start checking for QRCode library
+    setTimeout(checkQRCodeLibrary, 100);
+
     // Initialize cache status display
     const initializeCacheStatus = () => {
         const versionDisplay = document.getElementById('appVersionDisplay');
@@ -7538,7 +7559,8 @@ if (languageSelectorInGame) {
                     console.log('🔨 Creating QR modal...');
                     qrModal = document.createElement('div');
                     qrModal.id = 'qrShareModal';
-                    qrModal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                    qrModal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center' 
+                    qrModal.style.zIndex = '2100'; // Higher than notes management modal (z-index: 2000)
                     qrModal.innerHTML = `
                         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">📤 Share "${deckName}"</h3>
@@ -7563,6 +7585,16 @@ if (languageSelectorInGame) {
                 }
 
                 try {
+                    // Check if QRCode library is loaded
+                    if (typeof QRCode === 'undefined') {
+                        console.warn('⚠️ QRCode library not loaded, attempting to wait...');
+                        // Wait a bit for library to load
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        if (typeof QRCode === 'undefined') {
+                            throw new Error('QRCode library failed to load');
+                        }
+                    }
+
                     // Clear any existing QR code
                     const qrContainer = document.getElementById('qrCodeContainer');
                     const existingCanvas = document.getElementById('qrCanvas');
@@ -7590,10 +7622,14 @@ if (languageSelectorInGame) {
 
                 } catch (error) {
                     console.error('❌ Error generating QR code:', error);
-                    // Show error message in modal
+                    // Show error message in modal with more detailed feedback
+                    const errorMsg = error.message.includes('QRCode library') 
+                        ? 'QR Code library failed to load. Please refresh the page and try again.'
+                        : 'Failed to generate QR code';
+                    
                     document.getElementById('qrCodeContainer').innerHTML = `
                         <div class="text-center text-red-500 text-sm p-4 border border-red-200 rounded">
-                            ❌ Failed to generate QR code<br>
+                            ❌ ${errorMsg}<br>
                             <span class="text-xs">You can still copy the link below</span>
                         </div>
                     `;
