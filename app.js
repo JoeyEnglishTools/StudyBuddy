@@ -7619,38 +7619,35 @@ if (languageSelectorInGame) {
                 };
             }
 
-            async function handleImportFromUrl(url) {
-                try {
-                    console.log('📥 Importing from URL:', url);
-                    
-                    // Extract share ID from URL
-                    const urlParams = new URLSearchParams(new URL(url).search);
-                    const shareId = urlParams.get('share');
-                    
-                    if (!shareId) {
-                        alert('Invalid share link');
-                        return;
-                    }
+         async function handleImportFromUrl(url) {
+    try {
+        const urlParams = new URLSearchParams(new URL(url).search);
+        const shareId = urlParams.get('share'); // This can stay as shareId
 
-                    // Call Supabase Edge Function to get shared data
-                    const { data, error } = await supabaseClient.functions.invoke('get-shared-deck', {
-                        body: { share_id: shareId }
-                    });
+        if (!shareId) {
+            alert('Invalid share link');
+            return;
+        }
 
-                    if (error) {
-                        console.error('❌ Error fetching shared deck:', error);
-                        alert('Failed to load shared deck. The link may have expired.');
-                        return;
-                    }
+        // The key in the body object must match what the server expects.
+        const { data, error } = await supabaseClient.functions.invoke('get-shared-deck', {
+            body: { share_token: shareId } // Changed from share_id to share_token
+        });
 
-                    console.log('✅ Received shared deck:', data);
-                    await showImportModal(data);
+        if (error) {
+            console.error('❌ Error fetching shared deck:', error);
+            alert('Failed to load shared deck. The link may have expired.');
+            return;
+        }
 
-                } catch (error) {
-                    console.error('💥 Error importing deck:', error);
-                    alert('Failed to import deck. Please check the link and try again.');
-                }
-            }
+        console.log('✅ Received shared deck:', data);
+        await showImportModal(data);
+
+    } catch (error) {
+        console.error('💥 Error importing deck:', error);
+        alert('Failed to import deck. Please check the link and try again.');
+    }
+}
 
             async function showImportModal(sharedDeckData) {
                 const modal = document.getElementById('importDeckModal');
