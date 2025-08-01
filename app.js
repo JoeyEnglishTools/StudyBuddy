@@ -2283,112 +2283,73 @@ async function fetchNotes() {
     
     // Update note progress for spaced repetition with skill-based tracking
     async function updateNoteProgress(term, definition, isCorrect, gameType = 'unknown') {
+        const category = GAME_CATEGORIES[gameType];
+        if (!category) {
+            console.warn(`No category for game type "${gameType}". Skipping progress update.`);
+            return;
+        }
+
         try {
             const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                console.error('❌ No user authenticated for progress update');
-                return false;
-            }
-            
-            console.log(`🎮 Updating progress for "${term}" - Game: ${gameType}, Correct: ${isCorrect}`);
-            
-            // Get current note data to check existing progress
-            const { data: existingNote, error: fetchError } = await supabaseClient
+            if (!user) return;
+
+            console.log(`🎮 Updating progress for "${term}" - Game: ${gameType}, Category: ${category}, Correct: ${isCorrect}`);
+
+            // 1. Get the current progress for the specific category
+            const { data: note, error: fetchError } = await supabaseClient
                 .from('notes')
-                .select('*')
+                .select(`${category}_ease_factor, ${category}_interval`)
                 .eq('user_id', user.id)
                 .eq('term', term)
                 .eq('definition', definition)
                 .single();
-            
+
             if (fetchError && fetchError.code !== 'PGRST116') {
-                console.error('❌ Error fetching existing note:', fetchError);
-                return false;
+                console.error('❌ Error fetching note for progress update:', fetchError);
+                return;
             }
+
+            // 2. Calculate new values based on correct/incorrect
+            let newEaseFactor, newInterval;
             
-            const now = new Date().toISOString();
-            let ease_factor, interval;
-            
-            // Initialize skill scores if not present
-            const skillScores = {
-                listening_score: existingNote?.listening_score || 0,
-                speaking_score: existingNote?.speaking_score || 0,
-                writing_score: existingNote?.writing_score || 0
-            };
-            
-            // Determine which skill category this game belongs to
-            const skillCategory = GAME_CATEGORIES[gameType];
-            if (!skillCategory) {
-                console.warn(`⚠️ Unknown game type: ${gameType}, defaulting to writing`);
-                skillCategory = 'writing';
-            }
-            
-            // Update score for current skill category
             if (isCorrect) {
-                switch (skillCategory) {
-                    case 'listening':
-                        skillScores.listening_score = 1;
-                        break;
-                    case 'speaking':
-                        skillScores.speaking_score = 1;
-                        break;
-                    case 'writing':
-                        skillScores.writing_score = 1;
-                        break;
-                }
+                // Get current values or defaults
+                const currentEaseFactor = note?.[`${category}_ease_factor`] || 1;
+                const currentInterval = note?.[`${category}_interval`] || 1;
+                
+                // Increase ease factor and interval on correct answer
+                newEaseFactor = Math.min(currentEaseFactor + 0.1, 2.5);
+                newInterval = Math.max(1, Math.round(currentInterval * newEaseFactor));
+                
+                console.log(`✅ "${term}" correct in ${category} - ease_factor: ${newEaseFactor}, interval: ${newInterval} days`);
             } else {
-                // Reset ALL skill scores on any mistake
-                skillScores.listening_score = 0;
-                skillScores.speaking_score = 0;
-                skillScores.writing_score = 0;
+                // Reset to minimal values on incorrect answer
+                newEaseFactor = 1.0;
+                newInterval = 1;
+                
+                console.log(`❌ "${term}" incorrect in ${category} - RESET - ease_factor: ${newEaseFactor}, interval: ${newInterval} day`);
             }
-            
-            // Check if user has mastered this word (scored on all 3 skill categories)
-            const totalScore = Object.values(skillScores).reduce((sum, score) => sum + score, 0);
-            const isMastered = totalScore >= 3; // All 3 skill categories scored
-            
-            if (isMastered) {
-                ease_factor = 5;
-                interval = 45;
-                console.log(`🎯 "${term}" MASTERED! All skills scored - ease_factor: ${ease_factor}, interval: ${interval} days`);
-            } else if (isCorrect) {
-                ease_factor = 2;
-                interval = 3; // Short interval until mastery
-                console.log(`✅ "${term}" correct in ${skillCategory} (${totalScore}/3 skills) - ease_factor: ${ease_factor}, interval: ${interval} days`);
-            } else {
-                ease_factor = 1;
-                interval = 1;
-                console.log(`❌ "${term}" incorrect - ALL SKILL SCORES RESET - ease_factor: ${ease_factor}, interval: ${interval} day`);
-            }
-            
-            // Calculate next review date
-            const nextReview = new Date();
-            nextReview.setDate(nextReview.getDate() + interval);
-            const nextReviewDate = nextReview.toISOString();
-            
-            // Update note with all skill scores and spaced repetition data
+
+            // 3. Update the database with the new values for this category
             const updateData = {
-                ease_factor: ease_factor,
-                interval: interval,
-                next_review: nextReviewDate,
-                last_reviewed: now,
-                ...skillScores
+                [`${category}_ease_factor`]: newEaseFactor,
+                [`${category}_interval`]: newInterval
             };
-            
+
             const { error } = await supabaseClient
                 .from('notes')
                 .update(updateData)
                 .eq('user_id', user.id)
                 .eq('term', term)
                 .eq('definition', definition);
-            
+
             if (error) {
                 console.error('❌ Error updating note progress:', error);
-                console.warn('⚠️ Note: This might be because skill score columns don\'t exist yet');
+                console.warn('⚠️ Note: This might be because skill-specific columns don\'t exist yet');
                 return false;
             }
-            
-            console.log(`📈 Successfully updated progress for "${term}" - Skills: ${JSON.stringify(skillScores)}, Interval: ${interval} days`);
+
+            console.log(`📈 Successfully updated ${category} progress for "${term}" - ease_factor: ${newEaseFactor}, interval: ${newInterval} days`);
             return true;
         } catch (error) {
             console.error('💥 Unexpected error updating note progress:', error);
@@ -7475,8 +7436,14 @@ if (languageSelectorInGame) {
             // QR Code Sharing and Import Functions
             async function shareCurrentDeck() {
                 try {
+                    console.log('📤 Starting deck share process...');
+                    console.log('Current deck ID:', currentDeckId);
+                    console.log('Current deck name:', currentDeckName);
+                    console.log('Vocabulary length:', vocabulary ? vocabulary.length : 0);
+                    
                     if (!currentDeckId) {
-                        alert('No deck selected to share');
+                        console.error('❌ No deck selected to share');
+                        alert('No deck selected to share. Please select a deck first.');
                         return;
                     }
 
@@ -7484,7 +7451,10 @@ if (languageSelectorInGame) {
                     
                     // Get current deck vocabulary
                     const deckVocab = vocabulary.filter(item => item.deck_id === currentDeckId);
+                    console.log('📋 Found vocabulary for deck:', deckVocab.length, 'items');
+                    
                     if (deckVocab.length === 0) {
+                        console.error('❌ This deck is empty');
                         alert('This deck is empty. Add some vocabulary before sharing.');
                         return;
                     }
@@ -7498,16 +7468,26 @@ if (languageSelectorInGame) {
                         }))
                     };
 
-                    console.log('📦 Sharing data:', shareData);
+                    console.log('📦 Sharing data:', {
+                        deck_name: shareData.deck_name,
+                        notes_count: shareData.notes.length
+                    });
 
                     // Call Supabase Edge Function to create share
+                    console.log('🔄 Calling Supabase edge function...');
                     const { data, error } = await supabaseClient.functions.invoke('share-deck', {
                         body: shareData
                     });
 
                     if (error) {
                         console.error('❌ Error creating share:', error);
-                        alert('Failed to create share link. Please try again.');
+                        alert(`Failed to create share link: ${error.message || 'Please try again.'}`);
+                        return;
+                    }
+
+                    if (!data || !data.share_url) {
+                        console.error('❌ No share URL returned from server');
+                        alert('Failed to create share link. Server did not return a URL.');
                         return;
                     }
 
@@ -7519,53 +7499,121 @@ if (languageSelectorInGame) {
 
                 } catch (error) {
                     console.error('💥 Error sharing deck:', error);
-                    alert('Failed to share deck. Please check your connection and try again.');
+                    alert(`Failed to share deck: ${error.message || 'Please check your connection and try again.'}`);
                 }
             }
 
             async function showQRModal(shareUrl, deckName) {
+                console.log('📱 Showing QR modal for:', deckName, shareUrl);
+                
                 // Create QR modal if it doesn't exist
                 let qrModal = document.getElementById('qrShareModal');
                 if (!qrModal) {
+                    console.log('🔨 Creating QR modal...');
                     qrModal = document.createElement('div');
                     qrModal.id = 'qrShareModal';
                     qrModal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                     qrModal.innerHTML = `
                         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Share "${deckName}"</h3>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">📤 Share "${deckName}"</h3>
                             <div class="text-center mb-4">
-                                <canvas id="qrCanvas" class="mx-auto border rounded"></canvas>
+                                <div id="qrCodeContainer" class="flex justify-center mb-2">
+                                    <canvas id="qrCanvas" class="border rounded shadow-sm"></canvas>
+                                </div>
+                                <p class="text-xs text-gray-500">Scan with your phone camera</p>
                             </div>
-                            <p class="text-sm text-gray-600 mb-4">Share this QR code or link:</p>
-                            <input type="text" id="shareUrlInput" class="form-input w-full mb-4" readonly>
+                            <p class="text-sm text-gray-600 mb-2">Or share this link:</p>
+                            <div class="flex gap-2 mb-4">
+                                <input type="text" id="shareUrlInput" class="form-input flex-1 text-sm" readonly>
+                                <button id="copyShareUrlBtn" class="btn btn-primary text-sm px-3">📋 Copy</button>
+                            </div>
                             <div class="flex gap-3">
-                                <button id="copyShareUrlBtn" class="flex-1 btn btn-primary">📋 Copy Link</button>
                                 <button id="closeQrModalBtn" class="flex-1 btn btn-secondary">Close</button>
                             </div>
-                            <p class="text-xs text-gray-500 mt-2">⏰ This link expires in 10 minutes</p>
+                            <p class="text-xs text-center text-gray-500 mt-3">⏰ This link expires in 10 minutes</p>
                         </div>
                     `;
                     document.body.appendChild(qrModal);
                 }
 
-                // Generate QR code
-                const canvas = document.getElementById('qrCanvas');
-                await QRCode.toCanvas(canvas, shareUrl, { width: 200 });
+                try {
+                    // Clear any existing QR code
+                    const qrContainer = document.getElementById('qrCodeContainer');
+                    const existingCanvas = document.getElementById('qrCanvas');
+                    if (existingCanvas) {
+                        existingCanvas.remove();
+                    }
+                    
+                    // Create new canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'qrCanvas';
+                    canvas.className = 'border rounded shadow-sm';
+                    qrContainer.appendChild(canvas);
+
+                    // Generate QR code using the correct method for qrcode.min.js
+                    console.log('🔄 Generating QR code...');
+                    await QRCode.toCanvas(canvas, shareUrl, { 
+                        width: 200,
+                        margin: 2,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff'
+                        }
+                    });
+                    console.log('✅ QR code generated successfully');
+
+                } catch (error) {
+                    console.error('❌ Error generating QR code:', error);
+                    // Show error message in modal
+                    document.getElementById('qrCodeContainer').innerHTML = `
+                        <div class="text-center text-red-500 text-sm p-4 border border-red-200 rounded">
+                            ❌ Failed to generate QR code<br>
+                            <span class="text-xs">You can still copy the link below</span>
+                        </div>
+                    `;
+                }
 
                 // Set share URL
                 document.getElementById('shareUrlInput').value = shareUrl;
 
                 // Show modal
                 qrModal.classList.remove('hidden');
+                console.log('👁️ QR modal displayed');
 
-                // Add event listeners
-                document.getElementById('copyShareUrlBtn').onclick = () => {
-                    navigator.clipboard.writeText(shareUrl);
-                    alert('Link copied to clipboard!');
+                // Add event listeners (remove existing ones first to avoid duplicates)
+                const copyBtn = document.getElementById('copyShareUrlBtn');
+                const closeBtn = document.getElementById('closeQrModalBtn');
+                
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        copyBtn.textContent = '✅ Copied!';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋 Copy';
+                        }, 2000);
+                    } catch (error) {
+                        console.error('Failed to copy:', error);
+                        // Fallback for older browsers
+                        const urlInput = document.getElementById('shareUrlInput');
+                        urlInput.select();
+                        document.execCommand('copy');
+                        copyBtn.textContent = '✅ Copied!';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋 Copy';
+                        }, 2000);
+                    }
                 };
 
-                document.getElementById('closeQrModalBtn').onclick = () => {
+                closeBtn.onclick = () => {
                     qrModal.classList.add('hidden');
+                    console.log('❌ QR modal closed');
+                };
+                
+                // Close modal when clicking outside
+                qrModal.onclick = (e) => {
+                    if (e.target === qrModal) {
+                        qrModal.classList.add('hidden');
+                    }
                 };
             }
 
@@ -7723,22 +7771,31 @@ if (languageSelectorInGame) {
                 console.log(`✅ Successfully imported ${notes.length} notes`);
             }
 
-            // Add event listeners for sharing
-            document.addEventListener('DOMContentLoaded', () => {
+            // Add event listeners for sharing (fix nested DOMContentLoaded issue)
+            const initShareButton = () => {
                 const shareBtn = document.getElementById('shareCurrentDeckBtn');
                 if (shareBtn) {
+                    console.log('🔗 Share button found, attaching event listener');
                     shareBtn.addEventListener('click', shareCurrentDeck);
+                } else {
+                    console.log('⚠️ Share button not found, will retry...');
+                    // Retry after a short delay if button not found yet
+                    setTimeout(initShareButton, 500);
                 }
+            };
+            
+            // Initialize share button
+            initShareButton();
 
-                // Check if page was opened via share link
-                const urlParams = new URLSearchParams(window.location.search);
-                const shareId = urlParams.get('share');
-                if (shareId) {
-                    // Wait for initialization then handle import
-                    setTimeout(() => {
-                        handleImportFromUrl(window.location.href);
-                    }, 1000);
-                }
-            });
+            // Check if page was opened via share link
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareId = urlParams.get('share');
+            if (shareId) {
+                console.log('📥 Share link detected, preparing to import...');
+                // Wait for initialization then handle import
+                setTimeout(() => {
+                    handleImportFromUrl(window.location.href);
+                }, 1000);
+            }
 
         });
