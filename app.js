@@ -2259,8 +2259,8 @@ async function fetchNotes() {
     // Make functions globally accessible for onclick handlers
     window.hideConnectionLostPrompt = hideConnectionLostPrompt;
     
-    // Update note progress for spaced repetition
-    async function updateNoteProgress(term, definition, isCorrect) {
+    // Update note progress for spaced repetition with game-specific scoring
+    async function updateNoteProgress(term, definition, isCorrect, gameType = 'unknown') {
         try {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
@@ -2268,19 +2268,78 @@ async function fetchNotes() {
                 return false;
             }
             
+            console.log(`🎮 Updating progress for "${term}" - Game: ${gameType}, Correct: ${isCorrect}`);
+            
+            // Get current note data to check existing progress
+            const { data: existingNote, error: fetchError } = await supabaseClient
+                .from('notes')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('term', term)
+                .eq('definition', definition)
+                .single();
+            
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('❌ Error fetching existing note:', fetchError);
+                return false;
+            }
+            
             const now = new Date().toISOString();
             let ease_factor, interval_days;
             
+            // Initialize game scores if not present
+            const gameScores = {
+                matching_score: existingNote?.matching_score || 0,
+                memory_score: existingNote?.memory_score || 0,
+                multiple_choice_score: existingNote?.multiple_choice_score || 0,
+                talk_to_me_score: existingNote?.talk_to_me_score || 0,
+                find_words_score: existingNote?.find_words_score || 0
+            };
+            
+            // Update score for current game type
             if (isCorrect) {
-                // Correct answer: high ease factor, long interval (45 days)
+                switch (gameType) {
+                    case 'matching':
+                        gameScores.matching_score = 1;
+                        break;
+                    case 'memory':
+                        gameScores.memory_score = 1;
+                        break;
+                    case 'multiple_choice':
+                        gameScores.multiple_choice_score = 1;
+                        break;
+                    case 'talk_to_me':
+                        gameScores.talk_to_me_score = 1;
+                        break;
+                    case 'find_words':
+                        gameScores.find_words_score = 1;
+                        break;
+                }
+            } else {
+                // Reset all scores on any mistake
+                gameScores.matching_score = 0;
+                gameScores.memory_score = 0;
+                gameScores.multiple_choice_score = 0;
+                gameScores.talk_to_me_score = 0;
+                gameScores.find_words_score = 0;
+            }
+            
+            // Check if user has mastered this word (scored on all game types)
+            const totalScore = Object.values(gameScores).reduce((sum, score) => sum + score, 0);
+            const isMastered = totalScore >= 5; // All 5 game types scored
+            
+            if (isMastered) {
                 ease_factor = 5;
                 interval_days = 45;
-                console.log(`✅ Marking ${term} as mastered - ease_factor: ${ease_factor}, interval: ${interval_days} days`);
+                console.log(`🎯 "${term}" MASTERED! All games scored - ease_factor: ${ease_factor}, interval: ${interval_days} days`);
+            } else if (isCorrect) {
+                ease_factor = 2;
+                interval_days = 3; // Short interval until mastery
+                console.log(`✅ "${term}" correct in ${gameType} (${totalScore}/5 games) - ease_factor: ${ease_factor}, interval: ${interval_days} days`);
             } else {
-                // Incorrect answer: low ease factor, short interval (1 day)  
                 ease_factor = 1;
                 interval_days = 1;
-                console.log(`❌ Marking ${term} for review - ease_factor: ${ease_factor}, interval: ${interval_days} day`);
+                console.log(`❌ "${term}" incorrect - ALL SCORES RESET - ease_factor: ${ease_factor}, interval: ${interval_days} day`);
             }
             
             // Calculate next review date
@@ -2288,26 +2347,29 @@ async function fetchNotes() {
             nextReview.setDate(nextReview.getDate() + interval_days);
             const nextReviewDate = nextReview.toISOString();
             
-            // Try to update the existing note with progress data
+            // Update note with all game scores and spaced repetition data
+            const updateData = {
+                ease_factor: ease_factor,
+                interval: interval_days,
+                next_review: nextReviewDate,
+                last_reviewed: now,
+                ...gameScores
+            };
+            
             const { error } = await supabaseClient
                 .from('notes')
-                .update({
-                    ease_factor: ease_factor,
-                    interval: interval_days,
-                    next_review: nextReviewDate,
-                    last_reviewed: now
-                })
+                .update(updateData)
                 .eq('user_id', user.id)
                 .eq('term', term)
                 .eq('definition', definition);
             
             if (error) {
                 console.error('❌ Error updating note progress:', error);
-                console.warn('⚠️ Note: This might be because ease_factor columns don\'t exist yet');
+                console.warn('⚠️ Note: This might be because game score columns don\'t exist yet');
                 return false;
             }
             
-            console.log(`📈 Successfully updated progress for "${term}"`);
+            console.log(`📈 Successfully updated progress for "${term}" - Scores: ${JSON.stringify(gameScores)}, Interval: ${interval_days} days`);
             return true;
         } catch (error) {
             console.error('💥 Unexpected error updating note progress:', error);
@@ -4918,6 +4980,29 @@ async function fetchNotes() {
         console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
         console.log('showMainSelection: Current deck =', currentDeck?.name || 'none');
         
+        // Check current deck vocabulary and decide what to show
+        const activeVocab = isEssentialsMode ? currentVocabularyPart : vocabulary;
+        const vocabLength = activeVocab ? activeVocab.length : 0;
+        
+        console.log('showMainSelection: Active vocab length =', vocabLength, 'isEssentialsMode =', isEssentialsMode);
+        
+        // If deck has 6+ words, automatically go to games
+        if (!isEssentialsMode && vocabLength >= 6) {
+            console.log('🎮 Auto-redirecting to games (6+ words in deck)');
+            showGameSelection();
+            return;
+        }
+        
+        // If deck has vocabulary but less than 6, show only Add More Words interface
+        if (!isEssentialsMode && vocabLength > 0 && vocabLength < 6) {
+            console.log('⚠️ Showing limited options (1-5 words in deck)');
+            // Hide the Get Started section and show games section with upload options
+            showGameSelection();
+            return;
+        }
+        
+        // If deck has no vocabulary, show full Get Started interface
+        console.log('📝 Showing full Get Started interface (no vocabulary)');
         mainSelectionSection.classList.remove('hidden'); 
         [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
             if (el) el.classList.add('hidden');
@@ -5212,12 +5297,16 @@ async function fetchNotes() {
             function initMatchingGame() {
                 // Initialize round tracking for matching games
                 if (!window.matchingGameState) {
+                    // Create shuffled game vocabulary once for the entire session
+                    const sessionVocab = shuffleArray([...currentVocabularyPart]);
+                    
                     window.matchingGameState = {
                         currentRound: 1,
                         totalRounds: 3,
                         wrongMatches: [],
                         bonusRoundActive: false,
-                        cardsPerRound: 6
+                        cardsPerRound: 6,
+                        sessionVocab: sessionVocab  // Store shuffled vocabulary for the session
                     };
                 }
                 
@@ -5233,8 +5322,12 @@ async function fetchNotes() {
                     matchingFeedback.textContent = `Bonus Round - Let's try those again!`;
                 } else {
                     const startIndex = (gameState.currentRound - 1) * gameState.cardsPerRound;
-                    gameVocab = shuffleArray(currentVocabularyPart).slice(startIndex, startIndex + gameState.cardsPerRound);
+                    // Use pre-shuffled session vocabulary to ensure no duplicates across rounds
+                    gameVocab = gameState.sessionVocab.slice(startIndex, startIndex + gameState.cardsPerRound);
                     matchingFeedback.textContent = `Round ${gameState.currentRound} of ${gameState.totalRounds}`;
+                    
+                    console.log(`🎮 Matching Round ${gameState.currentRound}: Using words ${startIndex} to ${startIndex + gameState.cardsPerRound - 1} from session vocab`);
+                    console.log('🎮 Round vocabulary:', gameVocab.map(v => v.lang1));
                 }
                 
                 matchedPairs = 0;
@@ -5278,7 +5371,8 @@ async function fetchNotes() {
                     return gameState.wrongMatches;
                 } else {
                     const startIndex = (gameState.currentRound - 1) * gameState.cardsPerRound;
-                    return currentVocabularyPart.slice(startIndex, startIndex + gameState.cardsPerRound);
+                    // Use pre-shuffled session vocabulary
+                    return gameState.sessionVocab.slice(startIndex, startIndex + gameState.cardsPerRound);
                 }
             }
 
@@ -5324,7 +5418,7 @@ async function fetchNotes() {
                         const currentVocab = getCurrentMatchingVocab();
                         const item = currentVocab[firstCardId] || currentVocab[secondCardId];
                         if (item) {
-                            updateNoteProgress(item.lang1, item.lang2, true);
+                            updateNoteProgress(item.lang1, item.lang2, true, 'matching');
                         }
                         
                         matchedPairs++;
@@ -5374,12 +5468,12 @@ async function fetchNotes() {
                             if (currentVocab[firstCardId] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[firstCardId].lang1)) {
                                 gameState.wrongMatches.push(currentVocab[firstCardId]);
                                 // Update progress for incorrect match
-                                updateNoteProgress(currentVocab[firstCardId].lang1, currentVocab[firstCardId].lang2, false);
+                                updateNoteProgress(currentVocab[firstCardId].lang1, currentVocab[firstCardId].lang2, false, 'matching');
                             }
                             if (currentVocab[secondCardId] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[secondCardId].lang1)) {
                                 gameState.wrongMatches.push(currentVocab[secondCardId]);
                                 // Update progress for incorrect match
-                                updateNoteProgress(currentVocab[secondCardId].lang1, currentVocab[secondCardId].lang2, false);
+                                updateNoteProgress(currentVocab[secondCardId].lang1, currentVocab[secondCardId].lang2, false, 'matching');
                             }
                         }
                         
@@ -5728,7 +5822,7 @@ async function fetchNotes() {
                     lang1: cardElement.dataset.lang1,
                     lang2: cardElement.dataset.lang2
                 };
-                updateNoteProgress(vocabItem.lang1, vocabItem.lang2, true);
+                updateNoteProgress(vocabItem.lang1, vocabItem.lang2, true, 'memory');
                 
                 memoryTestFeedback.textContent = `Correct! +${points} points`;
                 gameState.roundCompletedCards.push(cardId);
@@ -5772,7 +5866,7 @@ async function fetchNotes() {
                     }
                     
                     // Update progress for incorrect answer
-                    updateNoteProgress(vocabItem.lang1, vocabItem.lang2, false);
+                    updateNoteProgress(vocabItem.lang1, vocabItem.lang2, false, 'memory');
                     
                     gameState.roundCompletedCards.push(cardId);
                     
@@ -5960,7 +6054,7 @@ async function fetchNotes() {
                     updateScoreDisplay();
                     
                     // Update progress for correct answer
-                    updateNoteProgress(item.lang1, item.lang2, true);
+                    updateNoteProgress(item.lang1, item.lang2, true, 'multiple_choice');
                     
                     // Auto-advance after 1.5 seconds
                     setTimeout(() => {
@@ -5978,7 +6072,7 @@ async function fetchNotes() {
                     }
                     
                     // Update progress for incorrect answer
-                    updateNoteProgress(item.lang1, item.lang2, false);
+                    updateNoteProgress(item.lang1, item.lang2, false, 'multiple_choice');
                     
                     playIncorrectSound();
                     mcqFeedback.textContent = `Correct: ${item.lang2}`;
@@ -6205,7 +6299,7 @@ async function fetchNotes() {
                     playCorrectMatchSound();
                     
                     // Update progress for correct answer
-                    updateNoteProgress(item.lang1, item.lang2, true);
+                    updateNoteProgress(item.lang1, item.lang2, true, 'talk_to_me');
 
                     // Auto-advance after a short delay
                     setTimeout(() => {
@@ -6222,7 +6316,7 @@ async function fetchNotes() {
                         }
                         
                         // Update progress for incorrect answer (max attempts reached)
-                        updateNoteProgress(item.lang1, item.lang2, false);
+                        updateNoteProgress(item.lang1, item.lang2, false, 'talk_to_me');
                         
                         talkToMeFeedback.textContent = `Expected: "${item.lang1}". Moving to next question.`;
                         talkToMeFeedback.className = "text-center font-medium mt-2 sm:mt-3 h-5 sm:h-6 text-sm sm:text-base text-red-600";
@@ -6280,7 +6374,7 @@ async function fetchNotes() {
                     playCorrectMatchSound();
                     
                     // Update progress for manually confirmed correct answer
-                    updateNoteProgress(item.lang1, item.lang2, true);
+                    updateNoteProgress(item.lang1, item.lang2, true, 'talk_to_me');
 
                     // Auto-advance after a short delay
                     setTimeout(() => {
@@ -6399,7 +6493,7 @@ async function startFindTheWordsRound(pool) {
                             item.lang2.toLowerCase() === word.toLowerCase()
                         );
                         if (vocabItem) {
-                            updateNoteProgress(vocabItem.lang1, vocabItem.lang2, true);
+                            updateNoteProgress(vocabItem.lang1, vocabItem.lang2, true, 'find_words');
                         }
                     });
                     
@@ -6425,7 +6519,7 @@ async function startFindTheWordsRound(pool) {
                                 item.lang2.toLowerCase() === word.toLowerCase()
                             );
                             if (vocabItem) {
-                                updateNoteProgress(vocabItem.lang1, vocabItem.lang2, false);
+                                updateNoteProgress(vocabItem.lang1, vocabItem.lang2, false, 'find_words');
                             }
                         }
                     });
