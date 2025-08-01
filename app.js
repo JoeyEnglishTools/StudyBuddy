@@ -987,6 +987,7 @@ async function fetchNotes() {
     
     // --- DECK MANAGEMENT STATE ---
     let currentlySelectedDeckId = null;
+    let uploadReturnLocation = 'main'; // Track where to return from upload section ('main' or 'games')
     let userDecks = [];
     let currentDeck = null;
     let isPanelOpen = false;
@@ -1034,7 +1035,7 @@ async function fetchNotes() {
     
     // Live Notes elements
     const liveNotesModal = document.getElementById('liveNotesModal'), liveNotesContainer = document.getElementById('liveNotesContainer'), closeLiveNotesBtn = document.getElementById('closeLiveNotesBtn'), liveNotesTextarea = document.getElementById('liveNotesTextarea'), liveNotesLanguageSelector = document.getElementById('liveNotesLanguageSelector'), newLineBtn = document.getElementById('newLineBtn'), previousLineBtn = document.getElementById('previousLineBtn'), clearAllBtn = document.getElementById('clearAllBtn'), translateTextBtn = document.getElementById('translateTextBtn'), manualSaveBtn = document.getElementById('manualSaveBtn'), saveStatus = document.getElementById('saveStatus'), lineCount = document.getElementById('lineCount'), parsedCount = document.getElementById('parsedCount'), cloudIcon = document.getElementById('cloudIcon'), uploadArrow = document.getElementById('uploadArrow');
-    const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), memoryTestBtn = document.getElementById("memoryTestBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer");
+    const mainSelectionSection = document.getElementById("mainSelectionSection"), showUploadSectionBtn = document.getElementById("showUploadSectionBtn"), showEssentialsSectionBtn = document.getElementById("showEssentialsSectionBtn"), csvFileInput = document.getElementById("csvFile"), targetLanguageSelector = document.getElementById("targetLanguageSelector"), languageSelectorInGame = document.getElementById("languageSelectorInGame"), languageSelectionInGameContainer = document.getElementById("languageSelectionInGameContainer"), uploadBtn = document.getElementById("uploadBtn"), uploadStatus = document.getElementById("uploadStatus"), uploadSection = document.getElementById("uploadSection"), uploadSectionTitle = document.getElementById("uploadSectionTitle"), dropZone = document.getElementById("dropZone"), backToMainSelectionFromUploadBtn = document.getElementById("backToMainSelectionFromUploadBtn"), essentialsCategorySelectionSection = document.getElementById("essentialsCategorySelectionSection"), essentialsCategoryButtonsContainer = document.getElementById("essentialsCategoryButtonsContainer"), backToMainSelectionFromEssentialsBtn = document.getElementById("backToMainSelectionFromEssentialsBtn"), essentialsCategoryOptionsSection = document.getElementById("essentialsCategoryOptionsSection"), essentialsOptionsTitle = document.getElementById("essentialsOptionsTitle"), reviewEssentialsCategoryBtn = document.getElementById("reviewEssentialsCategoryBtn"), playGamesWithEssentialsBtn = document.getElementById("playGamesWithEssentialsBtn"), backToEssentialsCategoriesBtn = document.getElementById("backToEssentialsCategoriesBtn"), gameSelectionSection = document.getElementById("gameSelectionSection"), gameButtonsContainer = document.getElementById("gameButtonsContainer"), backToSourceSelectionBtn = document.getElementById("backToSourceSelectionBtn"), gameArea = document.getElementById("gameArea"), noVocabularyMessage = document.getElementById("noVocabularyMessage"), gameOverMessage = document.getElementById("gameOverMessage"), roundCompleteMessageDiv = document.getElementById("roundCompleteMessage"), bonusRoundCountdownMessageDiv = document.getElementById("bonusRoundCountdownMessage"), matchingBtn = document.getElementById("matchingBtn"), multipleChoiceBtn = document.getElementById("multipleChoiceBtn"), memoryTestBtn = document.getElementById("memoryTestBtn"), typeTranslationBtn = document.getElementById("typeTranslationBtn"), talkToMeBtn = document.getElementById("talkToMeBtn"), fillInTheBlanksBtn = document.getElementById("fillInTheBlanksBtn"), findTheWordsBtn = document.getElementById("findTheWordsBtn"), backToGameSelectionBtn = document.getElementById("backToGameSelectionBtn"), gameTitle = document.getElementById("gameTitle"), musicToggleBtn = document.getElementById("musicToggleBtn"), musicIconOn = document.getElementById("musicIconOn"), musicIconOff = document.getElementById("musicIconOff"), musicStatusText = document.getElementById("musicStatusText"), mistakeTrackerDiv = document.getElementById("mistakeTracker"), currentScoreDisplay = document.getElementById("currentScoreDisplay"), maxScoreDisplay = document.getElementById("maxScoreDisplay"), partSelectionContainer = document.getElementById("partSelectionContainer"), partButtonsContainer = document.getElementById("partButtonsContainer"), addCsvToDeckBtn = document.getElementById("addCsvToDeckBtn");
     const matchingGameContainer = document.getElementById("matchingGame"), matchingGrid = document.getElementById("matchingGrid"), matchingInstructions = document.getElementById("matchingInstructions"), matchingFeedback = document.getElementById("matchingFeedback"), resetCurrentPartBtn = document.getElementById("resetCurrentPartBtn"), memoryTestGameContainer = document.getElementById("memoryTestGame"), memoryTestGrid = document.getElementById("memoryTestGrid"), memoryTestInstructions = document.getElementById("memoryTestInstructions"), memoryTestFeedback = document.getElementById("memoryTestFeedback"), memoryTestLives = document.getElementById("memoryTestLives"), memoryTestTimer = document.getElementById("memoryTestTimer"), memoryTestTimerValue = document.getElementById("memoryTestTimerValue"), memoryTestRoundInfo = document.getElementById("memoryTestRoundInfo"), memoryTestRecording = document.getElementById("memoryTestRecording"), memoryTestRecognizedText = document.getElementById("memoryTestRecognizedText"), memoryTestHintBtn = document.getElementById("memoryTestHintBtn"), memoryTestHint = document.getElementById("memoryTestHint"), resetMemoryTestBtn = document.getElementById("resetMemoryTestBtn"), multipleChoiceGameContainer = document.getElementById("multipleChoiceGame"), mcqInstructions = document.getElementById("mcqInstructions"), mcqQuestion = document.getElementById("mcqQuestion"), mcqOptions = document.getElementById("mcqOptions"), mcqFeedback = document.getElementById("mcqFeedback"), nextMcqBtn = document.getElementById("nextMcqBtn");
     const typeTranslationGameContainer = document.getElementById("typeTranslationGame"), typeTranslationInstructions = document.getElementById("typeTranslationInstructions"), typeTranslationPhrase = document.getElementById("typeTranslationPhrase"), typeTranslationInput = document.getElementById("typeTranslationInput"), hintTypeTranslationBtn = document.getElementById("hintTypeTranslationBtn"), typeTranslationHintDisplay = document.getElementById("typeTranslationHintDisplay"), checkTypeTranslationBtn = document.getElementById("checkTypeTranslationBtn"), typeTranslationFeedback = document.getElementById("typeTranslationFeedback"), nextTypeTranslationBtn = document.getElementById("nextTypeTranslationBtn"), typeTranslationCounter = document.getElementById("typeTranslationCounter");
     const fillInTheBlanksGameContainer = document.getElementById("fillInTheBlanksGame"), fillInTheBlanksInstructions = document.getElementById("fillInTheBlanksInstructions"), fillInTheBlanksSentence = document.getElementById("fillInTheBlanksSentence"), fillInTheBlanksInput = document.getElementById("fillInTheBlanksInput"), checkFillInTheBlanksBtn = document.getElementById("checkFillInTheBlanksBtn"), fillInTheBlanksFeedback = document.getElementById("fillInTheBlanksFeedback"), nextFillInTheBlanksBtn = document.getElementById("nextFillInTheBlanksBtn"), fillInTheBlanksCounter = document.getElementById("fillInTheBlanksCounter");
@@ -1225,6 +1226,9 @@ async function fetchNotes() {
         }
 
         try {
+            console.log('🎯 saveNotes: currentlySelectedDeckId =', currentlySelectedDeckId);
+            console.log('🎯 saveNotes: currentDeck =', currentDeck);
+            
             const notesWithUser = notesToSave.map(note => ({
                 user_id: user.id,
                 term: note.lang1,
@@ -3913,7 +3917,13 @@ async function fetchNotes() {
                         isEssentialsMode = false;
                         setTimeout(() => {
                             uploadSection.classList.add('hidden');
-                            showGameSelection();
+                            if (uploadReturnLocation === 'games') {
+                                // Return to game selection with updated vocabulary
+                                showGameSelection();
+                            } else {
+                                // Default behavior - go to games
+                                showGameSelection();
+                            }
                         }, 1500);
                     }
                 } else {
@@ -5269,6 +5279,8 @@ async function fetchNotes() {
             }
 
             function handleMatchCardClick(cardElement) {
+                console.log('🎮 handleMatchCardClick: Clicked card', cardElement.textContent, 'selectedMatchCard:', selectedMatchCard?.textContent || 'none');
+                
                 if (cardElement.classList.contains('matched') || cardElement === selectedMatchCard) return;
 
                 // Speak target language words when clicked (if enabled and is target language)
@@ -5277,10 +5289,20 @@ async function fetchNotes() {
                 }
 
                 if (!selectedMatchCard) {
+                    // First card selection
                     selectedMatchCard = cardElement;
                     cardElement.classList.add('selected-match');
+                    console.log('🎮 First card selected:', cardElement.textContent);
                 } else {
-                    if (selectedMatchCard.dataset.id === cardElement.dataset.id) {
+                    // Second card selection - check for match
+                    const firstCardId = parseInt(selectedMatchCard.dataset.id);
+                    const secondCardId = parseInt(cardElement.dataset.id);
+                    
+                    console.log('🎮 Comparing cards:', firstCardId, 'vs', secondCardId);
+                    
+                    if (firstCardId === secondCardId) {
+                        // Correct match
+                        console.log('✅ Correct match!');
                         [selectedMatchCard, cardElement].forEach(el => {
                             el.classList.add('matched');
                             el.classList.remove('selected-match');
@@ -5295,7 +5317,8 @@ async function fetchNotes() {
                         updateScoreDisplay();
                         
                         // Update progress for spaced repetition
-                        const item = currentVocab[card1Id] || currentVocab[card2Id];
+                        const currentVocab = getCurrentMatchingVocab();
+                        const item = currentVocab[firstCardId] || currentVocab[secondCardId];
                         if (item) {
                             updateNoteProgress(item.lang1, item.lang2, true);
                         }
@@ -5332,35 +5355,43 @@ async function fetchNotes() {
                             }
                         }
                         
-                        // Reset selectedMatchCard after correct match
+                        // Reset selectedMatchCard immediately after correct match
                         selectedMatchCard = null;
+                        console.log('🎮 selectedMatchCard reset after correct match');
                     } else {
+                        // Incorrect match
+                        console.log('❌ Incorrect match!');
+                        
                         // Track wrong matches for bonus round
                         const gameState = window.matchingGameState;
                         if (gameState && !gameState.bonusRoundActive) {
-                            // Find the vocabulary items for this mismatch
-                            const card1Id = parseInt(selectedMatchCard.dataset.id);
-                            const card2Id = parseInt(cardElement.dataset.id);
-                            
                             // Add both items to wrong matches if not already there
                             const currentVocab = getCurrentMatchingVocab();
-                            if (currentVocab[card1Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card1Id].lang1)) {
-                                gameState.wrongMatches.push(currentVocab[card1Id]);
+                            if (currentVocab[firstCardId] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[firstCardId].lang1)) {
+                                gameState.wrongMatches.push(currentVocab[firstCardId]);
                                 // Update progress for incorrect match
-                                updateNoteProgress(currentVocab[card1Id].lang1, currentVocab[card1Id].lang2, false);
+                                updateNoteProgress(currentVocab[firstCardId].lang1, currentVocab[firstCardId].lang2, false);
                             }
-                            if (currentVocab[card2Id] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[card2Id].lang1)) {
-                                gameState.wrongMatches.push(currentVocab[card2Id]);
+                            if (currentVocab[secondCardId] && !gameState.wrongMatches.find(w => w.lang1 === currentVocab[secondCardId].lang1)) {
+                                gameState.wrongMatches.push(currentVocab[secondCardId]);
                                 // Update progress for incorrect match
-                                updateNoteProgress(currentVocab[card2Id].lang1, currentVocab[card2Id].lang2, false);
+                                updateNoteProgress(currentVocab[secondCardId].lang1, currentVocab[secondCardId].lang2, false);
                             }
                         }
                         
+                        // Show visual feedback for incorrect match
                         [selectedMatchCard, cardElement].forEach(el => el.classList.add('incorrect-match-animation'));
                         playIncorrectSound();
+                        
+                        // Reset state immediately to prevent timing issues
+                        const previousSelectedCard = selectedMatchCard;
+                        selectedMatchCard = null;
+                        console.log('🎮 selectedMatchCard reset after incorrect match');
+                        
                         setTimeout(() => {
-                            [selectedMatchCard, cardElement].forEach(el => el.classList.remove('incorrect-match-animation', 'selected-match'));
-                            selectedMatchCard = null;
+                            [previousSelectedCard, cardElement].forEach(el => {
+                                if (el) el.classList.remove('incorrect-match-animation', 'selected-match');
+                            });
                         }, 400);
                     }
                 }
@@ -6650,8 +6681,46 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
             if (notesFillUpBtn) {
                 notesFillUpBtn.addEventListener('click', handleFillUpTranslations);
             }
-            showUploadSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); uploadSection.classList.remove('hidden'); });
-            backToMainSelectionFromUploadBtn.addEventListener('click', showMainSelection);
+            showUploadSectionBtn.addEventListener('click', () => { 
+                uploadReturnLocation = 'main';
+                if (uploadSectionTitle) uploadSectionTitle.textContent = '1. Upload Vocabulary';
+                mainSelectionSection.classList.add('hidden'); 
+                uploadSection.classList.remove('hidden'); 
+            });
+            
+            // Add CSV to Current Deck button
+            if (addCsvToDeckBtn) {
+                addCsvToDeckBtn.addEventListener('click', () => {
+                    console.log('🔄 Add CSV to Current Deck clicked');
+                    console.log('🎯 currentlySelectedDeckId:', currentlySelectedDeckId);
+                    console.log('🎯 currentDeck:', currentDeck);
+                    
+                    if (!currentlySelectedDeckId) {
+                        alert('No deck selected. Please select a deck first.');
+                        return;
+                    }
+                    
+                    // Update title to show target deck
+                    const deckName = currentDeck?.name || 'Current Deck';
+                    if (uploadSectionTitle) uploadSectionTitle.textContent = `Add CSV to "${deckName}"`;
+                    
+                    // Set return location and show upload section
+                    uploadReturnLocation = 'games';
+                    gameSelectionSection.classList.add('hidden');
+                    uploadSection.classList.remove('hidden');
+                });
+            }
+            
+            backToMainSelectionFromUploadBtn.addEventListener('click', () => {
+                if (uploadReturnLocation === 'games') {
+                    // Return to game selection
+                    uploadSection.classList.add('hidden');
+                    gameSelectionSection.classList.remove('hidden');
+                } else {
+                    // Return to main selection
+                    showMainSelection();
+                }
+            });
             showEssentialsSectionBtn.addEventListener('click', () => { mainSelectionSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); isEssentialsMode = true; populateEssentialsCategoryButtons(); });
             backToMainSelectionFromEssentialsBtn.addEventListener('click', showMainSelection);
             backToEssentialsCategoriesBtn.addEventListener('click', () => { essentialsCategoryOptionsSection.classList.add('hidden'); essentialsCategorySelectionSection.classList.remove('hidden'); });
