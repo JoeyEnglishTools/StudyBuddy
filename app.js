@@ -7223,6 +7223,17 @@ if (languageSelectorInGame) {
                             // ALWAYS re-enable file upload after authentication, even if there were errors
                             isAuthenticating = false;
                             console.log('✅ Authentication process completed, file upload re-enabled');
+                            
+                            // Check for pending shared deck import after authentication
+                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                            if (pendingSharedDeckUrl) {
+                                console.log('📥 Processing pending shared deck import after authentication...');
+                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
+                                // Process the import with a slight delay to ensure UI is ready
+                                setTimeout(() => {
+                                    handleImportFromUrl(pendingSharedDeckUrl);
+                                }, 1000);
+                            }
                         }
                     } else {
                         console.log('❌ No user session, showing login');
@@ -7274,6 +7285,17 @@ if (languageSelectorInGame) {
                             const deckSidePanel = document.getElementById('deckSidePanel');
                             if (deckSidePanel) {
                                 deckSidePanel.classList.remove('open');
+                            }
+                        } else {
+                            // User is already authenticated, check for pending shared deck import
+                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                            if (pendingSharedDeckUrl) {
+                                console.log('📥 Processing pending shared deck import for already authenticated user...');
+                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
+                                // Process the import with a delay to ensure app is fully initialized
+                                setTimeout(() => {
+                                    handleImportFromUrl(pendingSharedDeckUrl);
+                                }, 2000);
                             }
                         }
                     }).catch(error => {
@@ -7434,56 +7456,76 @@ if (languageSelectorInGame) {
             });
 
             // QR Code Sharing and Import Functions
-// In app.js, replace the entire shareCurrentDeck function with this one
+            async function shareCurrentDeck() {
+                try {
+                    console.log('📤 Starting deck share process...');
+                    console.log('Current deck ID:', currentlySelectedDeckId);
+                    console.log('Current deck object:', currentDeck);
+                    console.log('Vocabulary length:', vocabulary ? vocabulary.length : 0);
+                    
+                    if (!currentlySelectedDeckId) {
+                        console.error('❌ No deck selected to share');
+                        alert('No deck selected to share. Please select a deck first.');
+                        return;
+                    }
 
-async function shareCurrentDeck() {
-    try {
-        console.log('📤 Starting deck share process...');
+                    // Get deck name from currentDeck or localStorage
+                    const deckName = currentDeck?.name || localStorage.getItem('lastSelectedDeckName') || 'Shared Deck';
+                    console.log('📤 Sharing deck:', currentlySelectedDeckId, 'Name:', deckName);
+                    
+                    // Get current deck vocabulary
+                    const deckVocab = vocabulary.filter(item => item.note_set_id === currentlySelectedDeckId);
+                    console.log('📋 Found vocabulary for deck:', deckVocab.length, 'items');
+                    
+                    if (deckVocab.length === 0) {
+                        console.error('❌ This deck is empty');
+                        alert('This deck is empty. Add some vocabulary before sharing.');
+                        return;
+                    }
 
-        // Ensure a deck is selected
-        if (!currentlySelectedDeckId) {
-            alert('No deck selected to share. Please select a deck first.');
-            return;
-        }
+                    // Prepare share data
+                    const shareData = {
+                        deck_name: deckName,
+                        notes: deckVocab.map(item => ({
+                            term: item.lang1,
+                            definition: item.lang2
+                        }))
+                    };
 
-        console.log('📤 Sharing deck ID:', currentlySelectedDeckId);
+                    console.log('📦 Sharing data:', {
+                        deck_name: shareData.deck_name,
+                        notes_count: shareData.notes.length
+                    });
 
-        // The body now only contains the deck_id, which is what the server expects.
-        const shareData = {
-            deck_id: currentlySelectedDeckId
-        };
+                    // Call Supabase Edge Function to create share
+                    console.log('🔄 Calling Supabase edge function...');
+                    const { data, error } = await supabaseClient.functions.invoke('share-deck', {
+                        body: shareData
+                    });
 
-        // Call Supabase Edge Function to create share
-        console.log('🔄 Calling Supabase edge function with body:', shareData);
-        const { data, error } = await supabaseClient.functions.invoke('share-deck', {
-            body: shareData
-        });
+                    if (error) {
+                        console.error('❌ Error creating share:', error);
+                        alert(`Failed to create share link: ${error.message || 'Please try again.'}`);
+                        return;
+                    }
 
-        if (error) {
-            console.error('❌ Error creating share:', error);
-            // Display the actual error message from the function
-            const errorMessage = error.context?.error?.message || 'Please try again.';
-            alert(`Failed to create share link: ${errorMessage}`);
-            return;
-        }
+                    if (!data || !data.share_url) {
+                        console.error('❌ No share URL returned from server');
+                        alert('Failed to create share link. Server did not return a URL.');
+                        return;
+                    }
 
-        if (!data || !data.share_url) {
-            console.error('❌ No share URL returned from server');
-            alert('Failed to create share link. Server did not return a URL.');
-            return;
-        }
+                    console.log('✅ Share created:', data);
+                    
+                    // Generate QR code and show modal
+                    const shareUrl = data.share_url;
+                    await showQRModal(shareUrl, shareData.deck_name);
 
-        console.log('✅ Share created:', data);
-
-        // Generate QR code and show modal
-        const deckName = currentDeck?.name || 'Shared Deck';
-        await showQRModal(data.share_url, deckName);
-
-    } catch (error) {
-        console.error('💥 Error sharing deck:', error);
-        alert(`Failed to share deck: ${error.message || 'Please check your connection and try again.'}`);
-    }
-}
+                } catch (error) {
+                    console.error('💥 Error sharing deck:', error);
+                    alert(`Failed to share deck: ${error.message || 'Please check your connection and try again.'}`);
+                }
+            }
 
             async function showQRModal(shareUrl, deckName) {
                 console.log('📱 Showing QR modal for:', deckName, shareUrl);
@@ -7599,35 +7641,38 @@ async function shareCurrentDeck() {
                 };
             }
 
-         async function handleImportFromUrl(url) {
-    try {
-        const urlParams = new URLSearchParams(new URL(url).search);
-        const shareId = urlParams.get('share'); // This can stay as shareId
+            async function handleImportFromUrl(url) {
+                try {
+                    console.log('📥 Importing from URL:', url);
+                    
+                    // Extract share ID from URL
+                    const urlParams = new URLSearchParams(new URL(url).search);
+                    const shareId = urlParams.get('share');
+                    
+                    if (!shareId) {
+                        alert('Invalid share link');
+                        return;
+                    }
 
-        if (!shareId) {
-            alert('Invalid share link');
-            return;
-        }
+                    // Call Supabase Edge Function to get shared data
+                    const { data, error } = await supabaseClient.functions.invoke('get-shared-deck', {
+                        body: { share_id: shareId }
+                    });
 
-        // The key in the body object must match what the server expects.
-        const { data, error } = await supabaseClient.functions.invoke('get-shared-deck', {
-            body: { share_token: shareId } // Changed from share_id to share_token
-        });
+                    if (error) {
+                        console.error('❌ Error fetching shared deck:', error);
+                        alert('Failed to load shared deck. The link may have expired.');
+                        return;
+                    }
 
-        if (error) {
-            console.error('❌ Error fetching shared deck:', error);
-            alert('Failed to load shared deck. The link may have expired.');
-            return;
-        }
+                    console.log('✅ Received shared deck:', data);
+                    await showImportModal(data);
 
-        console.log('✅ Received shared deck:', data);
-        await showImportModal(data);
-
-    } catch (error) {
-        console.error('💥 Error importing deck:', error);
-        alert('Failed to import deck. Please check the link and try again.');
-    }
-}
+                } catch (error) {
+                    console.error('💥 Error importing deck:', error);
+                    alert('Failed to import deck. Please check the link and try again.');
+                }
+            }
 
             async function showImportModal(sharedDeckData) {
                 const modal = document.getElementById('importDeckModal');
@@ -7770,11 +7815,9 @@ async function shareCurrentDeck() {
             const urlParams = new URLSearchParams(window.location.search);
             const shareId = urlParams.get('share');
             if (shareId) {
-                console.log('📥 Share link detected, preparing to import...');
-                // Wait for initialization then handle import
-                setTimeout(() => {
-                    handleImportFromUrl(window.location.href);
-                }, 1000);
+                console.log('📥 Share link detected, storing for post-authentication import...');
+                // Store the share URL for processing after authentication
+                localStorage.setItem('pendingSharedDeckUrl', window.location.href);
             }
 
         });
