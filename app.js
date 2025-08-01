@@ -829,9 +829,17 @@ async function fetchNotes() {
         // Fetch notes for this deck
         await fetchNotesByDeck(deckId);
         
-        // Always return to main selection after deck selection
-        // Let users choose their action (games, notes, etc.)
-        console.log('🏠 Returning to main selection after deck selection');
+        // Small delay to ensure vocabulary is fully loaded and DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Navigate to appropriate interface based on vocabulary count
+        console.log('🏠 Navigating to appropriate interface after deck selection');
+        console.log('📊 Final vocabulary check before navigation:', {
+            vocabularyLength: vocabulary?.length || 0,
+            vocabularyType: typeof vocabulary,
+            isArray: Array.isArray(vocabulary),
+            sampleVocab: vocabulary?.slice(0, 2) || []
+        });
         showMainSelection();
         
         // Close panel on all devices after deck selection
@@ -4976,6 +4984,8 @@ async function fetchNotes() {
     function hideAllGames() { [matchingGameContainer, memoryTestGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
     function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
     function showMainSelection() { 
+        console.log('🔍 showMainSelection: Called at', new Date().toISOString().substr(11, 12));
+        console.log('🔍 showMainSelection: Call stack:', new Error().stack?.split('\n').slice(1, 4).join(' -> '));
         console.log('showMainSelection: Showing main selection interface');
         console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
         console.log('showMainSelection: Current deck =', currentDeck?.name || 'none');
@@ -7212,9 +7222,8 @@ if (languageSelectorInGame) {
                                 hasContent: vocabulary && Array.isArray(vocabulary) && vocabulary.length > 0
                             });
 
-                            // Always show the deck management interface first
-                            // Users should be able to see their decks and manage them regardless of vocabulary state
-                            console.log('🏠 Showing deck management interface');
+                            // Always show the appropriate interface based on current deck state
+                            console.log('🏠 Showing appropriate interface based on deck state');
                             console.log('📊 Current state:', {
                                 vocabulary: vocabulary?.length || 0,
                                 userDecks: userDecks?.length || 0,
@@ -7225,12 +7234,12 @@ if (languageSelectorInGame) {
                             isEssentialsMode = false;
                             
                             // Hide all sections first
-                            [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea].forEach(el => {
+                            [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, mainSelectionSection].forEach(el => {
                                 if (el) el.classList.add('hidden');
                             });
                             
-                            // Show main deck management interface
-                            mainSelectionSection.classList.remove('hidden');
+                            // Use showMainSelection to handle proper navigation based on vocabulary count
+                            showMainSelection();
                         } catch (error) {
                             console.error('💥 Error during app initialization:', error);
                             console.error('💥 Error message:', error.message);
