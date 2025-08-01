@@ -829,16 +829,10 @@ async function fetchNotes() {
         // Fetch notes for this deck
         await fetchNotesByDeck(deckId);
         
-        // Check if we should auto-trigger games (6+ words)
-        if (vocabulary && vocabulary.length >= 6) {
-            console.log('🎮 Auto-triggering games: Found', vocabulary.length, 'words');
-            // Show game selection automatically
-            setTimeout(() => {
-                if (typeof showGameSelection === 'function') {
-                    showGameSelection();
-                }
-            }, 500); // Small delay to ensure UI is ready
-        }
+        // Always return to main selection after deck selection
+        // Let users choose their action (games, notes, etc.)
+        console.log('🏠 Returning to main selection after deck selection');
+        showMainSelection();
         
         // Close panel on all devices after deck selection
         if (isPanelOpen) {
@@ -6716,6 +6710,34 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                     uploadReturnLocation = 'games';
                     gameSelectionSection.classList.add('hidden');
                     uploadSection.classList.remove('hidden');
+                });
+            }
+            
+            // Add/Manage Notes from game section button
+            const addManageNotesFromGameBtn = document.getElementById('addManageNotesFromGameBtn');
+            if (addManageNotesFromGameBtn) {
+                addManageNotesFromGameBtn.addEventListener('click', () => {
+                    console.log('🔄 Add/Manage Notes from games clicked');
+                    // Track deck activity
+                    if (currentlySelectedDeckId) {
+                        trackDeckActivity(currentlySelectedDeckId, 'notes_management');
+                    }
+                    // Show notes management interface
+                    initializeNotesManagement();
+                });
+            }
+            
+            // Live Notes from game section button  
+            const liveNotesFromGameBtn = document.getElementById('liveNotesFromGameBtn');
+            if (liveNotesFromGameBtn) {
+                liveNotesFromGameBtn.addEventListener('click', () => {
+                    console.log('🔄 Live Notes from games clicked');
+                    // Track deck activity
+                    if (currentlySelectedDeckId) {
+                        trackDeckActivity(currentlySelectedDeckId, 'live_notes');
+                    }
+                    // Initialize Live Notes
+                    initializeLiveNotes();
                 });
             }
             
