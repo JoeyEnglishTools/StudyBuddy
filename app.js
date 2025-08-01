@@ -7437,20 +7437,22 @@ if (languageSelectorInGame) {
             async function shareCurrentDeck() {
                 try {
                     console.log('📤 Starting deck share process...');
-                    console.log('Current deck ID:', currentDeckId);
-                    console.log('Current deck name:', currentDeckName);
+                    console.log('Current deck ID:', currentlySelectedDeckId);
+                    console.log('Current deck object:', currentDeck);
                     console.log('Vocabulary length:', vocabulary ? vocabulary.length : 0);
                     
-                    if (!currentDeckId) {
+                    if (!currentlySelectedDeckId) {
                         console.error('❌ No deck selected to share');
                         alert('No deck selected to share. Please select a deck first.');
                         return;
                     }
 
-                    console.log('📤 Sharing deck:', currentDeckId);
+                    // Get deck name from currentDeck or localStorage
+                    const deckName = currentDeck?.name || localStorage.getItem('lastSelectedDeckName') || 'Shared Deck';
+                    console.log('📤 Sharing deck:', currentlySelectedDeckId, 'Name:', deckName);
                     
                     // Get current deck vocabulary
-                    const deckVocab = vocabulary.filter(item => item.deck_id === currentDeckId);
+                    const deckVocab = vocabulary.filter(item => item.deck_id === currentlySelectedDeckId);
                     console.log('📋 Found vocabulary for deck:', deckVocab.length, 'items');
                     
                     if (deckVocab.length === 0) {
@@ -7461,7 +7463,7 @@ if (languageSelectorInGame) {
 
                     // Prepare share data
                     const shareData = {
-                        deck_name: currentDeckName || 'Shared Deck',
+                        deck_name: deckName,
                         notes: deckVocab.map(item => ({
                             term: item.lang1,
                             definition: item.lang2
@@ -7733,7 +7735,7 @@ if (languageSelectorInGame) {
                     await importNotesToDeck(sharedDeckData.notes, deckId);
                     
                     // Refresh current deck if it's the one we imported to
-                    if (deckId === currentDeckId) {
+                    if (deckId === currentlySelectedDeckId) {
                         vocabulary = await fetchNotes();
                         renderNotes();
                     }
