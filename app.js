@@ -829,16 +829,10 @@ async function fetchNotes() {
         // Fetch notes for this deck
         await fetchNotesByDeck(deckId);
         
-        // Check if we should auto-trigger games (6+ words)
-        if (vocabulary && vocabulary.length >= 6) {
-            console.log('🎮 Auto-triggering games: Found', vocabulary.length, 'words');
-            // Show game selection automatically
-            setTimeout(() => {
-                if (typeof showGameSelection === 'function') {
-                    showGameSelection();
-                }
-            }, 500); // Small delay to ensure UI is ready
-        }
+        // Always return to main selection after deck selection
+        // Let users choose their action (games, notes, etc.)
+        console.log('🏠 Returning to main selection after deck selection');
+        showMainSelection();
         
         // Close panel on all devices after deck selection
         if (isPanelOpen) {
@@ -4920,15 +4914,10 @@ async function fetchNotes() {
     function hideAllGames() { [matchingGameContainer, memoryTestGameContainer, multipleChoiceGameContainer, typeTranslationGameContainer, talkToMeGameContainer, fillInTheBlanksGameContainer, findTheWordsGameContainer, gameOverMessage, roundCompleteMessageDiv, bonusRoundCountdownMessageDiv].forEach(el => el.classList.add('hidden')); }
     function showGameInfoBar() { [mistakeTrackerDiv, currentScoreDisplay, maxScoreDisplay].forEach(el => el.classList.remove('hidden')); }
     function showMainSelection() { 
-        // If user has existing vocabulary, skip main selection and go directly to games
-        if (vocabulary && vocabulary.length > 0) {
-            console.log('showMainSelection: User has existing vocabulary, redirecting to games');
-            showGameSelection();
-            return;
-        }
-        
         console.log('showMainSelection: Showing main selection interface');
         console.log('showMainSelection: isAuthenticating =', isAuthenticating, 'vocabulary.length =', vocabulary.length);
+        console.log('showMainSelection: Current deck =', currentDeck?.name || 'none');
+        
         mainSelectionSection.classList.remove('hidden'); 
         [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, partSelectionContainer].forEach(el => {
             if (el) el.classList.add('hidden');
@@ -4941,7 +4930,8 @@ async function fetchNotes() {
             isAuthenticating,
             vocabularyLength: vocabulary.length,
             vocabularyIsArray: Array.isArray(vocabulary),
-            vocabulary: vocabulary.slice(0, 2) // Show first 2 items for debugging
+            vocabulary: vocabulary.slice(0, 2), // Show first 2 items for debugging
+            currentDeck: currentDeck?.name || 'none'
         });
         
         if (!isEssentialsMode) {
@@ -4966,15 +4956,29 @@ async function fetchNotes() {
             activeVocabLength: activeVocab.length,
             activeVocabType: typeof activeVocab,
             activeVocabIsArray: Array.isArray(activeVocab),
-            activeVocab: activeVocab.slice(0, 2) // Show sample
+            activeVocab: activeVocab.slice(0, 2), // Show sample
+            hasMinimumForGames: activeVocab.length >= 6
         });
 
+        // Check if deck has minimum items for games (6+ items required)
         if (activeVocab.length === 0) { 
             console.log('❌ showGameSelection: No vocabulary found, showing no vocabulary message');
             noVocabularyMessage.classList.remove('hidden'); 
             gameButtonsContainer.classList.add('hidden'); 
+        } else if (!isEssentialsMode && activeVocab.length < 6) {
+            console.log('⚠️ showGameSelection: Insufficient vocabulary for games (need 6+), showing upload options');
+            // Show message about needing more items
+            noVocabularyMessage.innerHTML = `
+                <div class="text-center py-8">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Need More Words for Games</h3>
+                    <p class="text-gray-600 mb-4">You have ${activeVocab.length} word${activeVocab.length !== 1 ? 's' : ''} in "${currentDeck?.name || 'this deck'}". You need at least 6 words to play games.</p>
+                    <p class="text-sm text-gray-500">Add more words using the options below:</p>
+                </div>
+            `;
+            noVocabularyMessage.classList.remove('hidden'); 
+            gameButtonsContainer.classList.add('hidden');
         } else { 
-            console.log('✅ showGameSelection: Vocabulary found, showing game buttons');
+            console.log('✅ showGameSelection: Sufficient vocabulary found, showing game buttons');
             noVocabularyMessage.classList.add('hidden'); 
             gameButtonsContainer.classList.remove('hidden'); 
         }
@@ -6682,10 +6686,8 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                 notesFillUpBtn.addEventListener('click', handleFillUpTranslations);
             }
             showUploadSectionBtn.addEventListener('click', () => { 
-                uploadReturnLocation = 'main';
-                if (uploadSectionTitle) uploadSectionTitle.textContent = '1. Upload Vocabulary';
-                mainSelectionSection.classList.add('hidden'); 
-                uploadSection.classList.remove('hidden'); 
+                console.log('🔄 Upload My Own List clicked - navigating to games section');
+                showGameSelection();
             });
             
             // Add CSV to Current Deck button
@@ -6708,6 +6710,34 @@ document.getElementById('debugDbBtn')?.addEventListener('click', async function(
                     uploadReturnLocation = 'games';
                     gameSelectionSection.classList.add('hidden');
                     uploadSection.classList.remove('hidden');
+                });
+            }
+            
+            // Add/Manage Notes from game section button
+            const addManageNotesFromGameBtn = document.getElementById('addManageNotesFromGameBtn');
+            if (addManageNotesFromGameBtn) {
+                addManageNotesFromGameBtn.addEventListener('click', () => {
+                    console.log('🔄 Add/Manage Notes from games clicked');
+                    // Track deck activity
+                    if (currentlySelectedDeckId) {
+                        trackDeckActivity(currentlySelectedDeckId, 'notes_management');
+                    }
+                    // Show notes management interface
+                    initializeNotesManagement();
+                });
+            }
+            
+            // Live Notes from game section button  
+            const liveNotesFromGameBtn = document.getElementById('liveNotesFromGameBtn');
+            if (liveNotesFromGameBtn) {
+                liveNotesFromGameBtn.addEventListener('click', () => {
+                    console.log('🔄 Live Notes from games clicked');
+                    // Track deck activity
+                    if (currentlySelectedDeckId) {
+                        trackDeckActivity(currentlySelectedDeckId, 'live_notes');
+                    }
+                    // Initialize Live Notes
+                    initializeLiveNotes();
                 });
             }
             
@@ -7088,28 +7118,25 @@ if (languageSelectorInGame) {
                                 hasContent: vocabulary && Array.isArray(vocabulary) && vocabulary.length > 0
                             });
 
-                            // Enhanced check for existing vocabulary
-                            if (vocabulary && Array.isArray(vocabulary) && vocabulary.length > 0) {
-                                console.log('✅ User has existing vocabulary (' + vocabulary.length + ' notes), redirecting to game selection');
-                                console.log('✅ Sample vocabulary entries:', vocabulary.slice(0, 3));
-                                
-                                // Ensure we're not in essentials mode for user's own vocabulary
-                                isEssentialsMode = false;
-                                
-                                // Hide all sections first
-                                [mainSelectionSection, uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection].forEach(el => {
-                                    if (el) el.classList.add('hidden');
-                                });
-                                
-                                // Go directly to games section
-                                console.log('🎮 Calling showGameSelection()...');
-                                showGameSelection();
-                            } else {
-                                console.log('❌ User has no vocabulary, showing main selection (upload section)');
-                                console.log('❌ Vocabulary state:', { vocabulary, length: vocabulary?.length, type: typeof vocabulary });
-                                console.log('🏠 Calling showMainSelection()...');
-                                showMainSelection();
-                            }
+                            // Always show the deck management interface first
+                            // Users should be able to see their decks and manage them regardless of vocabulary state
+                            console.log('🏠 Showing deck management interface');
+                            console.log('📊 Current state:', {
+                                vocabulary: vocabulary?.length || 0,
+                                userDecks: userDecks?.length || 0,
+                                currentDeck: currentDeck?.name || 'none'
+                            });
+                            
+                            // Ensure we're not in essentials mode for user's own vocabulary
+                            isEssentialsMode = false;
+                            
+                            // Hide all sections first
+                            [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea].forEach(el => {
+                                if (el) el.classList.add('hidden');
+                            });
+                            
+                            // Show main deck management interface
+                            mainSelectionSection.classList.remove('hidden');
                         } catch (error) {
                             console.error('💥 Error during app initialization:', error);
                             console.error('💥 Error message:', error.message);
