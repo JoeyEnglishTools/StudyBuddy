@@ -2283,112 +2283,73 @@ async function fetchNotes() {
     
     // Update note progress for spaced repetition with skill-based tracking
     async function updateNoteProgress(term, definition, isCorrect, gameType = 'unknown') {
+        const category = GAME_CATEGORIES[gameType];
+        if (!category) {
+            console.warn(`No category for game type "${gameType}". Skipping progress update.`);
+            return;
+        }
+
         try {
             const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                console.error('❌ No user authenticated for progress update');
-                return false;
-            }
-            
-            console.log(`🎮 Updating progress for "${term}" - Game: ${gameType}, Correct: ${isCorrect}`);
-            
-            // Get current note data to check existing progress
-            const { data: existingNote, error: fetchError } = await supabaseClient
+            if (!user) return;
+
+            console.log(`🎮 Updating progress for "${term}" - Game: ${gameType}, Category: ${category}, Correct: ${isCorrect}`);
+
+            // 1. Get the current progress for the specific category
+            const { data: note, error: fetchError } = await supabaseClient
                 .from('notes')
-                .select('*')
+                .select(`${category}_ease_factor, ${category}_interval`)
                 .eq('user_id', user.id)
                 .eq('term', term)
                 .eq('definition', definition)
                 .single();
-            
+
             if (fetchError && fetchError.code !== 'PGRST116') {
-                console.error('❌ Error fetching existing note:', fetchError);
-                return false;
+                console.error('❌ Error fetching note for progress update:', fetchError);
+                return;
             }
+
+            // 2. Calculate new values based on correct/incorrect
+            let newEaseFactor, newInterval;
             
-            const now = new Date().toISOString();
-            let ease_factor, interval;
-            
-            // Initialize skill scores if not present
-            const skillScores = {
-                listening_score: existingNote?.listening_score || 0,
-                speaking_score: existingNote?.speaking_score || 0,
-                writing_score: existingNote?.writing_score || 0
-            };
-            
-            // Determine which skill category this game belongs to
-            const skillCategory = GAME_CATEGORIES[gameType];
-            if (!skillCategory) {
-                console.warn(`⚠️ Unknown game type: ${gameType}, defaulting to writing`);
-                skillCategory = 'writing';
-            }
-            
-            // Update score for current skill category
             if (isCorrect) {
-                switch (skillCategory) {
-                    case 'listening':
-                        skillScores.listening_score = 1;
-                        break;
-                    case 'speaking':
-                        skillScores.speaking_score = 1;
-                        break;
-                    case 'writing':
-                        skillScores.writing_score = 1;
-                        break;
-                }
+                // Get current values or defaults
+                const currentEaseFactor = note?.[`${category}_ease_factor`] || 1;
+                const currentInterval = note?.[`${category}_interval`] || 1;
+                
+                // Increase ease factor and interval on correct answer
+                newEaseFactor = Math.min(currentEaseFactor + 0.1, 2.5);
+                newInterval = Math.max(1, Math.round(currentInterval * newEaseFactor));
+                
+                console.log(`✅ "${term}" correct in ${category} - ease_factor: ${newEaseFactor}, interval: ${newInterval} days`);
             } else {
-                // Reset ALL skill scores on any mistake
-                skillScores.listening_score = 0;
-                skillScores.speaking_score = 0;
-                skillScores.writing_score = 0;
+                // Reset to minimal values on incorrect answer
+                newEaseFactor = 1.0;
+                newInterval = 1;
+                
+                console.log(`❌ "${term}" incorrect in ${category} - RESET - ease_factor: ${newEaseFactor}, interval: ${newInterval} day`);
             }
-            
-            // Check if user has mastered this word (scored on all 3 skill categories)
-            const totalScore = Object.values(skillScores).reduce((sum, score) => sum + score, 0);
-            const isMastered = totalScore >= 3; // All 3 skill categories scored
-            
-            if (isMastered) {
-                ease_factor = 5;
-                interval = 45;
-                console.log(`🎯 "${term}" MASTERED! All skills scored - ease_factor: ${ease_factor}, interval: ${interval} days`);
-            } else if (isCorrect) {
-                ease_factor = 2;
-                interval = 3; // Short interval until mastery
-                console.log(`✅ "${term}" correct in ${skillCategory} (${totalScore}/3 skills) - ease_factor: ${ease_factor}, interval: ${interval} days`);
-            } else {
-                ease_factor = 1;
-                interval = 1;
-                console.log(`❌ "${term}" incorrect - ALL SKILL SCORES RESET - ease_factor: ${ease_factor}, interval: ${interval} day`);
-            }
-            
-            // Calculate next review date
-            const nextReview = new Date();
-            nextReview.setDate(nextReview.getDate() + interval);
-            const nextReviewDate = nextReview.toISOString();
-            
-            // Update note with all skill scores and spaced repetition data
+
+            // 3. Update the database with the new values for this category
             const updateData = {
-                ease_factor: ease_factor,
-                interval: interval,
-                next_review: nextReviewDate,
-                last_reviewed: now,
-                ...skillScores
+                [`${category}_ease_factor`]: newEaseFactor,
+                [`${category}_interval`]: newInterval
             };
-            
+
             const { error } = await supabaseClient
                 .from('notes')
                 .update(updateData)
                 .eq('user_id', user.id)
                 .eq('term', term)
                 .eq('definition', definition);
-            
+
             if (error) {
                 console.error('❌ Error updating note progress:', error);
-                console.warn('⚠️ Note: This might be because skill score columns don\'t exist yet');
+                console.warn('⚠️ Note: This might be because skill-specific columns don\'t exist yet');
                 return false;
             }
-            
-            console.log(`📈 Successfully updated progress for "${term}" - Skills: ${JSON.stringify(skillScores)}, Interval: ${interval} days`);
+
+            console.log(`📈 Successfully updated ${category} progress for "${term}" - ease_factor: ${newEaseFactor}, interval: ${newInterval} days`);
             return true;
         } catch (error) {
             console.error('💥 Unexpected error updating note progress:', error);
