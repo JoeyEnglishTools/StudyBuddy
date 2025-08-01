@@ -7434,76 +7434,56 @@ if (languageSelectorInGame) {
             });
 
             // QR Code Sharing and Import Functions
-            async function shareCurrentDeck() {
-                try {
-                    console.log('📤 Starting deck share process...');
-                    console.log('Current deck ID:', currentlySelectedDeckId);
-                    console.log('Current deck object:', currentDeck);
-                    console.log('Vocabulary length:', vocabulary ? vocabulary.length : 0);
-                    
-                    if (!currentlySelectedDeckId) {
-                        console.error('❌ No deck selected to share');
-                        alert('No deck selected to share. Please select a deck first.');
-                        return;
-                    }
+// In app.js, replace the entire shareCurrentDeck function with this one
 
-                    // Get deck name from currentDeck or localStorage
-                    const deckName = currentDeck?.name || localStorage.getItem('lastSelectedDeckName') || 'Shared Deck';
-                    console.log('📤 Sharing deck:', currentlySelectedDeckId, 'Name:', deckName);
-                    
-                    // Get current deck vocabulary
-                    const deckVocab = vocabulary.filter(item => item.note_set_id === currentlySelectedDeckId);
-                    console.log('📋 Found vocabulary for deck:', deckVocab.length, 'items');
-                    
-                    if (deckVocab.length === 0) {
-                        console.error('❌ This deck is empty');
-                        alert('This deck is empty. Add some vocabulary before sharing.');
-                        return;
-                    }
+async function shareCurrentDeck() {
+    try {
+        console.log('📤 Starting deck share process...');
 
-                    // Prepare share data
-                    const shareData = {
-                        deck_name: deckName,
-                        notes: deckVocab.map(item => ({
-                            term: item.lang1,
-                            definition: item.lang2
-                        }))
-                    };
+        // Ensure a deck is selected
+        if (!currentlySelectedDeckId) {
+            alert('No deck selected to share. Please select a deck first.');
+            return;
+        }
 
-                    console.log('📦 Sharing data:', {
-                        deck_name: shareData.deck_name,
-                        notes_count: shareData.notes.length
-                    });
+        console.log('📤 Sharing deck ID:', currentlySelectedDeckId);
 
-                    // Call Supabase Edge Function to create share
-                    console.log('🔄 Calling Supabase edge function...');
-                    const { data, error } = await supabaseClient.functions.invoke('share-deck', {
-                        body: shareData
-                    });
+        // The body now only contains the deck_id, which is what the server expects.
+        const shareData = {
+            deck_id: currentlySelectedDeckId
+        };
 
-                    if (error) {
-                        console.error('❌ Error creating share:', error);
-                        alert(`Failed to create share link: ${error.message || 'Please try again.'}`);
-                        return;
-                    }
+        // Call Supabase Edge Function to create share
+        console.log('🔄 Calling Supabase edge function with body:', shareData);
+        const { data, error } = await supabaseClient.functions.invoke('share-deck', {
+            body: shareData
+        });
 
-                    if (!data || !data.share_url) {
-                        console.error('❌ No share URL returned from server');
-                        alert('Failed to create share link. Server did not return a URL.');
-                        return;
-                    }
+        if (error) {
+            console.error('❌ Error creating share:', error);
+            // Display the actual error message from the function
+            const errorMessage = error.context?.error?.message || 'Please try again.';
+            alert(`Failed to create share link: ${errorMessage}`);
+            return;
+        }
 
-                    console.log('✅ Share created:', data);
-                    
-                    // Generate QR code and show modal
-                    const shareUrl = data.share_url;
-                    await showQRModal(shareUrl, shareData.deck_name);
+        if (!data || !data.share_url) {
+            console.error('❌ No share URL returned from server');
+            alert('Failed to create share link. Server did not return a URL.');
+            return;
+        }
 
-                } catch (error) {
-                    console.error('💥 Error sharing deck:', error);
-                    alert(`Failed to share deck: ${error.message || 'Please check your connection and try again.'}`);
-                }
-            }
+        console.log('✅ Share created:', data);
+
+        // Generate QR code and show modal
+        const deckName = currentDeck?.name || 'Shared Deck';
+        await showQRModal(data.share_url, deckName);
+
+    } catch (error) {
+        console.error('💥 Error sharing deck:', error);
+        alert(`Failed to share deck: ${error.message || 'Please check your connection and try again.'}`);
+    }
+}
 
             async function showQRModal(shareUrl, deckName) {
                 console.log('📱 Showing QR modal for:', deckName, shareUrl);
