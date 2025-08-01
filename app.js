@@ -7485,6 +7485,7 @@ if (languageSelectorInGame) {
 
                     // Prepare share data
                     const shareData = {
+                        deck_id: currentlySelectedDeckId,
                         deck_name: deckName,
                         notes: deckVocab.map(item => ({
                             term: item.lang1,
@@ -7493,6 +7494,7 @@ if (languageSelectorInGame) {
                     };
 
                     console.log('📦 Sharing data:', {
+                        deck_id: shareData.deck_id,
                         deck_name: shareData.deck_name,
                         notes_count: shareData.notes.length
                     });
