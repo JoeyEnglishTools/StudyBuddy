@@ -376,58 +376,45 @@ async function fetchNotes() {
  async function fetchUserDecks() {
         console.log('🗂️ Fetching user decks...');
         
-        return new Promise(async (resolve, reject) => {
-            // Set a 15-second timeout for the entire function
-            const timeout = setTimeout(() => {
-                console.error('❌ CRITICAL: fetchUserDecks function timed out after 15 seconds.');
-                reject(new Error('Fetching decks took too long. Please check your network connection.'));
-            }, 15000);
-
-            try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) {
-                    console.error('❌ No user authenticated in fetchUserDecks');
-                    clearTimeout(timeout);
-                    return resolve([]); // Resolve with empty array if no user
-                }
-                console.log('  -> User authenticated for fetching decks:', user.email);
-
-                const tableExists = await ensureNoteSetsTableExists();
-                if (!tableExists) {
-                    console.log('  -> note_sets table does not exist. Returning empty array.');
-                    clearTimeout(timeout);
-                    return resolve([]);
-                }
-                console.log('  -> note_sets table confirmed to exist.');
-
-                console.log('  -> Querying for decks...');
-                const { data, error } = await supabaseClient
-                    .from('note_sets')
-                    .select('*, notes_count:notes(count)')
-                    .eq('user_id', user.id)
-                    .order('created_at', { ascending: false });
-                
-                if (error) {
-                    console.error('❌ Error fetching decks from Supabase:', error);
-                    clearTimeout(timeout);
-                    return reject(error); // Reject the promise on error
-                }
-                
-                console.log('  -> Deck query successful. Processing results...');
-                const decksWithCounts = data?.map(deck => ({
-                    ...deck,
-                    notes_count: deck.notes_count?.[0]?.count || 0
-                })) || [];
-                
-                console.log('✅ Fetched decks successfully:', decksWithCounts.length, 'decks found.');
-                clearTimeout(timeout);
-                resolve(decksWithCounts); // Resolve the promise with the decks
-            } catch (err) {
-                console.error('💥 A critical error occurred in fetchUserDecks:', err);
-                clearTimeout(timeout);
-                reject(err); // Reject the promise on a critical error
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                console.error('❌ No user authenticated in fetchUserDecks');
+                return []; // Return empty array if no user
             }
-        });
+            console.log('  -> User authenticated for fetching decks:', user.email);
+
+            const tableExists = await ensureNoteSetsTableExists();
+            if (!tableExists) {
+                console.log('  -> note_sets table does not exist. Returning empty array.');
+                return [];
+            }
+            console.log('  -> note_sets table confirmed to exist.');
+
+            console.log('  -> Querying for decks...');
+            const { data, error } = await supabaseClient
+                .from('note_sets')
+                .select('*, notes_count:notes(count)')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.error('❌ Error fetching decks from Supabase:', error);
+                throw error; // Throw error to be caught by caller
+            }
+            
+            console.log('  -> Deck query successful. Processing results...');
+            const decksWithCounts = data?.map(deck => ({
+                ...deck,
+                notes_count: deck.notes_count?.[0]?.count || 0
+            })) || [];
+            
+            console.log('✅ Fetched decks successfully:', decksWithCounts.length, 'decks found.');
+            return decksWithCounts;
+        } catch (err) {
+            console.error('💥 A critical error occurred in fetchUserDecks:', err);
+            throw err; // Re-throw error to be handled by caller
+        }
     }
     
     // Create a new deck
@@ -840,7 +827,17 @@ async function fetchNotes() {
             }
             
             // Refresh decks list
-            userDecks = await fetchUserDecks();
+            console.log('🔄 Refreshing decks list after deletion...');
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Refreshing decks list took too long.'));
+                }, 10000); // 10 second timeout for refresh
+            });
+            
+            userDecks = await Promise.race([
+                fetchUserDecks(),
+                timeoutPromise
+            ]);
             renderDecks(userDecks);
             
             // If no decks left, show welcome modal
@@ -983,8 +980,18 @@ async function fetchNotes() {
                 return;
             }
             
-            // Fetch user's decks
-            userDecks = await fetchUserDecks();
+            // Fetch user's decks with timeout
+            console.log('🔄 Fetching user decks...');
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Fetching decks took too long. Please check your network connection.'));
+                }, 15000); // 15 second timeout
+            });
+            
+            userDecks = await Promise.race([
+                fetchUserDecks(),
+                timeoutPromise
+            ]);
             console.log('📚 User decks:', userDecks);
             
             if (userDecks.length === 0) {
