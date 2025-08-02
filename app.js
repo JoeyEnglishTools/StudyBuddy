@@ -8120,28 +8120,46 @@ if (languageSelectorInGame) {
                     }
                     
                     // Get user language preferences with fallbacks
-       async function importToNewDeck(sharedDeckData) {
+      async function importToNewDeck(sharedDeckData) {
     try {
-        // Step 1: Validate the data
-        if (!sharedDeckData.notes) {
+        console.log('📁 Starting import to new deck process...');
+        
+        if (!sharedDeckData || !sharedDeckData.notes || !Array.isArray(sharedDeckData.notes)) {
             throw new Error('Invalid shared deck data structure');
         }
 
-        // Step 2: Create the deck
-        const newDeck = await createDeck(...);
-        if (!newDeck) {
-            throw new Error('Failed to create new deck');
+        if (sharedDeckData.notes.length === 0) {
+            throw new Error('Shared deck contains no notes to import');
         }
 
-        // Step 3: Import the notes
-        await importNotesToDeck(...);
+        const deckName = prompt('Enter name for new deck:', sharedDeckData.deck_name || 'Imported Deck');
+        if (!deckName || deckName.trim() === '') {
+            console.log('📁 Import cancelled by user (no deck name provided)');
+            return;
+        }
+        
+        const nativeLanguage = localStorage.getItem('user_native_language') || 'EN';
+        const learningLanguage = sharedDeckData.language || 'en-GB';
+        
+        console.log('📁 Creating new deck with preferences:', { nativeLanguage, learningLanguage });
+        
+        const newDeck = await createDeck(deckName.trim(), learningLanguage, nativeLanguage);
+        
+        if (!newDeck || !newDeck.id) {
+            throw new Error('Failed to create new deck - no deck ID returned');
+        }
 
-        // Step 4: Show success message
-        alert('Successfully imported!');
+        await importNotesToDeck(sharedDeckData.notes, newDeck.id);
+
+        userDecks = await fetchUserDecks();
+        renderDecks(userDecks);
+
+        await selectDeck(newDeck.id, newDeck.name, newDeck.language);
+
+        document.getElementById('importDeckModal').classList.add('hidden');
+        alert(`Successfully imported ${sharedDeckData.notes.length} notes to new deck "${deckName}".\n\nYour new deck has been created and selected. You can now start studying.`);
 
     } catch (error) {
-        // If ANY of the steps above fail, the code jumps directly here.
-        // It then shows an alert with the specific error message.
         console.error('💥 Error importing to new deck:', error);
         alert(`Failed to import deck. ${error.message}. Please try again.`);
     }
