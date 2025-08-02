@@ -70,24 +70,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check QRCode library availability early
     let qrCodeCheckRetries = 0;
+    let qrCodeLibraryAvailable = false;
+    
     const checkQRCodeLibrary = () => {
         if (typeof QRCode !== 'undefined') {
             console.log('✅ QRCode library loaded successfully');
+            qrCodeLibraryAvailable = true;
             return true;
         } else {
             qrCodeCheckRetries++;
-            console.warn(`⚠️ QRCode library not loaded (attempt ${qrCodeCheckRetries}/10)`);
-            if (qrCodeCheckRetries < 10) {
-                setTimeout(checkQRCodeLibrary, 100);
+            if (qrCodeCheckRetries <= 3) { // Reduced retries from 10 to 3
+                console.warn(`⚠️ QRCode library not loaded (attempt ${qrCodeCheckRetries}/3)`);
+                setTimeout(checkQRCodeLibrary, 500); // Increased delay
             } else {
-                console.error('❌ QRCode library failed to load after 10 attempts');
+                console.warn('⚠️ QRCode library failed to load - will use copy-link fallback');
+                qrCodeLibraryAvailable = false;
             }
             return false;
         }
     };
     
     // Start checking for QRCode library
-    setTimeout(checkQRCodeLibrary, 100);
+    setTimeout(checkQRCodeLibrary, 200);
 
     // Initialize cache status display
     const initializeCacheStatus = () => {
@@ -7585,14 +7589,10 @@ if (languageSelectorInGame) {
                 }
 
                 try {
-                    // Check if QRCode library is loaded
-                    if (typeof QRCode === 'undefined') {
-                        console.warn('⚠️ QRCode library not loaded, attempting to wait...');
-                        // Wait a bit for library to load
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        if (typeof QRCode === 'undefined') {
-                            throw new Error('QRCode library failed to load');
-                        }
+                    // Check if QRCode library is loaded with shorter wait
+                    if (!qrCodeLibraryAvailable && typeof QRCode === 'undefined') {
+                        console.warn('⚠️ QRCode library not available - using fallback');
+                        throw new Error('QRCode library not available');
                     }
 
                     // Clear any existing QR code
@@ -7622,15 +7622,16 @@ if (languageSelectorInGame) {
 
                 } catch (error) {
                     console.error('❌ Error generating QR code:', error);
-                    // Show error message in modal with more detailed feedback
-                    const errorMsg = error.message.includes('QRCode library') 
-                        ? 'QR Code library failed to load. Please refresh the page and try again.'
-                        : 'Failed to generate QR code';
+                    // Show friendly fallback message when QR code fails
+                    const errorMsg = error.message.includes('QRCode') || error.message.includes('library')
+                        ? 'QR Code not available - network issue'
+                        : 'QR Code generation failed';
                     
                     document.getElementById('qrCodeContainer').innerHTML = `
-                        <div class="text-center text-red-500 text-sm p-4 border border-red-200 rounded">
-                            ❌ ${errorMsg}<br>
-                            <span class="text-xs">You can still copy the link below</span>
+                        <div class="text-center text-blue-600 text-sm p-6 border border-blue-200 rounded bg-blue-50">
+                            <div class="text-2xl mb-2">📱</div>
+                            <div class="font-medium">${errorMsg}</div>
+                            <div class="text-xs text-gray-600 mt-1">Copy the link below and share it directly</div>
                         </div>
                     `;
                 }
@@ -7776,10 +7777,15 @@ if (languageSelectorInGame) {
                     // Import notes to new deck
                     await importNotesToDeck(sharedDeckData.notes, newDeck.id);
                     
-                    // Update UI
+                    // Refresh UI and deck list
                     userDecks = await fetchUserDecks();
                     renderDecks(userDecks);
+                    
+                    // Select the new deck and refresh vocabulary
                     await selectDeck(newDeck.id, newDeck.name, newDeck.language);
+                    
+                    // Force vocabulary refresh to show imported notes
+                    await fetchNotes();
                     
                     document.getElementById('importDeckModal').classList.add('hidden');
                     alert(`Successfully imported ${sharedDeckData.notes.length} notes to new deck "${deckName}"`);
@@ -7796,9 +7802,14 @@ if (languageSelectorInGame) {
                     
                     // Refresh current deck if it's the one we imported to
                     if (deckId === currentlySelectedDeckId) {
+                        console.log('🔄 Refreshing vocabulary for current deck after import');
                         vocabulary = await fetchNotes();
                         renderNotes();
                     }
+                    
+                    // Also refresh userDecks to ensure note count is updated
+                    userDecks = await fetchUserDecks();
+                    renderDecks(userDecks);
                     
                     document.getElementById('importDeckModal').classList.add('hidden');
                     alert(`Successfully imported ${sharedDeckData.notes.length} notes to selected deck`);
@@ -7815,7 +7826,7 @@ if (languageSelectorInGame) {
                 
                 const notesToInsert = notes.map(note => ({
                     user_id: user.id,
-                    deck_id: deckId,
+                    note_set_id: deckId, // Fixed: use note_set_id instead of deck_id
                     term: note.term,
                     definition: note.definition,
                     created_at: new Date().toISOString()
