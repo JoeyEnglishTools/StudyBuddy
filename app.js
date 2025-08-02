@@ -7581,6 +7581,7 @@ if (languageSelectorInGame) {
                             </div>
                             <div class="flex gap-3">
                                 <button id="closeQrModalBtn" class="flex-1 btn btn-secondary">Close</button>
+                                <button id="nativeShareBtn" class="flex-1 btn btn-primary hidden">📤 Share</button>
                             </div>
                             <p class="text-xs text-center text-gray-500 mt-3">⏰ This link expires in 10 minutes</p>
                         </div>
@@ -7590,40 +7591,37 @@ if (languageSelectorInGame) {
 
                 try {
                     // Check if EasyQRCodeJS library is loaded
-                    if (!qrCodeLibraryAvailable && typeof QRCode === 'undefined') {
-                        console.warn('⚠️ EasyQRCodeJS library not available - using fallback');
+                    if (typeof QRCode !== 'undefined') {
+                        // Clear any existing QR code
+                        const qrContainer = document.getElementById('qrCodeContainer');
+                        qrContainer.innerHTML = ''; // Clear previous QR codes
+                        
+                        // Generate QR code using EasyQRCodeJS
+                        console.log('🔄 Generating QR code with EasyQRCodeJS...');
+                        new QRCode(qrContainer, {
+                            text: shareUrl,
+                            width: 200,
+                            height: 200,
+                            colorDark: "#000000",
+                            colorLight: "#ffffff",
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+
+                        console.log('✅ QR code generated successfully');
+                    } else {
                         throw new Error('EasyQRCodeJS library not available');
                     }
 
-                    // Clear any existing QR code
-                    const qrContainer = document.getElementById('qrCodeContainer');
-                    qrContainer.innerHTML = ''; // Clear previous QR codes
-                    
-                    // Generate QR code using EasyQRCodeJS
-                    console.log('🔄 Generating QR code with EasyQRCodeJS...');
-                    new QRCode(qrContainer, {
-                        text: shareUrl,
-                        width: 200,
-                        height: 200,
-                        colorDark: "#000000",
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
-                    });
-
-                    console.log('✅ QR code generated successfully');
-
                 } catch (error) {
                     console.error('❌ Error generating QR code:', error);
-                    // Show friendly fallback message when QR code fails
-                    const errorMsg = error.message.includes('QRCode') || error.message.includes('library')
-                        ? 'QR Code not available - network issue'
-                        : 'QR Code generation failed';
-                    
+                    // Enhanced fallback UI with better presentation
                     document.getElementById('qrCodeContainer').innerHTML = `
                         <div class="text-center text-blue-600 text-sm p-6 border border-blue-200 rounded bg-blue-50">
-                            <div class="text-2xl mb-2">📱</div>
-                            <div class="font-medium">${errorMsg}</div>
-                            <div class="text-xs text-gray-600 mt-1">Copy the link below and share it directly</div>
+                            <div class="text-4xl mb-3">📲</div>
+                            <div class="font-medium text-lg mb-2">Share Link Ready</div>
+                            <div class="text-sm text-gray-600 mb-3">QR code unavailable due to network restrictions</div>
+                            <div class="bg-white p-3 rounded border text-xs font-mono break-all">${shareUrl}</div>
+                            <div class="text-xs text-gray-500 mt-2">Copy the link below to share directly</div>
                         </div>
                     `;
                 }
@@ -7658,6 +7656,25 @@ if (languageSelectorInGame) {
                         }, 2000);
                     }
                 };
+
+                // Add native share functionality where supported
+                const nativeShareBtn = document.getElementById('nativeShareBtn');
+                if (navigator.share) {
+                    nativeShareBtn.classList.remove('hidden');
+                    nativeShareBtn.onclick = async () => {
+                        try {
+                            await navigator.share({
+                                title: `StudyBuddy Deck: ${deckName}`,
+                                text: `Check out this vocabulary deck I'm sharing with you!`,
+                                url: shareUrl
+                            });
+                        } catch (error) {
+                            if (error.name !== 'AbortError') {
+                                console.error('Native share failed:', error);
+                            }
+                        }
+                    };
+                }
 
                 closeBtn.onclick = () => {
                     qrModal.classList.add('hidden');
@@ -7697,6 +7714,17 @@ if (languageSelectorInGame) {
                     }
 
                     console.log('✅ Received shared deck:', data);
+                    
+                    // Add comprehensive debugging for shared deck data structure
+                    console.log('🔍 Shared deck detailed analysis:', {
+                        dataKeys: Object.keys(data || {}),
+                        hasNotes: data && data.notes && Array.isArray(data.notes),
+                        notesLength: data && data.notes ? data.notes.length : 'N/A',
+                        hasDeck: data && data.deck && typeof data.deck === 'object',
+                        deckKeys: data && data.deck ? Object.keys(data.deck) : 'N/A',
+                        fullDataStructure: data
+                    });
+                    
                     await showImportModal(data);
 
                 } catch (error) {
@@ -7828,6 +7856,12 @@ if (languageSelectorInGame) {
             }
 
             async function importNotesToDeck(notes, deckId) {
+                console.log('📝 Starting importNotesToDeck with:', {
+                    notesCount: notes?.length || 0,
+                    deckId,
+                    sampleNotes: notes?.slice(0, 3) || []
+                });
+                
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (!user) throw new Error('No user authenticated');
                 
@@ -7838,6 +7872,11 @@ if (languageSelectorInGame) {
                     definition: note.definition,
                     created_at: new Date().toISOString()
                 }));
+                
+                console.log('📤 Inserting notes to database:', {
+                    notesToInsertCount: notesToInsert.length,
+                    sampleInsertData: notesToInsert.slice(0, 2)
+                });
                 
                 const { error } = await supabaseClient
                     .from('notes')
