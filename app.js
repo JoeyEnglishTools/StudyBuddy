@@ -7157,6 +7157,29 @@ if (languageSelectorInGame) {
             isAuthenticating = false;
             vocabulary = [];
             
+            // Enhanced share link detection with debugging - moved before Supabase check
+            console.log('🔍 Analyzing URL for shared deck parameters...');
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareId = urlParams.get('share');
+            console.log('🔍 URL Analysis:', {
+                fullUrl: window.location.href,
+                searchParams: window.location.search,
+                shareId: shareId,
+                allParams: Object.fromEntries(urlParams.entries())
+            });
+            
+            if (shareId) {
+                console.log('📥 Share link detected! Share ID:', shareId);
+                console.log('📥 Storing shared deck URL for post-authentication import:', window.location.href);
+                // Store the share URL for processing after authentication
+                localStorage.setItem('pendingSharedDeckUrl', window.location.href);
+                
+                // Immediate check if this is a shared deck access without authentication
+                console.warn('⚠️ Share link detected, checking Supabase availability...');
+            } else {
+                console.log('ℹ️ No share link detected in URL');
+            }
+
             // Check if Supabase is available before setting up auth
             if (supabaseClient) {
                 console.log('🔐 Supabase client available, setting up authentication...');
@@ -7217,13 +7240,29 @@ if (languageSelectorInGame) {
             }
         }
     });
-                // Check if page was opened via share link BEFORE session check
+                // Enhanced share link detection with debugging
                 const urlParams = new URLSearchParams(window.location.search);
                 const shareId = urlParams.get('share');
+                console.log('🔍 URL Analysis:', {
+                    fullUrl: window.location.href,
+                    searchParams: window.location.search,
+                    shareId: shareId,
+                    allParams: Object.fromEntries(urlParams.entries())
+                });
+                
                 if (shareId) {
-                    console.log('📥 Share link detected, storing for post-authentication import...');
+                    console.log('📥 Share link detected! Share ID:', shareId);
+                    console.log('📥 Storing shared deck URL for post-authentication import:', window.location.href);
                     // Store the share URL for processing after authentication
                     localStorage.setItem('pendingSharedDeckUrl', window.location.href);
+                    
+                    // Immediate check if this is a shared deck access without authentication
+                    if (!supabaseClient) {
+                        console.warn('⚠️ Share link detected but Supabase client not available!');
+                        console.log('🔧 Debug info: External CDN resources may be blocked. Shared deck import will be attempted after login.');
+                    }
+                } else {
+                    console.log('ℹ️ No share link detected in URL');
                 }
 
                 // Check current session on page load
@@ -7373,6 +7412,21 @@ if (languageSelectorInGame) {
                 });
             } else {
                 console.error('❌ Supabase not available - authentication will not work');
+                
+                // Enhanced debugging for shared deck scenarios
+                const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                if (pendingSharedDeckUrl) {
+                    console.error('💥 CRITICAL: Shared deck import requested but Supabase unavailable!');
+                    console.error('🔗 Pending shared deck URL:', pendingSharedDeckUrl);
+                    console.error('🛠️ This usually means external CDN resources are blocked');
+                    console.error('📋 To fix: Enable access to cdn.jsdelivr.net and supabase CDNs');
+                    
+                    // Show user-friendly error for shared deck scenario
+                    setTimeout(() => {
+                        showSharedDeckConnectionError(pendingSharedDeckUrl);
+                    }, 1000);
+                }
+                
                 // Fallback: ensure login is shown when Supabase is not available
                 loginSection.classList.remove('hidden');
                 appContent.classList.add('hidden');
@@ -7389,22 +7443,146 @@ if (languageSelectorInGame) {
                 if (deckSidePanel) {
                     deckSidePanel.classList.remove('open');
                 }
-                // Disable login functionality
+                // Disable login functionality with better messaging
                 if (authForm) {
                     authForm.addEventListener('submit', (e) => {
                         e.preventDefault();
-                        authError.textContent = 'Authentication service is currently unavailable.';
+                        authError.textContent = 'Connection services are currently unavailable. Please check your network connection or try again later.';
                     });
                 }
                 if (googleLoginBtn) {
                     googleLoginBtn.addEventListener('click', (e) => {
                         e.preventDefault();
-                        authError.textContent = 'Google login is currently unavailable.';
+                        authError.textContent = 'External login services are currently blocked. Please check your network settings.';
                     });
                 }
             }
 
-            // Initialize session validation if Supabase is available
+            // Show specific error modal for shared deck connection issues
+            function showSharedDeckConnectionError(sharedDeckUrl) {
+                console.log('🚨 Showing shared deck connection error modal');
+                
+                let errorModal = document.getElementById('sharedDeckConnectionErrorModal');
+                if (!errorModal) {
+                    errorModal = document.createElement('div');
+                    errorModal.id = 'sharedDeckConnectionErrorModal';
+                    errorModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+                    errorModal.style.zIndex = '2300';
+                    document.body.appendChild(errorModal);
+                }
+
+                errorModal.innerHTML = `
+                    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg mx-4">
+                        <div class="flex items-center mb-4">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                </svg>
+                            </div>
+                            <h3 class="ml-3 text-lg font-medium text-gray-900">Shared Deck Connection Issue</h3>
+                        </div>
+                        <div class="mb-6">
+                            <p class="text-sm text-gray-600 mb-4">
+                                You clicked on a shared deck link, but we're unable to connect to the required services to import it. This is likely due to network restrictions blocking external resources.
+                            </p>
+                            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm text-yellow-700">
+                                            <strong>Technical Issue:</strong> External CDN resources (Supabase, Tailwind CSS) are being blocked. This prevents the app from connecting to the database to import shared decks.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                                <h4 class="text-sm font-medium text-blue-800 mb-2">To fix this issue:</h4>
+                                <ul class="text-sm text-blue-700 space-y-1">
+                                    <li>• Check your network connection</li>
+                                    <li>• Disable ad blockers or VPN temporarily</li>
+                                    <li>• Try a different network or device</li>
+                                    <li>• Contact the person who shared the deck for help</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <button id="copySharedUrlBtn" class="w-full btn btn-primary">
+                                📋 Copy Shared Deck URL
+                            </button>
+                            <button id="retryConnectionBtn" class="w-full btn btn-secondary">
+                                🔄 Retry Connection
+                            </button>
+                            <button id="closeConnectionErrorBtn" class="w-full btn btn-outline text-sm">
+                                Continue Without Import
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Add event listeners
+                const copyBtn = errorModal.querySelector('#copySharedUrlBtn');
+                const retryBtn = errorModal.querySelector('#retryConnectionBtn');
+                const closeBtn = errorModal.querySelector('#closeConnectionErrorBtn');
+
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(sharedDeckUrl);
+                        copyBtn.textContent = '✅ URL Copied!';
+                        copyBtn.classList.remove('btn-primary');
+                        copyBtn.classList.add('btn-success');
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋 Copy Shared Deck URL';
+                            copyBtn.classList.remove('btn-success');
+                            copyBtn.classList.add('btn-primary');
+                        }, 2000);
+                    } catch (error) {
+                        console.error('Failed to copy URL:', error);
+                        // Fallback for older browsers
+                        prompt('Copy this shared deck URL:', sharedDeckUrl);
+                    }
+                };
+
+                retryBtn.onclick = () => {
+                    errorModal.remove();
+                    window.location.reload();
+                };
+
+                closeBtn.onclick = () => {
+                    errorModal.remove();
+                    localStorage.removeItem('pendingSharedDeckUrl');
+                };
+
+                // Show modal
+                errorModal.classList.remove('hidden');
+                console.log('✅ Shared deck connection error modal displayed');
+            }
+
+            // Enhanced error handling for shared deck import issues
+            async function handleSharedDeckImportError(error, context = '') {
+                console.error('💥 Shared deck import error:', error);
+                console.error('📍 Context:', context);
+                
+                // Log detailed error information for debugging
+                console.error('🔍 Error details:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack,
+                    supabaseAvailable: !!supabaseClient,
+                    currentUrl: window.location.href,
+                    timestamp: new Date().toISOString()
+                });
+                
+                if (!supabaseClient) {
+                    showSharedDeckConnectionError(window.location.href);
+                } else {
+                    // Use existing error handling
+                    await showImportErrorModal(error.message || 'An unexpected error occurred during import.');
+                }
+            }
             if (supabaseClient) {
                 setupSessionValidation();
             }
@@ -7735,100 +7913,126 @@ if (languageSelectorInGame) {
                 const retryDelay = 2000; // 2 seconds
                 
                 try {
-                    console.log('📥 Importing from URL:', url, retryCount ? `(retry ${retryCount}/${maxRetries})` : '');
+                    console.log('📥 SHARED DECK IMPORT STARTED');
+                    console.log('🔗 Import URL:', url);
+                    console.log('🔄 Retry count:', retryCount ? `${retryCount}/${maxRetries}` : '0 (first attempt)');
+                    console.log('🏗️ Supabase client available:', !!supabaseClient);
                     
                     // Extract share ID from URL with better validation
                     let shareId;
                     try {
                         const urlParams = new URLSearchParams(new URL(url).search);
                         shareId = urlParams.get('share');
+                        console.log('🆔 Extracted share ID:', shareId);
                     } catch (urlError) {
                         console.error('❌ Invalid URL format:', urlError);
-                        await showImportErrorModal('Invalid share link format. Please check the URL and try again.');
+                        await handleSharedDeckImportError(urlError, 'URL parsing');
                         return;
                     }
                     
                     if (!shareId || shareId.trim() === '') {
-                        console.error('❌ No share ID found in URL');
-                        await showImportErrorModal('Invalid share link. The link appears to be missing required information.');
+                        const error = new Error('No share ID found in URL');
+                        console.error('❌ Share ID validation failed');
+                        await handleSharedDeckImportError(error, 'Share ID validation');
                         return;
                     }
 
-                    // Validate Supabase client before making API call
+                    // Enhanced Supabase client validation
                     if (!supabaseClient) {
-                        console.error('❌ Supabase client not available');
-                        await showImportErrorModal('Connection service unavailable. Please refresh the page and try again.');
+                        const error = new Error('Supabase client not available - external CDN resources may be blocked');
+                        console.error('❌ Supabase client check failed');
+                        await handleSharedDeckImportError(error, 'Supabase client validation');
                         return;
                     }
 
                     // Show loading indicator
+                    console.log('⏳ Showing loading modal for share ID:', shareId);
                     showImportLoadingModal(shareId);
 
                     // Call Supabase Edge Function to get shared data with timeout
+                    console.log('📡 Calling Supabase edge function: get-shared-deck');
                     const apiCallPromise = supabaseClient.functions.invoke('get-shared-deck', {
                         body: { share_id: shareId.trim() }
                     });
                     
                     const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Request timeout')), 15000)
+                        setTimeout(() => reject(new Error('Request timeout after 15 seconds')), 15000)
                     );
 
                     const { data, error } = await Promise.race([apiCallPromise, timeoutPromise]);
 
                     if (error) {
-                        console.error('❌ Error fetching shared deck:', error);
+                        console.error('❌ Supabase function error:', error);
+                        hideImportLoadingModal();
                         
-                        // Handle specific error types
+                        // Handle specific error types with enhanced logging
                         if (error.message?.includes('timeout') || error.message?.includes('network')) {
+                            console.warn('🌐 Network/timeout error detected');
                             if (retryCount < maxRetries) {
-                                console.log(`🔄 Network error, retrying in ${retryDelay}ms...`);
+                                console.log(`🔄 Retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
                                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                                 return await handleImportFromUrl(url, retryCount + 1);
                             } else {
-                                await showImportErrorModal('Network connection failed. Please check your internet connection and try again.');
+                                await handleSharedDeckImportError(error, 'Network timeout after retries');
                                 return;
                             }
                         } else if (error.message?.includes('not found') || error.message?.includes('expired')) {
-                            await showImportErrorModal('This shared deck link has expired or is no longer available.');
+                            await handleSharedDeckImportError(error, 'Share link expired/not found');
                             return;
                         } else {
-                            await showImportErrorModal('Failed to load shared deck. Please try again or contact support if the problem persists.');
+                            await handleSharedDeckImportError(error, 'Supabase function call');
                             return;
                         }
                     }
 
-                    // Validate received data structure
+                    // Enhanced data validation with detailed logging
+                    console.log('📊 Validating received data...');
                     if (!data) {
                         console.error('❌ No data received from server');
-                        await showImportErrorModal('Received empty data from server. The shared deck may be corrupted.');
+                        hideImportLoadingModal();
+                        await handleSharedDeckImportError(new Error('No data received from server'), 'Data validation');
                         return;
                     }
 
-                    console.log('✅ Received shared deck:', data);
+                    console.log('✅ Raw data received:', data);
                     
-                    // Add comprehensive debugging for shared deck data structure
-                    console.log('🔍 Shared deck detailed analysis:', {
+                    // Comprehensive data structure analysis
+                    const dataAnalysis = {
                         dataKeys: Object.keys(data || {}),
                         hasNotes: data && data.notes && Array.isArray(data.notes),
                         notesLength: data && data.notes ? data.notes.length : 'N/A',
                         hasDeck: data && data.deck && typeof data.deck === 'object',
                         deckKeys: data && data.deck ? Object.keys(data.deck) : 'N/A',
-                        fullDataStructure: data
-                    });
+                        deckName: data.deck_name || data.deck?.name || 'Unknown',
+                        fullStructure: data
+                    };
+                    
+                    console.log('🔍 Data structure analysis:', dataAnalysis);
 
                     // Validate that we have notes to import
                     const notes = data.notes || [];
                     if (!Array.isArray(notes) || notes.length === 0) {
-                        console.warn('⚠️ Shared deck has no notes or invalid notes structure');
-                        await showImportErrorModal('This shared deck appears to be empty or has invalid data.');
+                        console.warn('⚠️ Empty or invalid notes array');
+                        hideImportLoadingModal();
+                        await handleSharedDeckImportError(new Error('Shared deck appears to be empty'), 'Notes validation');
                         return;
                     }
 
-                    // Validate note structure
-                    const validNotes = notes.filter(note => note && note.term && typeof note.term === 'string');
+                    // Validate note structure with detailed logging
+                    const validNotes = notes.filter(note => {
+                        const isValid = note && note.term && typeof note.term === 'string';
+                        if (!isValid) {
+                            console.warn('⚠️ Invalid note found:', note);
+                        }
+                        return isValid;
+                    });
+                    
+                    console.log(`📝 Note validation: ${validNotes.length}/${notes.length} valid notes`);
+                    
                     if (validNotes.length === 0) {
                         console.warn('⚠️ No valid notes found in shared deck');
-                        await showImportErrorModal('This shared deck contains invalid note data.');
+                        hideImportLoadingModal();
+                        await handleSharedDeckImportError(new Error('No valid notes found in shared deck'), 'Note content validation');
                         return;
                     }
 
@@ -7836,25 +8040,28 @@ if (languageSelectorInGame) {
                         console.warn(`⚠️ Some notes were invalid. ${validNotes.length}/${notes.length} notes are valid`);
                     }
 
-                    // Update data with valid notes only
+                    // Create validated data package
                     const validatedData = {
                         ...data,
                         notes: validNotes
                     };
                     
+                    console.log('✅ Showing import modal with validated data');
+                    hideImportLoadingModal();
                     await showImportModal(validatedData);
 
                 } catch (error) {
-                    console.error('💥 Unexpected error importing deck:', error);
+                    console.error('💥 Unexpected error in handleImportFromUrl:', error);
+                    hideImportLoadingModal();
                     
                     // Network/timeout errors - retry if we haven't exceeded max retries
                     if ((error.message?.includes('timeout') || error.name === 'TypeError' || error.message?.includes('fetch')) && retryCount < maxRetries) {
-                        console.log(`🔄 Unexpected error, retrying in ${retryDelay}ms...`);
+                        console.log(`🔄 Unexpected error, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
                         await new Promise(resolve => setTimeout(resolve, retryDelay));
                         return await handleImportFromUrl(url, retryCount + 1);
                     }
                     
-                    await showImportErrorModal('An unexpected error occurred. Please try again or contact support if the problem persists.');
+                    await handleSharedDeckImportError(error, 'Unexpected error in import process');
                 }
             }
 
