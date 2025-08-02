@@ -7252,12 +7252,10 @@ if (languageSelectorInGame) {
                             // Check for pending shared deck import after authentication
                             const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
                             if (pendingSharedDeckUrl) {
-                                console.log('📥 Processing pending shared deck import after authentication...');
+                                console.log('📥 Processing pending shared deck import immediately after authentication...');
                                 localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
-                                // Process the import with a slight delay to ensure UI is ready
-                                setTimeout(() => {
-                                    handleImportFromUrl(pendingSharedDeckUrl);
-                                }, 1000);
+                                // Process the import immediately - no delay needed since UI is ready
+                                handleImportFromUrl(pendingSharedDeckUrl);
                             }
                         }
                     } else {
@@ -7323,6 +7321,47 @@ if (languageSelectorInGame) {
                         } else {
                             // User is already authenticated, trigger full app initialization
                             console.log('✅ User already authenticated, initializing app...');
+                            
+                            // Check for shared deck import FIRST before normal UI flow
+                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                            if (pendingSharedDeckUrl) {
+                                console.log('📥 Priority shared deck import detected, processing immediately...');
+                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
+                                
+                                // Show login UI briefly, then initialize and show import modal
+                                loginSection.classList.add('hidden');
+                                appContent.classList.remove('hidden');
+                                
+                                // Show hamburger menu when user is authenticated
+                                const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                                if (deckSidePanelToggle) {
+                                    deckSidePanelToggle.style.display = 'flex';
+                                }
+                                
+                                // Initialize app minimally and immediately show import modal
+                                (async () => {
+                                    try {
+                                        isAuthenticating = true;
+                                        
+                                        // Initialize deck management to get user's existing decks
+                                        console.log('🗂️ Initializing deck management for shared import...');
+                                        await initializeDeckManagement();
+                                        
+                                        // Don't fetch notes or show normal UI - go straight to import
+                                        console.log('📥 Processing shared deck import immediately...');
+                                        await handleImportFromUrl(pendingSharedDeckUrl);
+                                        
+                                    } catch (error) {
+                                        console.error('💥 Error during shared deck import initialization:', error);
+                                        alert('Error loading shared deck. Please try again.');
+                                    } finally {
+                                        isAuthenticating = false;
+                                    }
+                                })();
+                                return; // Skip normal initialization flow
+                            }
+                            
+                            // Normal initialization flow for users without shared deck links
                             // Trigger the auth state change handler manually to ensure full initialization
                             // This ensures the same initialization flow as when user just logged in
                             isAuthenticating = true;
@@ -7390,17 +7429,6 @@ if (languageSelectorInGame) {
                                     // ALWAYS re-enable file upload after initialization
                                     isAuthenticating = false;
                                     console.log('✅ App initialization completed, file upload re-enabled');
-                                    
-                                    // Check for pending shared deck import after initialization
-                                    const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
-                                    if (pendingSharedDeckUrl) {
-                                        console.log('📥 Processing pending shared deck import after app initialization...');
-                                        localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
-                                        // Process the import with a slight delay to ensure UI is ready
-                                        setTimeout(() => {
-                                            handleImportFromUrl(pendingSharedDeckUrl);
-                                        }, 1000);
-                                    }
                                 }
                             })();
                         }
@@ -7869,8 +7897,14 @@ if (languageSelectorInGame) {
                 };
                 
                 // Handle cancel
-                document.getElementById('cancelImportBtn').onclick = () => {
+                document.getElementById('cancelImportBtn').onclick = async () => {
                     modal.classList.add('hidden');
+                    // After cancelling import, show user's normal interface
+                    console.log('📥 Import cancelled, showing normal interface...');
+                    
+                    // Fetch user's notes and show appropriate interface
+                    await fetchNotes();
+                    showMainSelection();
                 };
             }
 
@@ -7906,6 +7940,9 @@ if (languageSelectorInGame) {
                     document.getElementById('importDeckModal').classList.add('hidden');
                     alert(`Successfully imported ${sharedDeckData.notes.length} notes to new deck "${deckName}"`);
                     
+                    // Show the appropriate interface after successful import
+                    showMainSelection();
+                    
                 } catch (error) {
                     console.error('💥 Error importing to new deck:', error);
                     alert('Failed to import deck. Please try again.');
@@ -7929,6 +7966,9 @@ if (languageSelectorInGame) {
                     
                     document.getElementById('importDeckModal').classList.add('hidden');
                     alert(`Successfully imported ${sharedDeckData.notes.length} notes to selected deck`);
+                    
+                    // Show the appropriate interface after successful import
+                    showMainSelection();
                     
                 } catch (error) {
                     console.error('💥 Error importing to existing deck:', error);
