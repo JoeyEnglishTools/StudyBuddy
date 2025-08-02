@@ -7146,7 +7146,7 @@ if (languageSelectorInGame) {
             if (supabaseClient) {
                 console.log('🔐 Supabase client available, setting up authentication...');
                 
-                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (session) {
         console.log('✅ User session found, setting up app...');
         isAuthenticating = true;
@@ -7167,14 +7167,19 @@ if (languageSelectorInGame) {
 
             try {
                 // Fetch existing decks to populate the import modal correctly
+                console.log('  -> Fetching user decks for import modal...');
                 userDecks = await fetchUserDecks(); 
+                console.log('  -> User decks fetched. Found:', userDecks.length);
                 
                 // Immediately trigger the import flow
+                console.log('  -> Calling handleImportFromUrl...');
                 await handleImportFromUrl(pendingSharedDeckUrl);
+                console.log('  -> handleImportFromUrl finished.');
             } catch (error) {
                 console.error('💥 Error during priority shared deck import:', error);
                 alert('There was an error processing the shared deck. Please try again.');
                 // Fallback to normal initialization if import fails
+                console.log('  -> Falling back to normal initialization after import error.');
                 await initializeDeckManagement();
                 await fetchNotes();
                 showMainSelection();
@@ -7212,7 +7217,6 @@ if (languageSelectorInGame) {
         }
     }
 });
-
                 // Check if page was opened via share link BEFORE session check
                 const urlParams = new URLSearchParams(window.location.search);
                 const shareId = urlParams.get('share');
