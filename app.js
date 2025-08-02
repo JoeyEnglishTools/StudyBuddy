@@ -7147,143 +7147,71 @@ if (languageSelectorInGame) {
                 console.log('🔐 Supabase client available, setting up authentication...');
                 
                 supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                    console.log('🔐 Auth state changed:', event, session ? 'user logged in' : 'user logged out');
-                    console.log('🔐 Event details:', { event, userId: session?.user?.id, email: session?.user?.email });
+    if (session) {
+        console.log('✅ User session found, setting up app...');
+        isAuthenticating = true;
+        loginSection.classList.add('hidden');
+        appContent.classList.remove('hidden');
+        
+        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+        if (deckSidePanelToggle) {
+            deckSidePanelToggle.style.display = 'flex';
+        }
 
-                    if (session) {
-                        console.log('✅ User session found, setting up app...');
-                        console.log('✅ Session details:', { userId: session.user?.id, email: session.user?.email });
-                        isAuthenticating = true; // Prevent file upload during auth
-                        
-                        // Add session validation check - but skip for fresh logins
-                        if (event !== 'SIGNED_IN') {
-                            const isValidSession = await validateSessionIsActive();
-                            if (!isValidSession) {
-                                console.log('❌ Session validation failed, stopping app setup');
-                                return;
-                            }
-                        } else {
-                            console.log('✅ Fresh login detected, skipping session validation');
-                        }
-                        
-                        // Clear any existing file input to prevent unwanted triggers
-                        if (csvFileInput) {
-                            csvFileInput.value = '';
-                        }
-                        
-                        loginSection.classList.add('hidden');
-                        appContent.classList.remove('hidden');
-                        
-                        // Show hamburger menu when user is authenticated
-                        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
-                        console.log('🍔 Attempting to show hamburger menu...', { deckSidePanelToggle: !!deckSidePanelToggle });
-                        if (deckSidePanelToggle) {
-                            deckSidePanelToggle.style.display = 'flex';
-                            console.log('✅ Hamburger menu should now be visible');
-                        } else {
-                            console.error('❌ deckSidePanelToggle element not found!');
-                        }
+        // **FIX STARTS HERE: Prioritize checking for a shared deck link**
+        const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+        
+        if (pendingSharedDeckUrl) {
+            console.log('📥 Priority processing of pending shared deck URL...');
+            localStorage.removeItem('pendingSharedDeckUrl'); // Clear the item immediately
 
-                        try {
-                            // Initialize deck management first
-                            console.log('🗂️ Initializing deck management...');
-                            await initializeDeckManagement();
-                            
-                            console.log('📊 Starting fetchNotes() call...');
-                            console.log('📊 Current vocabulary state before fetch:', { 
-                                vocabularyLength: vocabulary.length, 
-                                vocabularyType: typeof vocabulary,
-                                vocabularyIsArray: Array.isArray(vocabulary)
-                            });
-                            
-                            const fetchStartTime = Date.now();
-                            const hasNotes = await fetchNotes();
-                            const fetchDuration = Date.now() - fetchStartTime;
-                            
-                            console.log('📊 fetchNotes completed in', fetchDuration, 'ms');
-                            console.log('📊 fetchNotes result:', { 
-                                hasNotes, 
-                                vocabularyLength: vocabulary.length,
-                                vocabularyType: typeof vocabulary,
-                                vocabularyIsArray: Array.isArray(vocabulary)
-                            });
-                            console.log('📊 csvUploadedTargetLanguage is now:', csvUploadedTargetLanguage);
+            try {
+                // Fetch existing decks to populate the import modal correctly
+                userDecks = await fetchUserDecks(); 
+                
+                // Immediately trigger the import flow
+                await handleImportFromUrl(pendingSharedDeckUrl);
+            } catch (error) {
+                console.error('💥 Error during priority shared deck import:', error);
+                alert('There was an error processing the shared deck. Please try again.');
+                // Fallback to normal initialization if import fails
+                await initializeDeckManagement();
+                await fetchNotes();
+                showMainSelection();
+            } finally {
+                isAuthenticating = false;
+            }
+        } else {
+            // **No share link found, proceed with normal initialization**
+            console.log('🚀 No pending share link, starting normal initialization...');
+            try {
+                // This will correctly show the welcome modal for new users without a share link
+                await initializeDeckManagement();
+                await fetchNotes();
+                showMainSelection();
+            } catch (error) {
+                console.error('💥 Error during normal app initialization:', error);
+                showMainSelection(); // Fallback on error
+            } finally {
+                isAuthenticating = false;
+            }
+        }
+        // **FIX ENDS HERE**
 
-                            // More robust check - wait a moment for UI to settle
-                            await new Promise(resolve => setTimeout(resolve, 100));
-
-                            console.log('🧪 Final vocabulary check:', {
-                                vocabulary,
-                                isArray: Array.isArray(vocabulary),
-                                length: vocabulary?.length,
-                                hasContent: vocabulary && Array.isArray(vocabulary) && vocabulary.length > 0
-                            });
-
-                            // Always show the appropriate interface based on current deck state
-                            console.log('🏠 Showing appropriate interface based on deck state');
-                            console.log('📊 Current state:', {
-                                vocabulary: vocabulary?.length || 0,
-                                userDecks: userDecks?.length || 0,
-                                currentDeck: currentDeck?.name || 'none'
-                            });
-                            
-                            // Ensure we're not in essentials mode for user's own vocabulary
-                            isEssentialsMode = false;
-                            
-                            // Hide all sections first
-                            [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, mainSelectionSection].forEach(el => {
-                                if (el) el.classList.add('hidden');
-                            });
-                            
-                            // Use showMainSelection to handle proper navigation based on vocabulary count
-                            showMainSelection();
-                        } catch (error) {
-                            console.error('💥 Error during app initialization:', error);
-                            console.error('💥 Error message:', error.message);
-                            console.error('💥 Error stack:', error.stack);
-                            // Fallback to main selection on error
-                            console.log('🏠 Falling back to main selection due to error');
-                            showMainSelection();
-                        } finally {
-                            // ALWAYS re-enable file upload after authentication, even if there were errors
-                            isAuthenticating = false;
-                            console.log('✅ Authentication process completed, file upload re-enabled');
-                            
-                            // Check for pending shared deck import after authentication
-                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
-                            if (pendingSharedDeckUrl) {
-                                console.log('📥 Processing pending shared deck import immediately after authentication...');
-                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
-                                // Process the import immediately - no delay needed since UI is ready
-                                handleImportFromUrl(pendingSharedDeckUrl);
-                            }
-                        }
-                    } else {
-                        console.log('❌ No user session, showing login');
-                        isAuthenticating = false; // Reset flag on logout
-                        loginSection.classList.remove('hidden');
-                        appContent.classList.add('hidden');
-                        vocabulary = [];
-                        
-                        // Hide hamburger menu when user is not authenticated
-                        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
-                        console.log('🍔 Hiding hamburger menu on logout...', { deckSidePanelToggle: !!deckSidePanelToggle });
-                        if (deckSidePanelToggle) {
-                            deckSidePanelToggle.style.display = 'none';
-                        }
-                        
-                        // Also ensure side panel is closed when not authenticated
-                        const deckSidePanel = document.getElementById('deckSidePanel');
-                        if (deckSidePanel) {
-                            deckSidePanel.classList.remove('open');
-                        }
-                        
-                        // Clear file input on logout to prevent issues
-                        if (csvFileInput) {
-                            csvFileInput.value = '';
-                        }
-                    }
-                });
+    } else {
+        // --- Existing logout logic remains here ---
+        console.log('❌ No user session, showing login');
+        isAuthenticating = false; 
+        loginSection.classList.remove('hidden');
+        appContent.classList.add('hidden');
+        vocabulary = [];
+        
+        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+        if (deckSidePanelToggle) {
+            deckSidePanelToggle.style.display = 'none';
+        }
+    }
+});
 
                 // Check if page was opened via share link BEFORE session check
                 const urlParams = new URLSearchParams(window.location.search);
