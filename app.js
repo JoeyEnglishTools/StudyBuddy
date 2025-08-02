@@ -8120,109 +8120,32 @@ if (languageSelectorInGame) {
                     }
                     
                     // Get user language preferences with fallbacks
-                    async function importToNewDeck(sharedDeckData) {
-                try {
-                    console.log('📁 Starting import to new deck process...');
-                    
-                    // Validate shared deck data
-                    if (!sharedDeckData || !sharedDeckData.notes || !Array.isArray(sharedDeckData.notes)) {
-                        throw new Error('Invalid shared deck data structure');
-                    }
+       async function importToNewDeck(sharedDeckData) {
+    try {
+        // Step 1: Validate the data
+        if (!sharedDeckData.notes) {
+            throw new Error('Invalid shared deck data structure');
+        }
 
-                    if (sharedDeckData.notes.length === 0) {
-                        throw new Error('Shared deck contains no notes to import');
-                    }
+        // Step 2: Create the deck
+        const newDeck = await createDeck(...);
+        if (!newDeck) {
+            throw new Error('Failed to create new deck');
+        }
 
-                    const deckName = prompt('Enter name for new deck:', sharedDeckData.deck_name || 'Imported Deck');
-                    if (!deckName || deckName.trim() === '') {
-                        console.log('📁 Import cancelled by user (no deck name provided)');
-                        return;
-                    }
-                    
-                    // Get user language preferences with fallbacks
-                    const nativeLanguage = localStorage.getItem('user_native_language') || 'EN';
-                     const learningLanguage = sharedDeckData.language || 'en-GB'; // Replace the original line with this
+        // Step 3: Import the notes
+        await importNotesToDeck(...);
 
-                    
-                    console.log('📁 Creating new deck with preferences:', { nativeLanguage, learningLanguage });
-                    
-                    // Create new deck with timeout
-                    const createDeckPromise = createDeck(deckName.trim(), learningLanguage, nativeLanguage);
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Deck creation timeout')), 10000)
-                    );
+        // Step 4: Show success message
+        alert('Successfully imported!');
 
-                    const newDeck = await Promise.race([createDeckPromise, timeoutPromise]);
-                    
-                    if (!newDeck || !newDeck.id) {
-                        throw new Error('Failed to create new deck - no deck ID returned');
-                    const learningLanguage = localStorage.getItem('user_learning_language') || 'es-ES';
-                    
-                    console.log('📁 Creating new deck with preferences:', { nativeLanguage, learningLanguage });
-                    
-                    // Create new deck with timeout
-                    const createDeckPromise = createDeck(deckName.trim(), learningLanguage, nativeLanguage);
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Deck creation timeout')), 10000)
-                    );
-
-                    const newDeck = await Promise.race([createDeckPromise, timeoutPromise]);
-                    
-                    if (!newDeck || !newDeck.id) {
-                        throw new Error('Failed to create new deck - no deck ID returned');
-                    }
-
-                    console.log('✅ New deck created successfully:', newDeck);
-                    
-                    // Import notes to new deck with progress feedback
-                    console.log(`📝 Importing ${sharedDeckData.notes.length} notes to new deck...`);
-                    await importNotesToDeck(sharedDeckData.notes, newDeck.id);
-                    
-                    // Refresh UI and deck list with error handling
-                    try {
-                        userDecks = await fetchUserDecks();
-                        renderDecks(userDecks);
-                        
-                        // Select the new deck and refresh vocabulary
-                        await selectDeck(newDeck.id, newDeck.name, newDeck.language);
-                        
-                        // Force vocabulary refresh to show imported notes
-                        await fetchNotes();
-                    } catch (uiError) {
-                        console.error('⚠️ Error refreshing UI after import:', uiError);
-                        // Don't fail the import for UI errors
-                    }
-                    
-                    // Hide modal and show success
-                    const modal = document.getElementById('importDeckModal');
-                    if (modal) modal.classList.add('hidden');
-                    
-                    const successMessage = `✅ Successfully imported ${sharedDeckData.notes.length} notes to new deck "${deckName}"!\n\nYour new deck has been created and selected. You can now start studying with these imported vocabulary items.`;
-                    alert(successMessage);
-                    
-                    // Show the appropriate interface after successful import
-                    showMainSelection();
-                    
-                } catch (error) {
-                    console.error('💥 Error importing to new deck:', error);
-                    
-                    // Provide specific error messages based on error type
-                    let errorMessage = 'Failed to import deck. ';
-                    if (error.message?.includes('timeout')) {
-                        errorMessage += 'The operation took too long. Please check your internet connection and try again.';
-                    } else if (error.message?.includes('Invalid shared deck data')) {
-                        errorMessage += 'The shared deck data appears to be corrupted.';
-                    } else if (error.message?.includes('no notes')) {
-                        errorMessage += 'The shared deck contains no notes to import.';
-                    } else if (error.message?.includes('create new deck')) {
-                        errorMessage += 'Could not create a new deck. Please try again.';
-                    } else {
-                        errorMessage += 'Please try again or contact support if the problem persists.';
-                    }
-                    
-                    alert(errorMessage);
-                }
-            }
+    } catch (error) {
+        // If ANY of the steps above fail, the code jumps directly here.
+        // It then shows an alert with the specific error message.
+        console.error('💥 Error importing to new deck:', error);
+        alert(`Failed to import deck. ${error.message}. Please try again.`);
+    }
+}
 
             async function importToExistingDeck(sharedDeckData, deckId) {
                 try {
