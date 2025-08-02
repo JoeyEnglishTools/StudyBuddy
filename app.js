@@ -235,25 +235,9 @@ async function fetchNotes() {
                 existingProfile.active_session_id !== localStorage.getItem('current_session_id');
             
             if (hasOtherActiveSession) {
-                // Check if we've already shown this message recently to avoid repetitive alerts
-                const lastShownKey = 'lastMultiDeviceAlert';
-                const lastShown = localStorage.getItem(lastShownKey);
-                const now = Date.now();
-                const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
-                
-                // Only show the alert if we haven't shown it in the last hour
-                if (!lastShown || (now - parseInt(lastShown)) > oneHour) {
-                    // Show non-rigid message about other sessions
-                    const lastActiveTime = existingProfile.last_active ? 
-                        new Date(existingProfile.last_active).toLocaleString() : 'unknown time';
-                    
-                    alert(`📱 Multi-Device Login Detected\n\nYou have other login sessions open on different devices.\nLast activity: ${lastActiveTime}\n\nThose sessions will be automatically disabled to ensure proper app functionality. You can continue using StudyBuddy normally on this device.`);
-                    
-                    // Store the timestamp when we showed this message
-                    localStorage.setItem(lastShownKey, now.toString());
-                } else {
-                    console.log('🔄 Multi-device session detected but alert suppressed (shown recently)');
-                }
+                // Handle multi-device sessions silently - no more intrusive alerts
+                console.log('🔄 Multi-device session detected, updating session silently...');
+                // Sessions will be updated automatically without user notification
             }
             
             // Update the profiles table with new session info
@@ -793,7 +777,7 @@ async function fetchNotes() {
             console.log('🗑️ Deleting deck:', deckId);
             
             // First delete all notes in the deck
-            const { error: notesError } = await supabaseClient
+            const { data: deletedNotes, error: notesError } = await supabaseClient
                 .from('notes')
                 .delete()
                 .eq('note_set_id', deckId);
@@ -804,8 +788,10 @@ async function fetchNotes() {
                 return false;
             }
 
+            console.log('✅ Deleted notes for deck:', deckId, 'Deleted notes count:', deletedNotes?.length || 0);
+
             // Then delete the deck itself
-            const { error: deckError } = await supabaseClient
+            const { data: deletedDeck, error: deckError } = await supabaseClient
                 .from('note_sets')
                 .delete()
                 .eq('id', deckId);
@@ -816,7 +802,7 @@ async function fetchNotes() {
                 return false;
             }
 
-            console.log('✅ Deck deleted successfully');
+            console.log('✅ Deck deleted successfully:', deckId, 'Deleted deck data:', deletedDeck);
             
             // If we deleted the currently selected deck, clear selection
             if (currentlySelectedDeckId === deckId) {
@@ -1037,8 +1023,25 @@ async function fetchNotes() {
             }
         } catch (err) {
             console.error('💥 Error initializing deck management:', err);
-            // Fallback to show welcome modal on error
-            showWelcomeModal();
+            // Only show welcome modal if we actually have no decks, not for all errors
+            try {
+                const fallbackDecks = await fetchUserDecks();
+                if (fallbackDecks.length === 0) {
+                    console.log('👋 No decks found after error - showing welcome modal');
+                    showWelcomeModal();
+                } else {
+                    console.log('⚠️ Error during initialization but user has decks - not showing modal');
+                    renderDecks(fallbackDecks);
+                    // Auto-select first deck if none selected
+                    if (!currentlySelectedDeckId && fallbackDecks.length > 0) {
+                        await selectDeck(fallbackDecks[0].id, fallbackDecks[0].name, fallbackDecks[0].language);
+                    }
+                }
+            } catch (fallbackErr) {
+                console.error('💥 Fallback deck fetch also failed:', fallbackErr);
+                // Only now show modal as last resort
+                showWelcomeModal();
+            }
         }
     }
     
