@@ -359,50 +359,61 @@ async function fetchNotes() {
     }
     
     // Fetch all decks for the current user
-  async function fetchUserDecks() {
+ async function fetchUserDecks() {
         console.log('🗂️ Fetching user decks...');
         
-        try {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                console.error('❌ No user authenticated in fetchUserDecks');
-                return [];
-            }
-            console.log('  -> User authenticated for fetching decks:', user.email);
+        return new Promise(async (resolve, reject) => {
+            // Set a 15-second timeout for the entire function
+            const timeout = setTimeout(() => {
+                console.error('❌ CRITICAL: fetchUserDecks function timed out after 15 seconds.');
+                reject(new Error('Fetching decks took too long. Please check your network connection.'));
+            }, 15000);
 
-            const tableExists = await ensureNoteSetsTableExists();
-            if (!tableExists) {
-                console.log('  -> note_sets table does not exist. Returning empty array.');
-                return [];
-            }
-            console.log('  -> note_sets table confirmed to exist.');
+            try {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
+                    console.error('❌ No user authenticated in fetchUserDecks');
+                    clearTimeout(timeout);
+                    return resolve([]); // Resolve with empty array if no user
+                }
+                console.log('  -> User authenticated for fetching decks:', user.email);
 
-            console.log('  -> Querying for decks...');
-            const { data, error } = await supabaseClient
-                .from('note_sets')
-                .select('*, notes_count:notes(count)')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
-            
-            if (error) {
-                console.error('❌ Error fetching decks from Supabase:', error);
-                alert('There was an error fetching your decks. Please check the console for details.');
-                return [];
+                const tableExists = await ensureNoteSetsTableExists();
+                if (!tableExists) {
+                    console.log('  -> note_sets table does not exist. Returning empty array.');
+                    clearTimeout(timeout);
+                    return resolve([]);
+                }
+                console.log('  -> note_sets table confirmed to exist.');
+
+                console.log('  -> Querying for decks...');
+                const { data, error } = await supabaseClient
+                    .from('note_sets')
+                    .select('*, notes_count:notes(count)')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    console.error('❌ Error fetching decks from Supabase:', error);
+                    clearTimeout(timeout);
+                    return reject(error); // Reject the promise on error
+                }
+                
+                console.log('  -> Deck query successful. Processing results...');
+                const decksWithCounts = data?.map(deck => ({
+                    ...deck,
+                    notes_count: deck.notes_count?.[0]?.count || 0
+                })) || [];
+                
+                console.log('✅ Fetched decks successfully:', decksWithCounts.length, 'decks found.');
+                clearTimeout(timeout);
+                resolve(decksWithCounts); // Resolve the promise with the decks
+            } catch (err) {
+                console.error('💥 A critical error occurred in fetchUserDecks:', err);
+                clearTimeout(timeout);
+                reject(err); // Reject the promise on a critical error
             }
-            
-            console.log('  -> Deck query successful. Processing results...');
-            const decksWithCounts = data?.map(deck => ({
-                ...deck,
-                notes_count: deck.notes_count?.[0]?.count || 0
-            })) || [];
-            
-            console.log('✅ Fetched decks successfully:', decksWithCounts.length, 'decks found.');
-            return decksWithCounts;
-        } catch (err) {
-            console.error('💥 A critical error occurred in fetchUserDecks:', err);
-            alert('A critical error occurred while fetching your decks. Please try again.');
-            return [];
-        }
+        });
     }
     
     // Create a new deck
@@ -7149,78 +7160,62 @@ if (languageSelectorInGame) {
             // Check if Supabase is available before setting up auth
             if (supabaseClient) {
                 console.log('🔐 Supabase client available, setting up authentication...');
-                
-            supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if (session) {
-        console.log('✅ User session found, setting up app...');
-        isAuthenticating = true;
-        loginSection.classList.add('hidden');
-        appContent.classList.remove('hidden');
-        
-        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
-        if (deckSidePanelToggle) {
-            deckSidePanelToggle.style.display = 'flex';
-        }
+               
+                //User Authentication starts
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (session) {
+            console.log('✅ User session found, setting up app...');
+            isAuthenticating = true;
+            loginSection.classList.add('hidden');
+            appContent.classList.remove('hidden');
+            
+            const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+            if (deckSidePanelToggle) {
+                deckSidePanelToggle.style.display = 'flex';
+            }
 
-        // **FIX STARTS HERE: Prioritize checking for a shared deck link**
-        const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
-        
-        if (pendingSharedDeckUrl) {
-            console.log('📥 Priority processing of pending shared deck URL...');
-            localStorage.removeItem('pendingSharedDeckUrl'); // Clear the item immediately
+            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+            
+            if (pendingSharedDeckUrl) {
+                console.log('📥 Priority processing of pending shared deck URL...');
+                localStorage.removeItem('pendingSharedDeckUrl');
 
-            try {
-                // Fetch existing decks to populate the import modal correctly
-                console.log('  -> Fetching user decks for import modal...');
-                userDecks = await fetchUserDecks(); 
-                console.log('  -> User decks fetched. Found:', userDecks.length);
-                
-                // Immediately trigger the import flow
-                console.log('  -> Calling handleImportFromUrl...');
-                await handleImportFromUrl(pendingSharedDeckUrl);
-                console.log('  -> handleImportFromUrl finished.');
-            } catch (error) {
-                console.error('💥 Error during priority shared deck import:', error);
-                alert('There was an error processing the shared deck. Please try again.');
-                // Fallback to normal initialization if import fails
-                console.log('  -> Falling back to normal initialization after import error.');
-                await initializeDeckManagement();
-                await fetchNotes();
-                showMainSelection();
-            } finally {
-                isAuthenticating = false;
+                try {
+                    console.log('  -> Fetching user decks for import modal...');
+                    userDecks = await fetchUserDecks(); 
+                    console.log('  -> User decks fetched. Found:', userDecks.length);
+                    
+                    console.log('  -> Calling handleImportFromUrl...');
+                    await handleImportFromUrl(pendingSharedDeckUrl);
+                    console.log('  -> handleImportFromUrl finished.');
+                } catch (error) {
+                    console.error('💥 Error during priority shared deck import:', error);
+                    alert(`Error processing shared deck: ${error.message}`);
+                    await initializeDeckManagement(); // Fallback to normal view
+                } finally {
+                    isAuthenticating = false;
+                }
+            } else {
+                console.log('🚀 No pending share link, starting normal initialization...');
+                try {
+                    await initializeDeckManagement();
+                } catch (error) {
+                    console.error('💥 Error during normal app initialization:', error);
+                } finally {
+                    isAuthenticating = false;
+                }
             }
         } else {
-            // **No share link found, proceed with normal initialization**
-            console.log('🚀 No pending share link, starting normal initialization...');
-            try {
-                // This will correctly show the welcome modal for new users without a share link
-                await initializeDeckManagement();
-                await fetchNotes();
-                showMainSelection();
-            } catch (error) {
-                console.error('💥 Error during normal app initialization:', error);
-                showMainSelection(); // Fallback on error
-            } finally {
-                isAuthenticating = false;
+            console.log('❌ No user session, showing login');
+            isAuthenticating = false; 
+            loginSection.classList.remove('hidden');
+            appContent.classList.add('hidden');
+            vocabulary = [];
+            if (document.getElementById('deckSidePanelToggle')) {
+                document.getElementById('deckSidePanelToggle').style.display = 'none';
             }
         }
-        // **FIX ENDS HERE**
-
-    } else {
-        // --- Existing logout logic remains here ---
-        console.log('❌ No user session, showing login');
-        isAuthenticating = false; 
-        loginSection.classList.remove('hidden');
-        appContent.classList.add('hidden');
-        vocabulary = [];
-        
-        const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
-        if (deckSidePanelToggle) {
-            deckSidePanelToggle.style.display = 'none';
-        }
-    }
-});
+    });
                 // Check if page was opened via share link BEFORE session check
                 const urlParams = new URLSearchParams(window.location.search);
                 const shareId = urlParams.get('share');
