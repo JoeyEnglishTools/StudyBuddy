@@ -68,29 +68,29 @@
 
 document.addEventListener('DOMContentLoaded', () => {     
 
-    // Check QRCode library availability early
+    // Check EasyQRCodeJS library availability early
     let qrCodeCheckRetries = 0;
     let qrCodeLibraryAvailable = false;
     
     const checkQRCodeLibrary = () => {
         if (typeof QRCode !== 'undefined') {
-            console.log('✅ QRCode library loaded successfully');
+            console.log('✅ EasyQRCodeJS library loaded successfully');
             qrCodeLibraryAvailable = true;
             return true;
         } else {
             qrCodeCheckRetries++;
             if (qrCodeCheckRetries <= 3) { // Reduced retries from 10 to 3
-                console.warn(`⚠️ QRCode library not loaded (attempt ${qrCodeCheckRetries}/3)`);
+                console.warn(`⚠️ EasyQRCodeJS library not loaded (attempt ${qrCodeCheckRetries}/3)`);
                 setTimeout(checkQRCodeLibrary, 500); // Increased delay
             } else {
-                console.warn('⚠️ QRCode library failed to load - will use copy-link fallback');
+                console.warn('⚠️ EasyQRCodeJS library failed to load - will use copy-link fallback');
                 qrCodeLibraryAvailable = false;
             }
             return false;
         }
     };
     
-    // Start checking for QRCode library
+    // Start checking for EasyQRCodeJS library
     setTimeout(checkQRCodeLibrary, 200);
 
     // Initialize cache status display
@@ -7570,7 +7570,7 @@ if (languageSelectorInGame) {
                             <h3 class="text-lg font-medium text-gray-900 mb-4">📤 Share "${deckName}"</h3>
                             <div class="text-center mb-4">
                                 <div id="qrCodeContainer" class="flex justify-center mb-2">
-                                    <canvas id="qrCanvas" class="border rounded shadow-sm"></canvas>
+                                    <!-- EasyQRCodeJS will create the QR code here -->
                                 </div>
                                 <p class="text-xs text-gray-500">Scan with your phone camera</p>
                             </div>
@@ -7589,35 +7589,27 @@ if (languageSelectorInGame) {
                 }
 
                 try {
-                    // Check if QRCode library is loaded with shorter wait
+                    // Check if EasyQRCodeJS library is loaded
                     if (!qrCodeLibraryAvailable && typeof QRCode === 'undefined') {
-                        console.warn('⚠️ QRCode library not available - using fallback');
-                        throw new Error('QRCode library not available');
+                        console.warn('⚠️ EasyQRCodeJS library not available - using fallback');
+                        throw new Error('EasyQRCodeJS library not available');
                     }
 
                     // Clear any existing QR code
                     const qrContainer = document.getElementById('qrCodeContainer');
-                    const existingCanvas = document.getElementById('qrCanvas');
-                    if (existingCanvas) {
-                        existingCanvas.remove();
-                    }
+                    qrContainer.innerHTML = ''; // Clear previous QR codes
                     
-                    // Create new canvas
-                    const canvas = document.createElement('canvas');
-                    canvas.id = 'qrCanvas';
-                    canvas.className = 'border rounded shadow-sm';
-                    qrContainer.appendChild(canvas);
-
-                    // Generate QR code using the correct method for qrcode.min.js
-                    console.log('🔄 Generating QR code...');
-                    await QRCode.toCanvas(canvas, shareUrl, { 
+                    // Generate QR code using EasyQRCodeJS
+                    console.log('🔄 Generating QR code with EasyQRCodeJS...');
+                    new QRCode(qrContainer, {
+                        text: shareUrl,
                         width: 200,
-                        margin: 2,
-                        color: {
-                            dark: '#000000',
-                            light: '#ffffff'
-                        }
+                        height: 200,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
                     });
+
                     console.log('✅ QR code generated successfully');
 
                 } catch (error) {
@@ -7717,7 +7709,17 @@ if (languageSelectorInGame) {
                 const modal = document.getElementById('importDeckModal');
                 const deckNameSpan = document.getElementById('importDeckName');
                 
-                deckNameSpan.textContent = sharedDeckData.deck_name;
+                // Handle both possible data structures
+                const deckName = sharedDeckData.deck_name || sharedDeckData.deck?.name || 'Unknown Deck';
+                const notes = sharedDeckData.notes || [];
+                
+                console.log('🔍 Import modal data structure:', {
+                    sharedDeckData,
+                    deckName,
+                    notesLength: notes.length
+                });
+                
+                deckNameSpan.textContent = deckName;
                 
                 // Populate existing decks dropdown
                 const deckSelect = document.getElementById('existingDeckSelect');
@@ -7739,7 +7741,10 @@ if (languageSelectorInGame) {
                 
                 // Handle import to new deck
                 document.getElementById('importToNewDeckBtn').onclick = async () => {
-                    await importToNewDeck(sharedDeckData);
+                    // Extract notes from the proper data structure
+                    const notesToImport = sharedDeckData.notes || [];
+                    const deckNameForImport = deckName;
+                    await importToNewDeck({ notes: notesToImport, deck_name: deckNameForImport });
                 };
                 
                 // Handle import to existing deck
@@ -7749,7 +7754,9 @@ if (languageSelectorInGame) {
                         alert('Please select a deck');
                         return;
                     }
-                    await importToExistingDeck(sharedDeckData, selectedDeckId);
+                    // Extract notes from the proper data structure
+                    const notesToImport = sharedDeckData.notes || [];
+                    await importToExistingDeck({ notes: notesToImport, deck_name: deckName }, selectedDeckId);
                 };
                 
                 // Handle cancel
