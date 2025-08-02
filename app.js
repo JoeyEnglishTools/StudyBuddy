@@ -7287,6 +7287,15 @@ if (languageSelectorInGame) {
                     }
                 });
 
+                // Check if page was opened via share link BEFORE session check
+                const urlParams = new URLSearchParams(window.location.search);
+                const shareId = urlParams.get('share');
+                if (shareId) {
+                    console.log('📥 Share link detected, storing for post-authentication import...');
+                    // Store the share URL for processing after authentication
+                    localStorage.setItem('pendingSharedDeckUrl', window.location.href);
+                }
+
                 // Check current session on page load
                 console.log('🔍 Checking for existing session on page load...');
                 
@@ -7905,14 +7914,5 @@ if (languageSelectorInGame) {
             
             // Initialize share button
             initShareButton();
-
-            // Check if page was opened via share link
-            const urlParams = new URLSearchParams(window.location.search);
-            const shareId = urlParams.get('share');
-            if (shareId) {
-                console.log('📥 Share link detected, storing for post-authentication import...');
-                // Store the share URL for processing after authentication
-                localStorage.setItem('pendingSharedDeckUrl', window.location.href);
-            }
 
         });
