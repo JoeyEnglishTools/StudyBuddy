@@ -7553,6 +7553,7 @@ if (languageSelectorInGame) {
                     const shareData = {
                         deck_id: currentlySelectedDeckId,
                         deck_name: deckName,
+                        language: currentDeck.language, // Added language so it gets shared to the right language
                         notes: deckVocab.map(item => ({
                             term: item.lang1,
                             definition: item.lang2
@@ -8119,7 +8120,42 @@ if (languageSelectorInGame) {
                     }
                     
                     // Get user language preferences with fallbacks
+                    async function importToNewDeck(sharedDeckData) {
+                try {
+                    console.log('📁 Starting import to new deck process...');
+                    
+                    // Validate shared deck data
+                    if (!sharedDeckData || !sharedDeckData.notes || !Array.isArray(sharedDeckData.notes)) {
+                        throw new Error('Invalid shared deck data structure');
+                    }
+
+                    if (sharedDeckData.notes.length === 0) {
+                        throw new Error('Shared deck contains no notes to import');
+                    }
+
+                    const deckName = prompt('Enter name for new deck:', sharedDeckData.deck_name || 'Imported Deck');
+                    if (!deckName || deckName.trim() === '') {
+                        console.log('📁 Import cancelled by user (no deck name provided)');
+                        return;
+                    }
+                    
+                    // Get user language preferences with fallbacks
                     const nativeLanguage = localStorage.getItem('user_native_language') || 'EN';
+                     const learningLanguage = sharedDeckData.language || 'en-GB'; // Replace the original line with this
+
+                    
+                    console.log('📁 Creating new deck with preferences:', { nativeLanguage, learningLanguage });
+                    
+                    // Create new deck with timeout
+                    const createDeckPromise = createDeck(deckName.trim(), learningLanguage, nativeLanguage);
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Deck creation timeout')), 10000)
+                    );
+
+                    const newDeck = await Promise.race([createDeckPromise, timeoutPromise]);
+                    
+                    if (!newDeck || !newDeck.id) {
+                        throw new Error('Failed to create new deck - no deck ID returned');
                     const learningLanguage = localStorage.getItem('user_learning_language') || 'es-ES';
                     
                     console.log('📁 Creating new deck with preferences:', { nativeLanguage, learningLanguage });
