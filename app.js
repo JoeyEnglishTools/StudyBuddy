@@ -7321,16 +7321,88 @@ if (languageSelectorInGame) {
                                 deckSidePanel.classList.remove('open');
                             }
                         } else {
-                            // User is already authenticated, check for pending shared deck import
-                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
-                            if (pendingSharedDeckUrl) {
-                                console.log('📥 Processing pending shared deck import for already authenticated user...');
-                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
-                                // Process the import with a delay to ensure app is fully initialized
-                                setTimeout(() => {
-                                    handleImportFromUrl(pendingSharedDeckUrl);
-                                }, 2000);
+                            // User is already authenticated, trigger full app initialization
+                            console.log('✅ User already authenticated, initializing app...');
+                            // Trigger the auth state change handler manually to ensure full initialization
+                            // This ensures the same initialization flow as when user just logged in
+                            isAuthenticating = true;
+                            
+                            // Clear any existing file input to prevent unwanted triggers
+                            if (csvFileInput) {
+                                csvFileInput.value = '';
                             }
+                            
+                            loginSection.classList.add('hidden');
+                            appContent.classList.remove('hidden');
+                            
+                            // Show hamburger menu when user is authenticated
+                            const deckSidePanelToggle = document.getElementById('deckSidePanelToggle');
+                            console.log('🍔 Attempting to show hamburger menu...', { deckSidePanelToggle: !!deckSidePanelToggle });
+                            if (deckSidePanelToggle) {
+                                deckSidePanelToggle.style.display = 'flex';
+                                console.log('✅ Hamburger menu should now be visible');
+                            } else {
+                                console.error('❌ deckSidePanelToggle element not found!');
+                            }
+
+                            // Initialize app same as auth state change handler
+                            (async () => {
+                                try {
+                                    // Initialize deck management first
+                                    console.log('🗂️ Initializing deck management...');
+                                    await initializeDeckManagement();
+                                    
+                                    console.log('📊 Starting fetchNotes() call...');
+                                    const fetchStartTime = Date.now();
+                                    const hasNotes = await fetchNotes();
+                                    const fetchDuration = Date.now() - fetchStartTime;
+                                    
+                                    console.log('📊 fetchNotes completed in', fetchDuration, 'ms');
+                                    console.log('📊 fetchNotes result:', { 
+                                        hasNotes, 
+                                        vocabularyLength: vocabulary.length,
+                                        vocabularyType: typeof vocabulary,
+                                        vocabularyIsArray: Array.isArray(vocabulary)
+                                    });
+
+                                    // Wait a moment for UI to settle
+                                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                                    // Always show the appropriate interface based on current deck state
+                                    console.log('🏠 Showing appropriate interface based on deck state');
+                                    
+                                    // Ensure we're not in essentials mode for user's own vocabulary
+                                    isEssentialsMode = false;
+                                    
+                                    // Hide all sections first
+                                    [uploadSection, essentialsCategorySelectionSection, essentialsCategoryOptionsSection, gameSelectionSection, gameArea, mainSelectionSection].forEach(el => {
+                                        if (el) el.classList.add('hidden');
+                                    });
+                                    
+                                    // Use showMainSelection to handle proper navigation based on vocabulary count
+                                    showMainSelection();
+                                } catch (error) {
+                                    console.error('💥 Error during app initialization:', error);
+                                    // Fallback to main selection on error
+                                    console.log('🏠 Falling back to main selection due to error');
+                                    showMainSelection();
+                                } finally {
+                                    // ALWAYS re-enable file upload after initialization
+                                    isAuthenticating = false;
+                                    console.log('✅ App initialization completed, file upload re-enabled');
+                                    
+                                    // Check for pending shared deck import after initialization
+                                    const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                                    if (pendingSharedDeckUrl) {
+                                        console.log('📥 Processing pending shared deck import after app initialization...');
+                                        localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
+                                        // Process the import with a slight delay to ensure UI is ready
+                                        setTimeout(() => {
+                                            handleImportFromUrl(pendingSharedDeckUrl);
+                                        }, 1000);
+                                    }
+                                }
+                            })();
                         }
                     }).catch(error => {
                         console.error('💥 Error checking session:', error);
