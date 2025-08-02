@@ -7249,14 +7249,8 @@ if (languageSelectorInGame) {
                             isAuthenticating = false;
                             console.log('✅ Authentication process completed, file upload re-enabled');
                             
-                            // Check for pending shared deck import after authentication
-                            const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
-                            if (pendingSharedDeckUrl) {
-                                console.log('📥 Processing pending shared deck import immediately after authentication...');
-                                localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
-                                // Process the import immediately - no delay needed since UI is ready
-                                handleImportFromUrl(pendingSharedDeckUrl);
-                            }
+                            // Note: Shared deck import handling is done in the initial session check
+                            // to avoid duplicate processing for already authenticated users
                         }
                     } else {
                         console.log('❌ No user session, showing login');
@@ -7324,6 +7318,7 @@ if (languageSelectorInGame) {
                             
                             // Check for shared deck import FIRST before normal UI flow
                             const pendingSharedDeckUrl = localStorage.getItem('pendingSharedDeckUrl');
+                            console.log('🔍 Checking for pending shared deck URL:', pendingSharedDeckUrl);
                             if (pendingSharedDeckUrl) {
                                 console.log('📥 Priority shared deck import detected, processing immediately...');
                                 localStorage.removeItem('pendingSharedDeckUrl'); // Clear the stored URL
@@ -7843,8 +7838,18 @@ if (languageSelectorInGame) {
             }
 
             async function showImportModal(sharedDeckData) {
+                console.log('📥 showImportModal called with data:', sharedDeckData);
+                
                 const modal = document.getElementById('importDeckModal');
                 const deckNameSpan = document.getElementById('importDeckName');
+                
+                console.log('📥 Modal elements found:', { modal: !!modal, deckNameSpan: !!deckNameSpan });
+                
+                if (!modal) {
+                    console.error('❌ Import modal not found in DOM');
+                    alert('Import modal not available. Please refresh the page and try again.');
+                    return;
+                }
                 
                 // Handle both possible data structures
                 const deckName = sharedDeckData.deck_name || sharedDeckData.deck?.name || 'Unknown Deck';
@@ -7875,6 +7880,11 @@ if (languageSelectorInGame) {
                 }
                 
                 modal.classList.remove('hidden');
+                console.log('✅ Import modal displayed successfully');
+                
+                // Ensure modal is on top
+                modal.style.zIndex = '2100';
+                modal.style.display = 'flex';
                 
                 // Handle import to new deck
                 document.getElementById('importToNewDeckBtn').onclick = async () => {
