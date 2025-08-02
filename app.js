@@ -7190,7 +7190,8 @@ if (languageSelectorInGame) {
                     console.log('  -> handleImportFromUrl finished.');
                 } catch (error) {
                     console.error('💥 Error during priority shared deck import:', error);
-                    alert(`Error processing shared deck: ${error.message}`);
+                    // Use the new error modal instead of basic alert
+                    await showImportErrorModal(`Error processing shared deck: ${error.message}`);
                     await initializeDeckManagement(); // Fallback to normal view
                 } finally {
                     isAuthenticating = false;
@@ -7284,7 +7285,7 @@ if (languageSelectorInGame) {
                                         
                                     } catch (error) {
                                         console.error('💥 Error during shared deck import initialization:', error);
-                                        alert('Error loading shared deck. Please try again.');
+                                        await showImportErrorModal('Error loading shared deck. Please try again.');
                                     } finally {
                                         isAuthenticating = false;
                                     }
@@ -7729,27 +7730,77 @@ if (languageSelectorInGame) {
                 };
             }
 
-            async function handleImportFromUrl(url) {
+            async function handleImportFromUrl(url, retryCount = 0) {
+                const maxRetries = 3;
+                const retryDelay = 2000; // 2 seconds
+                
                 try {
-                    console.log('📥 Importing from URL:', url);
+                    console.log('📥 Importing from URL:', url, retryCount ? `(retry ${retryCount}/${maxRetries})` : '');
                     
-                    // Extract share ID from URL
-                    const urlParams = new URLSearchParams(new URL(url).search);
-                    const shareId = urlParams.get('share');
+                    // Extract share ID from URL with better validation
+                    let shareId;
+                    try {
+                        const urlParams = new URLSearchParams(new URL(url).search);
+                        shareId = urlParams.get('share');
+                    } catch (urlError) {
+                        console.error('❌ Invalid URL format:', urlError);
+                        await showImportErrorModal('Invalid share link format. Please check the URL and try again.');
+                        return;
+                    }
                     
-                    if (!shareId) {
-                        alert('Invalid share link');
+                    if (!shareId || shareId.trim() === '') {
+                        console.error('❌ No share ID found in URL');
+                        await showImportErrorModal('Invalid share link. The link appears to be missing required information.');
                         return;
                     }
 
-                    // Call Supabase Edge Function to get shared data
-                    const { data, error } = await supabaseClient.functions.invoke('get-shared-deck', {
-                        body: { share_id: shareId }
+                    // Validate Supabase client before making API call
+                    if (!supabaseClient) {
+                        console.error('❌ Supabase client not available');
+                        await showImportErrorModal('Connection service unavailable. Please refresh the page and try again.');
+                        return;
+                    }
+
+                    // Show loading indicator
+                    showImportLoadingModal(shareId);
+
+                    // Call Supabase Edge Function to get shared data with timeout
+                    const apiCallPromise = supabaseClient.functions.invoke('get-shared-deck', {
+                        body: { share_id: shareId.trim() }
                     });
+                    
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Request timeout')), 15000)
+                    );
+
+                    const { data, error } = await Promise.race([apiCallPromise, timeoutPromise]);
 
                     if (error) {
                         console.error('❌ Error fetching shared deck:', error);
-                        alert('Failed to load shared deck. The link may have expired.');
+                        
+                        // Handle specific error types
+                        if (error.message?.includes('timeout') || error.message?.includes('network')) {
+                            if (retryCount < maxRetries) {
+                                console.log(`🔄 Network error, retrying in ${retryDelay}ms...`);
+                                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                                return await handleImportFromUrl(url, retryCount + 1);
+                            } else {
+                                await showImportErrorModal('Network connection failed. Please check your internet connection and try again.');
+                                return;
+                            }
+                        } else if (error.message?.includes('not found') || error.message?.includes('expired')) {
+                            await showImportErrorModal('This shared deck link has expired or is no longer available.');
+                            return;
+                        } else {
+                            await showImportErrorModal('Failed to load shared deck. Please try again or contact support if the problem persists.');
+                            return;
+                        }
+                    }
+
+                    // Validate received data structure
+                    if (!data) {
+                        console.error('❌ No data received from server');
+                        await showImportErrorModal('Received empty data from server. The shared deck may be corrupted.');
                         return;
                     }
 
@@ -7764,20 +7815,160 @@ if (languageSelectorInGame) {
                         deckKeys: data && data.deck ? Object.keys(data.deck) : 'N/A',
                         fullDataStructure: data
                     });
+
+                    // Validate that we have notes to import
+                    const notes = data.notes || [];
+                    if (!Array.isArray(notes) || notes.length === 0) {
+                        console.warn('⚠️ Shared deck has no notes or invalid notes structure');
+                        await showImportErrorModal('This shared deck appears to be empty or has invalid data.');
+                        return;
+                    }
+
+                    // Validate note structure
+                    const validNotes = notes.filter(note => note && note.term && typeof note.term === 'string');
+                    if (validNotes.length === 0) {
+                        console.warn('⚠️ No valid notes found in shared deck');
+                        await showImportErrorModal('This shared deck contains invalid note data.');
+                        return;
+                    }
+
+                    if (validNotes.length !== notes.length) {
+                        console.warn(`⚠️ Some notes were invalid. ${validNotes.length}/${notes.length} notes are valid`);
+                    }
+
+                    // Update data with valid notes only
+                    const validatedData = {
+                        ...data,
+                        notes: validNotes
+                    };
                     
-                    await showImportModal(data);
+                    await showImportModal(validatedData);
 
                 } catch (error) {
-                    console.error('💥 Error importing deck:', error);
-                    alert('Failed to import deck. Please check the link and try again.');
+                    console.error('💥 Unexpected error importing deck:', error);
+                    
+                    // Network/timeout errors - retry if we haven't exceeded max retries
+                    if ((error.message?.includes('timeout') || error.name === 'TypeError' || error.message?.includes('fetch')) && retryCount < maxRetries) {
+                        console.log(`🔄 Unexpected error, retrying in ${retryDelay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                        return await handleImportFromUrl(url, retryCount + 1);
+                    }
+                    
+                    await showImportErrorModal('An unexpected error occurred. Please try again or contact support if the problem persists.');
                 }
             }
 
+            // Show loading modal while fetching shared deck data
+            function showImportLoadingModal(shareId) {
+                let loadingModal = document.getElementById('importLoadingModal');
+                if (!loadingModal) {
+                    loadingModal = document.createElement('div');
+                    loadingModal.id = 'importLoadingModal';
+                    loadingModal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+                    loadingModal.style.zIndex = '2200';
+                    loadingModal.innerHTML = `
+                        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Loading Shared Deck</h3>
+                            <p class="text-sm text-gray-600 mb-4">Fetching deck data from server...</p>
+                            <div class="text-xs text-gray-500">Share ID: ${shareId}</div>
+                        </div>
+                    `;
+                    document.body.appendChild(loadingModal);
+                }
+                loadingModal.classList.remove('hidden');
+            }
+
+            // Hide loading modal
+            function hideImportLoadingModal() {
+                const loadingModal = document.getElementById('importLoadingModal');
+                if (loadingModal) {
+                    loadingModal.classList.add('hidden');
+                }
+            }
+
+            // Show error modal with better user feedback and options
+            async function showImportErrorModal(errorMessage) {
+                hideImportLoadingModal(); // Hide loading modal first
+                
+                let errorModal = document.getElementById('importErrorModal');
+                if (!errorModal) {
+                    errorModal = document.createElement('div');
+                    errorModal.id = 'importErrorModal';
+                    errorModal.className = 'hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+                    errorModal.style.zIndex = '2200';
+                    document.body.appendChild(errorModal);
+                }
+
+                errorModal.innerHTML = `
+                    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+                        <div class="flex items-center mb-4">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                </svg>
+                            </div>
+                            <h3 class="ml-3 text-lg font-medium text-gray-900">Import Failed</h3>
+                        </div>
+                        <div class="mb-4">
+                            <p class="text-sm text-gray-600">${errorMessage}</p>
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <button id="retryImportBtn" class="w-full btn btn-primary">
+                                🔄 Try Again
+                            </button>
+                            <button id="continueWithoutImportBtn" class="w-full btn btn-secondary">
+                                📚 Continue to My Decks
+                            </button>
+                            <button id="closeErrorModalBtn" class="w-full btn btn-outline text-sm">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Add event listeners
+                const retryBtn = errorModal.querySelector('#retryImportBtn');
+                const continueBtn = errorModal.querySelector('#continueWithoutImportBtn');
+                const closeBtn = errorModal.querySelector('#closeErrorModalBtn');
+
+                retryBtn.onclick = async () => {
+                    errorModal.classList.add('hidden');
+                    const pendingUrl = localStorage.getItem('lastFailedSharedDeckUrl');
+                    if (pendingUrl) {
+                        await handleImportFromUrl(pendingUrl);
+                    } else {
+                        await showImportErrorModal('No saved import URL found. Please use the original share link again.');
+                    }
+                };
+
+                continueBtn.onclick = async () => {
+                    errorModal.classList.add('hidden');
+                    console.log('📚 User chose to continue without import, showing normal interface...');
+                    await fetchNotes();
+                    showMainSelection();
+                };
+
+                closeBtn.onclick = () => {
+                    errorModal.classList.add('hidden');
+                };
+
+                errorModal.classList.remove('hidden');
+            }
+
             async function showImportModal(sharedDeckData) {
+                hideImportLoadingModal(); // Hide loading modal
+                
                 const modal = document.getElementById('importDeckModal');
                 const deckNameSpan = document.getElementById('importDeckName');
                 
-                // Handle both possible data structures
+                if (!modal || !deckNameSpan) {
+                    console.error('❌ Import modal elements not found in DOM');
+                    await showImportErrorModal('Interface error: Import modal not available. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Handle both possible data structures with better validation
                 const deckName = sharedDeckData.deck_name || sharedDeckData.deck?.name || 'Unknown Deck';
                 const notes = sharedDeckData.notes || [];
                 
@@ -7787,123 +7978,294 @@ if (languageSelectorInGame) {
                     notesLength: notes.length
                 });
                 
+                // Validate that we have notes to import
+                if (!Array.isArray(notes) || notes.length === 0) {
+                    await showImportErrorModal('This shared deck appears to be empty or contains no valid notes.');
+                    return;
+                }
+                
                 deckNameSpan.textContent = deckName;
                 
-                // Populate existing decks dropdown
-                const deckSelect = document.getElementById('existingDeckSelect');
-                deckSelect.innerHTML = '<option value="">-- Select Existing Deck --</option>';
+                // Update modal with note count information
+                const modalHeader = modal.querySelector('h3');
+                if (modalHeader) {
+                    modalHeader.textContent = `Import Shared Deck (${notes.length} notes)`;
+                }
                 
-                if (userDecks && userDecks.length > 0) {
-                    userDecks.forEach(deck => {
-                        const option = document.createElement('option');
-                        option.value = deck.id;
-                        option.textContent = deck.name;
-                        deckSelect.appendChild(option);
-                    });
-                    document.getElementById('existingDecksSection').classList.remove('hidden');
+                // Add deck info section
+                const deckInfo = modal.querySelector('.deck-info') || document.createElement('div');
+                deckInfo.className = 'deck-info bg-blue-50 p-3 rounded-lg mb-4';
+                deckInfo.innerHTML = `
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-blue-800">Deck Information</span>
+                    </div>
+                    <ul class="text-sm text-blue-700 space-y-1">
+                        <li>📚 <strong>${notes.length}</strong> vocabulary items</li>
+                        <li>🏷️ Name: <strong>${deckName}</strong></li>
+                        <li>📝 Sample: ${notes[0]?.term || 'N/A'} → ${notes[0]?.definition || 'N/A'}</li>
+                    </ul>
+                `;
+                
+                // Insert deck info after the main description
+                const mainDescription = modal.querySelector('p');
+                if (mainDescription && !modal.querySelector('.deck-info')) {
+                    mainDescription.parentNode.insertBefore(deckInfo, mainDescription.nextSibling);
+                }
+                
+                // Populate existing decks dropdown with better error handling
+                const deckSelect = document.getElementById('existingDeckSelect');
+                if (deckSelect) {
+                    deckSelect.innerHTML = '<option value="">-- Select Existing Deck --</option>';
+                    
+                    if (userDecks && Array.isArray(userDecks) && userDecks.length > 0) {
+                        userDecks.forEach(deck => {
+                            if (deck && deck.id && deck.name) {
+                                const option = document.createElement('option');
+                                option.value = deck.id;
+                                option.textContent = `${deck.name} (${deck.notes_count || 0} notes)`;
+                                deckSelect.appendChild(option);
+                            }
+                        });
+                        document.getElementById('existingDecksSection')?.classList.remove('hidden');
+                    } else {
+                        document.getElementById('existingDecksSection')?.classList.add('hidden');
+                        console.log('ℹ️ No existing decks available for import');
+                    }
                 } else {
-                    document.getElementById('existingDecksSection').classList.add('hidden');
+                    console.error('❌ Existing deck select element not found');
                 }
                 
                 modal.classList.remove('hidden');
                 
-                // Handle import to new deck
-                document.getElementById('importToNewDeckBtn').onclick = async () => {
-                    // Extract notes from the proper data structure
-                    const notesToImport = sharedDeckData.notes || [];
-                    const deckNameForImport = deckName;
-                    await importToNewDeck({ notes: notesToImport, deck_name: deckNameForImport });
-                };
+                // Store the URL for retry functionality
+                localStorage.setItem('lastFailedSharedDeckUrl', window.location.href);
                 
-                // Handle import to existing deck
-                document.getElementById('importToExistingDeckBtn').onclick = async () => {
-                    const selectedDeckId = deckSelect.value;
-                    if (!selectedDeckId) {
-                        alert('Please select a deck');
-                        return;
-                    }
-                    // Extract notes from the proper data structure
-                    const notesToImport = sharedDeckData.notes || [];
-                    await importToExistingDeck({ notes: notesToImport, deck_name: deckName }, selectedDeckId);
-                };
+                // Handle import to new deck with better error handling
+                const importToNewBtn = document.getElementById('importToNewDeckBtn');
+                if (importToNewBtn) {
+                    importToNewBtn.onclick = async () => {
+                        try {
+                            console.log('📁 Starting import to new deck...');
+                            const notesToImport = sharedDeckData.notes || [];
+                            const deckNameForImport = deckName;
+                            await importToNewDeck({ notes: notesToImport, deck_name: deckNameForImport });
+                        } catch (error) {
+                            console.error('💥 Error in new deck import handler:', error);
+                            await showImportErrorModal('Failed to start new deck import. Please try again.');
+                        }
+                    };
+                }
                 
-                // Handle cancel
-                document.getElementById('cancelImportBtn').onclick = async () => {
-                    modal.classList.add('hidden');
-                    // After cancelling import, show user's normal interface
-                    console.log('📥 Import cancelled, showing normal interface...');
-                    
-                    // Fetch user's notes and show appropriate interface
-                    await fetchNotes();
-                    showMainSelection();
-                };
+                // Handle import to existing deck with better error handling
+                const importToExistingBtn = document.getElementById('importToExistingDeckBtn');
+                if (importToExistingBtn) {
+                    importToExistingBtn.onclick = async () => {
+                        try {
+                            const selectedDeckId = deckSelect?.value;
+                            if (!selectedDeckId) {
+                                alert('Please select a deck from the dropdown menu.');
+                                return;
+                            }
+                            console.log('📂 Starting import to existing deck:', selectedDeckId);
+                            const notesToImport = sharedDeckData.notes || [];
+                            await importToExistingDeck({ notes: notesToImport, deck_name: deckName }, selectedDeckId);
+                        } catch (error) {
+                            console.error('💥 Error in existing deck import handler:', error);
+                            await showImportErrorModal('Failed to start existing deck import. Please try again.');
+                        }
+                    };
+                }
+                
+                // Handle cancel with improved UX
+                const cancelBtn = document.getElementById('cancelImportBtn');
+                if (cancelBtn) {
+                    cancelBtn.onclick = async () => {
+                        modal.classList.add('hidden');
+                        console.log('📥 Import cancelled, showing normal interface...');
+                        
+                        try {
+                            // Fetch user's notes and show appropriate interface
+                            await fetchNotes();
+                            showMainSelection();
+                        } catch (error) {
+                            console.error('💥 Error showing main interface after cancel:', error);
+                            // Still show main selection even if fetch fails
+                            showMainSelection();
+                        }
+                    };
+                }
             }
 
             async function importToNewDeck(sharedDeckData) {
                 try {
-                    const deckName = prompt('Enter name for new deck:', sharedDeckData.deck_name);
-                    if (!deckName) return;
+                    console.log('📁 Starting import to new deck process...');
                     
-                    // Get user language preferences
-                    const nativeLanguage = localStorage.getItem('user_native_language') || 'EN';
-                    const learningLanguage = localStorage.getItem('user_learning_language') || 'es-ES';
-                    
-                    // Create new deck
-                    const newDeck = await createDeck(deckName, learningLanguage, nativeLanguage);
-                    if (!newDeck) {
-                        alert('Failed to create deck');
+                    // Validate shared deck data
+                    if (!sharedDeckData || !sharedDeckData.notes || !Array.isArray(sharedDeckData.notes)) {
+                        throw new Error('Invalid shared deck data structure');
+                    }
+
+                    if (sharedDeckData.notes.length === 0) {
+                        throw new Error('Shared deck contains no notes to import');
+                    }
+
+                    const deckName = prompt('Enter name for new deck:', sharedDeckData.deck_name || 'Imported Deck');
+                    if (!deckName || deckName.trim() === '') {
+                        console.log('📁 Import cancelled by user (no deck name provided)');
                         return;
                     }
                     
-                    // Import notes to new deck
+                    // Get user language preferences with fallbacks
+                    const nativeLanguage = localStorage.getItem('user_native_language') || 'EN';
+                    const learningLanguage = localStorage.getItem('user_learning_language') || 'es-ES';
+                    
+                    console.log('📁 Creating new deck with preferences:', { nativeLanguage, learningLanguage });
+                    
+                    // Create new deck with timeout
+                    const createDeckPromise = createDeck(deckName.trim(), learningLanguage, nativeLanguage);
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Deck creation timeout')), 10000)
+                    );
+
+                    const newDeck = await Promise.race([createDeckPromise, timeoutPromise]);
+                    
+                    if (!newDeck || !newDeck.id) {
+                        throw new Error('Failed to create new deck - no deck ID returned');
+                    }
+
+                    console.log('✅ New deck created successfully:', newDeck);
+                    
+                    // Import notes to new deck with progress feedback
+                    console.log(`📝 Importing ${sharedDeckData.notes.length} notes to new deck...`);
                     await importNotesToDeck(sharedDeckData.notes, newDeck.id);
                     
-                    // Refresh UI and deck list
-                    userDecks = await fetchUserDecks();
-                    renderDecks(userDecks);
+                    // Refresh UI and deck list with error handling
+                    try {
+                        userDecks = await fetchUserDecks();
+                        renderDecks(userDecks);
+                        
+                        // Select the new deck and refresh vocabulary
+                        await selectDeck(newDeck.id, newDeck.name, newDeck.language);
+                        
+                        // Force vocabulary refresh to show imported notes
+                        await fetchNotes();
+                    } catch (uiError) {
+                        console.error('⚠️ Error refreshing UI after import:', uiError);
+                        // Don't fail the import for UI errors
+                    }
                     
-                    // Select the new deck and refresh vocabulary
-                    await selectDeck(newDeck.id, newDeck.name, newDeck.language);
+                    // Hide modal and show success
+                    const modal = document.getElementById('importDeckModal');
+                    if (modal) modal.classList.add('hidden');
                     
-                    // Force vocabulary refresh to show imported notes
-                    await fetchNotes();
-                    
-                    document.getElementById('importDeckModal').classList.add('hidden');
-                    alert(`Successfully imported ${sharedDeckData.notes.length} notes to new deck "${deckName}"`);
+                    const successMessage = `✅ Successfully imported ${sharedDeckData.notes.length} notes to new deck "${deckName}"!\n\nYour new deck has been created and selected. You can now start studying with these imported vocabulary items.`;
+                    alert(successMessage);
                     
                     // Show the appropriate interface after successful import
                     showMainSelection();
                     
                 } catch (error) {
                     console.error('💥 Error importing to new deck:', error);
-                    alert('Failed to import deck. Please try again.');
+                    
+                    // Provide specific error messages based on error type
+                    let errorMessage = 'Failed to import deck. ';
+                    if (error.message?.includes('timeout')) {
+                        errorMessage += 'The operation took too long. Please check your internet connection and try again.';
+                    } else if (error.message?.includes('Invalid shared deck data')) {
+                        errorMessage += 'The shared deck data appears to be corrupted.';
+                    } else if (error.message?.includes('no notes')) {
+                        errorMessage += 'The shared deck contains no notes to import.';
+                    } else if (error.message?.includes('create new deck')) {
+                        errorMessage += 'Could not create a new deck. Please try again.';
+                    } else {
+                        errorMessage += 'Please try again or contact support if the problem persists.';
+                    }
+                    
+                    alert(errorMessage);
                 }
             }
 
             async function importToExistingDeck(sharedDeckData, deckId) {
                 try {
+                    console.log('📂 Starting import to existing deck process...', { deckId, notesCount: sharedDeckData.notes?.length });
+                    
+                    // Validate inputs
+                    if (!sharedDeckData || !sharedDeckData.notes || !Array.isArray(sharedDeckData.notes)) {
+                        throw new Error('Invalid shared deck data structure');
+                    }
+
+                    if (sharedDeckData.notes.length === 0) {
+                        throw new Error('Shared deck contains no notes to import');
+                    }
+
+                    if (!deckId || deckId.trim() === '') {
+                        throw new Error('No deck selected for import');
+                    }
+
+                    // Find the target deck in user's decks
+                    const targetDeck = userDecks?.find(deck => deck.id === deckId);
+                    const deckName = targetDeck?.name || 'Selected Deck';
+
+                    // Confirm import with user
+                    const confirmMessage = `Import ${sharedDeckData.notes.length} notes to "${deckName}"?\n\nThis will add the shared vocabulary to your existing deck.`;
+                    if (!confirm(confirmMessage)) {
+                        console.log('📂 Import cancelled by user');
+                        return;
+                    }
+
+                    console.log(`📝 Importing ${sharedDeckData.notes.length} notes to existing deck "${deckName}"...`);
                     await importNotesToDeck(sharedDeckData.notes, deckId);
                     
                     // Refresh current deck if it's the one we imported to
                     if (deckId === currentlySelectedDeckId) {
                         console.log('🔄 Refreshing vocabulary for current deck after import');
-                        vocabulary = await fetchNotes();
-                        renderNotes();
+                        try {
+                            await fetchNotes();
+                            renderNotes();
+                        } catch (refreshError) {
+                            console.error('⚠️ Error refreshing current deck after import:', refreshError);
+                            // Don't fail the import for refresh errors
+                        }
                     }
                     
-                    // Also refresh userDecks to ensure note count is updated
-                    userDecks = await fetchUserDecks();
-                    renderDecks(userDecks);
+                    // Refresh userDecks to ensure note count is updated
+                    try {
+                        userDecks = await fetchUserDecks();
+                        renderDecks(userDecks);
+                    } catch (uiError) {
+                        console.error('⚠️ Error refreshing deck list after import:', uiError);
+                        // Don't fail the import for UI errors
+                    }
                     
-                    document.getElementById('importDeckModal').classList.add('hidden');
-                    alert(`Successfully imported ${sharedDeckData.notes.length} notes to selected deck`);
+                    // Hide modal and show success
+                    const modal = document.getElementById('importDeckModal');
+                    if (modal) modal.classList.add('hidden');
+                    
+                    const successMessage = `✅ Successfully imported ${sharedDeckData.notes.length} notes to "${deckName}"!\n\nThe shared vocabulary has been added to your existing deck.`;
+                    alert(successMessage);
                     
                     // Show the appropriate interface after successful import
                     showMainSelection();
                     
                 } catch (error) {
                     console.error('💥 Error importing to existing deck:', error);
-                    alert('Failed to import deck. Please try again.');
+                    
+                    // Provide specific error messages based on error type
+                    let errorMessage = 'Failed to import to existing deck. ';
+                    if (error.message?.includes('Invalid shared deck data')) {
+                        errorMessage += 'The shared deck data appears to be corrupted.';
+                    } else if (error.message?.includes('no notes')) {
+                        errorMessage += 'The shared deck contains no notes to import.';
+                    } else if (error.message?.includes('No deck selected')) {
+                        errorMessage += 'Please select a deck from the dropdown menu.';
+                    } else {
+                        errorMessage += 'Please try again or contact support if the problem persists.';
+                    }
+                    
+                    alert(errorMessage);
                 }
             }
 
@@ -7913,13 +8275,44 @@ if (languageSelectorInGame) {
                     deckId,
                     sampleNotes: notes?.slice(0, 3) || []
                 });
+
+                // Validate inputs
+                if (!notes || !Array.isArray(notes) || notes.length === 0) {
+                    throw new Error('No valid notes provided for import');
+                }
+
+                if (!deckId) {
+                    throw new Error('No deck ID provided for import');
+                }
+
+                // Get authenticated user with validation
+                const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+                if (userError || !user) {
+                    console.error('❌ User authentication error:', userError);
+                    throw new Error('User not authenticated. Please log in and try again.');
+                }
+
+                // Validate and clean notes data
+                const validNotes = notes.filter(note => {
+                    if (!note || typeof note !== 'object') return false;
+                    if (!note.term || typeof note.term !== 'string' || note.term.trim() === '') return false;
+                    return true;
+                }).map(note => ({
+                    term: note.term.trim(),
+                    definition: (note.definition || '').toString().trim() // Allow empty definitions
+                }));
+
+                if (validNotes.length === 0) {
+                    throw new Error('No valid notes found to import');
+                }
+
+                if (validNotes.length !== notes.length) {
+                    console.warn(`⚠️ Filtered out ${notes.length - validNotes.length} invalid notes`);
+                }
                 
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) throw new Error('No user authenticated');
-                
-                const notesToInsert = notes.map(note => ({
+                const notesToInsert = validNotes.map(note => ({
                     user_id: user.id,
-                    note_set_id: deckId, // Fixed: use note_set_id instead of deck_id
+                    note_set_id: deckId,
                     term: note.term,
                     definition: note.definition,
                     created_at: new Date().toISOString()
@@ -7929,17 +8322,67 @@ if (languageSelectorInGame) {
                     notesToInsertCount: notesToInsert.length,
                     sampleInsertData: notesToInsert.slice(0, 2)
                 });
+
+                // Insert notes with retry logic for network failures
+                let insertError = null;
+                const maxRetries = 3;
                 
-                const { error } = await supabaseClient
-                    .from('notes')
-                    .insert(notesToInsert);
-                
-                if (error) {
-                    console.error('❌ Error inserting notes:', error);
-                    throw error;
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    try {
+                        console.log(`📤 Insert attempt ${attempt}/${maxRetries}...`);
+                        
+                        const { error } = await supabaseClient
+                            .from('notes')
+                            .insert(notesToInsert);
+                        
+                        if (error) {
+                            insertError = error;
+                            console.error(`❌ Insert attempt ${attempt} failed:`, error);
+                            
+                            // Check if it's a network/timeout error worth retrying
+                            if (attempt < maxRetries && (
+                                error.message?.includes('timeout') ||
+                                error.message?.includes('network') ||
+                                error.message?.includes('fetch')
+                            )) {
+                                console.log(`🔄 Retrying in ${attempt * 1000}ms...`);
+                                await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+                                continue;
+                            } else {
+                                throw error;
+                            }
+                        } else {
+                            // Success
+                            insertError = null;
+                            break;
+                        }
+                    } catch (error) {
+                        insertError = error;
+                        console.error(`💥 Insert attempt ${attempt} error:`, error);
+                        
+                        if (attempt >= maxRetries) {
+                            throw error;
+                        }
+                    }
                 }
                 
-                console.log(`✅ Successfully imported ${notes.length} notes`);
+                if (insertError) {
+                    console.error('❌ Final error inserting notes:', insertError);
+                    
+                    // Provide more specific error messages
+                    if (insertError.message?.includes('duplicate') || insertError.code === '23505') {
+                        throw new Error('Some of these notes already exist in the selected deck');
+                    } else if (insertError.message?.includes('foreign key') || insertError.code === '23503') {
+                        throw new Error('Invalid deck selected for import');
+                    } else if (insertError.message?.includes('timeout') || insertError.message?.includes('network')) {
+                        throw new Error('Network connection failed during import');
+                    } else {
+                        throw new Error('Database error during import: ' + (insertError.message || 'Unknown error'));
+                    }
+                }
+                
+                console.log(`✅ Successfully imported ${validNotes.length} notes to deck ${deckId}`);
+                return validNotes.length;
             }
 
             // Add event listeners for sharing (fix nested DOMContentLoaded issue)

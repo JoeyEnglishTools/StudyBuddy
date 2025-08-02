@@ -1582,6 +1582,43 @@ Symbols like _, ·, •, →, ← are automatically converted to dashes."
         </div>
     </div>
 
+    <!-- Loading Modal for Shared Deck Import -->
+    <div id="importLoadingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 2200;">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Loading Shared Deck</h3>
+            <p class="text-sm text-gray-600 mb-4">Fetching deck data from server...</p>
+        </div>
+    </div>
+
+    <!-- Error Modal for Shared Deck Import -->
+    <div id="importErrorModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 2200;">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+            <div class="flex items-center mb-4">
+                <div class="flex-shrink-0">
+                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                </div>
+                <h3 class="ml-3 text-lg font-medium text-gray-900">Import Failed</h3>
+            </div>
+            <div class="mb-4">
+                <p class="text-sm text-gray-600" id="importErrorMessage">An error occurred during import.</p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button id="retryImportBtn" class="w-full btn btn-primary">
+                    🔄 Try Again
+                </button>
+                <button id="continueWithoutImportBtn" class="w-full btn btn-secondary">
+                    📚 Continue to My Decks
+                </button>
+                <button id="closeErrorModalBtn" class="w-full btn btn-outline text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

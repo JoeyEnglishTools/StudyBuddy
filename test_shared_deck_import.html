@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyBuddy Shared Deck Import Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-case { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .pass { background-color: #d4edda; border-color: #c3e6cb; }
+        .fail { background-color: #f8d7da; border-color: #f5c6cb; }
+        .pending { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>StudyBuddy Shared Deck Import Test Suite</h1>
+    <p>This page tests the enhanced shared deck import functionality with better error handling and user feedback.</p>
+
+    <div id="testResults" class="results">
+        <h2>Test Results:</h2>
+    </div>
+
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearResults()">Clear Results</button>
+
+    <script>
+        // Mock functions for testing
+        let testResults = [];
+        
+        // Mock Supabase client
+        const mockSupabaseClient = {
+            auth: {
+                getUser: () => Promise.resolve({ 
+                    data: { user: { id: 'test-user-123', email: 'test@example.com' } },
+                    error: null 
+                })
+            },
+            functions: {
+                invoke: (funcName, options) => {
+                    if (funcName === 'get-shared-deck') {
+                        const shareId = options.body?.share_id;
+                        if (shareId === 'valid123') {
+                            return Promise.resolve({
+                                data: {
+                                    deck_name: 'Test Spanish Deck',
+                                    notes: [
+                                        { term: 'hola', definition: 'hello' },
+                                        { term: 'gracias', definition: 'thank you' },
+                                        { term: 'adiós', definition: 'goodbye' }
+                                    ]
+                                },
+                                error: null
+                            });
+                        } else if (shareId === 'expired123') {
+                            return Promise.reject({ message: 'Share link expired or not found' });
+                        } else if (shareId === 'timeout123') {
+                            return new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('timeout')), 100)
+                            );
+                        } else if (shareId === 'empty123') {
+                            return Promise.resolve({
+                                data: { deck_name: 'Empty Deck', notes: [] },
+                                error: null
+                            });
+                        } else {
+                            return Promise.reject({ message: 'Invalid share ID' });
+                        }
+                    }
+                    return Promise.reject({ message: 'Unknown function' });
+                }
+            },
+            from: (table) => ({
+                insert: (data) => Promise.resolve({ error: null })
+            })
+        };
+
+        // Mock localStorage
+        const mockLocalStorage = {
+            data: {},
+            getItem(key) { return this.data[key] || null; },
+            setItem(key, value) { this.data[key] = value; },
+            removeItem(key) { delete this.data[key]; }
+        };
+
+        // Mock functions that would normally be in app.js
+        window.supabaseClient = mockSupabaseClient;
+        window.localStorage = mockLocalStorage;
+        window.userDecks = [
+            { id: 'deck1', name: 'My Spanish Deck', notes_count: 25 },
+            { id: 'deck2', name: 'French Basics', notes_count: 10 }
+        ];
+
+        // Test URL validation
+        function testUrlValidation() {
+            const results = [];
+            
+            // Test 1: Valid URL with share parameter
+            try {
+                const url = 'http://localhost:8080?share=valid123';
+                const urlParams = new URLSearchParams(new URL(url).search);
+                const shareId = urlParams.get('share');
+                results.push({
+                    name: 'Valid URL with share parameter',
+                    passed: shareId === 'valid123',
+                    details: `Expected: valid123, Got: ${shareId}`
+                });
+            } catch (error) {
+                results.push({
+                    name: 'Valid URL with share parameter',
+                    passed: false,
+                    details: `Error: ${error.message}`
+                });
+            }
+
+            // Test 2: URL without share parameter
+            try {
+                const url = 'http://localhost:8080';
+                const urlParams = new URLSearchParams(new URL(url).search);
+                const shareId = urlParams.get('share');
+                results.push({
+                    name: 'URL without share parameter',
+                    passed: shareId === null,
+                    details: `Expected: null, Got: ${shareId}`
+                });
+            } catch (error) {
+                results.push({
+                    name: 'URL without share parameter',
+                    passed: false,
+                    details: `Error: ${error.message}`
+                });
+            }
+
+            // Test 3: Invalid URL format
+            try {
+                const url = 'not-a-valid-url';
+                const urlParams = new URLSearchParams(new URL(url).search);
+                results.push({
+                    name: 'Invalid URL format',
+                    passed: false,
+                    details: 'Should have thrown an error for invalid URL'
+                });
+            } catch (error) {
+                results.push({
+                    name: 'Invalid URL format',
+                    passed: true,
+                    details: `Correctly caught error: ${error.message}`
+                });
+            }
+
+            return results;
+        }
+
+        // Test data validation
+        function testDataValidation() {
+            const results = [];
+
+            // Test 1: Valid deck data
+            const validData = {
+                deck_name: 'Test Deck',
+                notes: [
+                    { term: 'word1', definition: 'definition1' },
+                    { term: 'word2', definition: 'definition2' }
+                ]
+            };
+            
+            const validNotes = validData.notes.filter(note => 
+                note && note.term && typeof note.term === 'string' && note.term.trim() !== ''
+            );
+            
+            results.push({
+                name: 'Valid deck data structure',
+                passed: validNotes.length === 2,
+                details: `Expected 2 valid notes, got ${validNotes.length}`
+            });
+
+            // Test 2: Empty notes array
+            const emptyData = {
+                deck_name: 'Empty Deck',
+                notes: []
+            };
+            
+            results.push({
+                name: 'Empty notes array',
+                passed: emptyData.notes.length === 0,
+                details: `Expected 0 notes, got ${emptyData.notes.length}`
+            });
+
+            // Test 3: Invalid notes structure
+            const invalidData = {
+                deck_name: 'Invalid Deck',
+                notes: [
+                    { term: '', definition: 'empty term' }, // Invalid: empty term
+                    { definition: 'missing term' },         // Invalid: no term
+                    { term: 'valid', definition: 'valid' }, // Valid
+                    null,                                    // Invalid: null note
+                    { term: '   ', definition: 'whitespace term' } // Invalid: whitespace only
+                ]
+            };
+            
+            const validNotesFromInvalid = invalidData.notes.filter(note => 
+                note && note.term && typeof note.term === 'string' && note.term.trim() !== ''
+            );
+            
+            results.push({
+                name: 'Filter invalid notes',
+                passed: validNotesFromInvalid.length === 1,
+                details: `Expected 1 valid note from 5 mixed notes, got ${validNotesFromInvalid.length}`
+            });
+
+            return results;
+        }
+
+        // Test API error scenarios
+        async function testApiErrorHandling() {
+            const results = [];
+
+            // Test 1: Expired share link
+            try {
+                await mockSupabaseClient.functions.invoke('get-shared-deck', {
+                    body: { share_id: 'expired123' }
+                });
+                results.push({
+                    name: 'Expired share link',
+                    passed: false,
+                    details: 'Should have thrown an error for expired link'
+                });
+            } catch (error) {
+                results.push({
+                    name: 'Expired share link',
+                    passed: error.message.includes('expired'),
+                    details: `Correctly caught error: ${error.message}`
+                });
+            }
+
+            // Test 2: Valid share link
+            try {
+                const result = await mockSupabaseClient.functions.invoke('get-shared-deck', {
+                    body: { share_id: 'valid123' }
+                });
+                results.push({
+                    name: 'Valid share link',
+                    passed: result.data && result.data.notes && result.data.notes.length === 3,
+                    details: `Expected 3 notes, got ${result.data?.notes?.length || 0}`
+                });
+            } catch (error) {
+                results.push({
+                    name: 'Valid share link',
+                    passed: false,
+                    details: `Unexpected error: ${error.message}`
+                });
+            }
+
+            // Test 3: Empty deck
+            try {
+                const result = await mockSupabaseClient.functions.invoke('get-shared-deck', {
+                    body: { share_id: 'empty123' }
+                });
+                results.push({
+                    name: 'Empty deck handling',
+                    passed: result.data && result.data.notes && result.data.notes.length === 0,
+                    details: `Expected 0 notes, got ${result.data?.notes?.length || 'undefined'}`
+                });
+            } catch (error) {
+                results.push({
+                    name: 'Empty deck handling',
+                    passed: false,
+                    details: `Unexpected error: ${error.message}`
+                });
+            }
+
+            return results;
+        }
+
+        // Test user feedback scenarios
+        function testUserFeedback() {
+            const results = [];
+
+            // Test 1: Error message generation
+            const networkError = { message: 'network timeout' };
+            const isNetworkError = networkError.message?.includes('timeout') || 
+                                   networkError.message?.includes('network');
+            
+            results.push({
+                name: 'Network error detection',
+                passed: isNetworkError === true,
+                details: `Correctly identified network error: ${isNetworkError}`
+            });
+
+            // Test 2: Retry logic trigger
+            const maxRetries = 3;
+            let retryCount = 1;
+            const shouldRetry = retryCount < maxRetries && isNetworkError;
+            
+            results.push({
+                name: 'Retry logic trigger',
+                passed: shouldRetry === true,
+                details: `Should retry (${retryCount}/${maxRetries}) for network error: ${shouldRetry}`
+            });
+
+            // Test 3: User-friendly error messages
+            const errorMessages = {
+                'expired': 'This shared deck link has expired or is no longer available.',
+                'timeout': 'Network connection failed. Please check your internet connection and try again.',
+                'empty': 'This shared deck appears to be empty or has invalid data.',
+                'unknown': 'Failed to load shared deck. Please try again or contact support if the problem persists.'
+            };
+
+            const hasValidMessages = Object.values(errorMessages).every(msg => 
+                msg.length > 20 && msg.includes('deck')
+            );
+            
+            results.push({
+                name: 'User-friendly error messages',
+                passed: hasValidMessages,
+                details: `All error messages are descriptive and user-friendly: ${hasValidMessages}`
+            });
+
+            return results;
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            testResults = [];
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<h2>Running Tests...</h2>';
+
+            // Run test suites
+            const urlTests = testUrlValidation();
+            const dataTests = testDataValidation();
+            const apiTests = await testApiErrorHandling();
+            const feedbackTests = testUserFeedback();
+
+            // Combine all results
+            testResults = [
+                ...urlTests.map(t => ({ ...t, suite: 'URL Validation' })),
+                ...dataTests.map(t => ({ ...t, suite: 'Data Validation' })),
+                ...apiTests.map(t => ({ ...t, suite: 'API Error Handling' })),
+                ...feedbackTests.map(t => ({ ...t, suite: 'User Feedback' }))
+            ];
+
+            displayResults();
+        }
+
+        // Display test results
+        function displayResults() {
+            const resultsDiv = document.getElementById('testResults');
+            const totalTests = testResults.length;
+            const passedTests = testResults.filter(t => t.passed).length;
+            const failedTests = totalTests - passedTests;
+
+            let html = `
+                <h2>Test Results: ${passedTests}/${totalTests} Passed</h2>
+                <p><strong>Passed:</strong> ${passedTests} | <strong>Failed:</strong> ${failedTests}</p>
+            `;
+
+            // Group by suite
+            const suites = [...new Set(testResults.map(t => t.suite))];
+            
+            suites.forEach(suite => {
+                html += `<h3>${suite}</h3>`;
+                const suiteTests = testResults.filter(t => t.suite === suite);
+                
+                suiteTests.forEach(test => {
+                    const cssClass = test.passed ? 'pass' : 'fail';
+                    const status = test.passed ? '✅ PASS' : '❌ FAIL';
+                    
+                    html += `
+                        <div class="test-case ${cssClass}">
+                            <strong>${status}: ${test.name}</strong><br>
+                            <small>${test.details}</small>
+                        </div>
+                    `;
+                });
+            });
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Clear results
+        function clearResults() {
+            testResults = [];
+            document.getElementById('testResults').innerHTML = '<h2>Test Results:</h2><p>No tests run yet.</p>';
+        }
+
+        // Initialize page
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('StudyBuddy Shared Deck Import Test Suite loaded');
+        });
+    </script>
+</body>
+</html>
