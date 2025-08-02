@@ -359,23 +359,25 @@ async function fetchNotes() {
     }
     
     // Fetch all decks for the current user
-    async function fetchUserDecks() {
+  async function fetchUserDecks() {
         console.log('🗂️ Fetching user decks...');
         
         try {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
-                console.error('❌ No user authenticated');
+                console.error('❌ No user authenticated in fetchUserDecks');
                 return [];
             }
-            
-            // Check if note_sets table exists first
+            console.log('  -> User authenticated for fetching decks:', user.email);
+
             const tableExists = await ensureNoteSetsTableExists();
             if (!tableExists) {
-                // Return empty array if table doesn't exist - will trigger welcome modal
+                console.log('  -> note_sets table does not exist. Returning empty array.');
                 return [];
             }
-            
+            console.log('  -> note_sets table confirmed to exist.');
+
+            console.log('  -> Querying for decks...');
             const { data, error } = await supabaseClient
                 .from('note_sets')
                 .select('*, notes_count:notes(count)')
@@ -383,20 +385,22 @@ async function fetchNotes() {
                 .order('created_at', { ascending: false });
             
             if (error) {
-                console.error('❌ Error fetching decks:', error);
+                console.error('❌ Error fetching decks from Supabase:', error);
+                alert('There was an error fetching your decks. Please check the console for details.');
                 return [];
             }
             
-            // Process the count data
+            console.log('  -> Deck query successful. Processing results...');
             const decksWithCounts = data?.map(deck => ({
                 ...deck,
                 notes_count: deck.notes_count?.[0]?.count || 0
             })) || [];
             
-            console.log('✅ Fetched decks:', decksWithCounts);
+            console.log('✅ Fetched decks successfully:', decksWithCounts.length, 'decks found.');
             return decksWithCounts;
         } catch (err) {
-            console.error('💥 Error in fetchUserDecks:', err);
+            console.error('💥 A critical error occurred in fetchUserDecks:', err);
+            alert('A critical error occurred while fetching your decks. Please try again.');
             return [];
         }
     }
