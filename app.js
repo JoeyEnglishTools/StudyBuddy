@@ -235,11 +235,25 @@ async function fetchNotes() {
                 existingProfile.active_session_id !== localStorage.getItem('current_session_id');
             
             if (hasOtherActiveSession) {
-                // Show non-rigid message about other sessions
-                const lastActiveTime = existingProfile.last_active ? 
-                    new Date(existingProfile.last_active).toLocaleString() : 'unknown time';
+                // Check if we've already shown this message recently to avoid repetitive alerts
+                const lastShownKey = 'lastMultiDeviceAlert';
+                const lastShown = localStorage.getItem(lastShownKey);
+                const now = Date.now();
+                const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
                 
-                alert(`📱 Multi-Device Login Detected\n\nYou have other login sessions open on different devices.\nLast activity: ${lastActiveTime}\n\nThose sessions will be automatically disabled to ensure proper app functionality. You can continue using StudyBuddy normally on this device.`);
+                // Only show the alert if we haven't shown it in the last hour
+                if (!lastShown || (now - parseInt(lastShown)) > oneHour) {
+                    // Show non-rigid message about other sessions
+                    const lastActiveTime = existingProfile.last_active ? 
+                        new Date(existingProfile.last_active).toLocaleString() : 'unknown time';
+                    
+                    alert(`📱 Multi-Device Login Detected\n\nYou have other login sessions open on different devices.\nLast activity: ${lastActiveTime}\n\nThose sessions will be automatically disabled to ensure proper app functionality. You can continue using StudyBuddy normally on this device.`);
+                    
+                    // Store the timestamp when we showed this message
+                    localStorage.setItem(lastShownKey, now.toString());
+                } else {
+                    console.log('🔄 Multi-device session detected but alert suppressed (shown recently)');
+                }
             }
             
             // Update the profiles table with new session info
@@ -7221,9 +7235,19 @@ if (languageSelectorInGame) {
                 const urlParams = new URLSearchParams(window.location.search);
                 const shareId = urlParams.get('share');
                 if (shareId) {
-                    console.log('📥 Share link detected, storing for post-authentication import...');
-                    // Store the share URL for processing after authentication
-                    localStorage.setItem('pendingSharedDeckUrl', window.location.href);
+                    console.log('📥 Share link detected, checking if user is sender...');
+                    
+                    // Check if this share was created by the current user
+                    const userCreatedShares = JSON.parse(localStorage.getItem('userCreatedShares') || '[]');
+                    if (userCreatedShares.includes(shareId)) {
+                        console.log('🚫 User is sender of this share link, not storing for import');
+                        // Clean up URL to remove share parameter
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    } else {
+                        console.log('📥 Share link from another user, storing for post-authentication import...');
+                        // Store the share URL for processing after authentication
+                        localStorage.setItem('pendingSharedDeckUrl', window.location.href);
+                    }
                 }
 
                 // Check current session on page load
@@ -7585,6 +7609,18 @@ if (languageSelectorInGame) {
                     }
 
                     console.log('✅ Share created:', data);
+                    
+                    // Store this share ID as created by current user to prevent self-import
+                    if (data.share_id) {
+                        const userCreatedShares = JSON.parse(localStorage.getItem('userCreatedShares') || '[]');
+                        userCreatedShares.push(data.share_id);
+                        // Keep only last 10 shares to prevent storage bloat
+                        if (userCreatedShares.length > 10) {
+                            userCreatedShares.splice(0, userCreatedShares.length - 10);
+                        }
+                        localStorage.setItem('userCreatedShares', JSON.stringify(userCreatedShares));
+                        console.log('📝 Stored share ID as user-created:', data.share_id);
+                    }
                     
                     // Generate QR code and show modal
                     const shareUrl = data.share_url;
