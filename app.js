@@ -7178,6 +7178,8 @@ if (languageSelectorInGame) {
                 console.warn('⚠️ Share link detected, checking Supabase availability...');
             } else {
                 console.log('ℹ️ No share link detected in URL');
+                // Clear any old pending shared deck URLs since this is a fresh visit
+                localStorage.removeItem('pendingSharedDeckUrl');
             }
 
             // Check if Supabase is available before setting up auth
