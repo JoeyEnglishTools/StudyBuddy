@@ -1,3 +1,4 @@
+
 // Comprehensive Cache-Busting Script
 (function() {
     // Static build version - update this when making changes
@@ -4875,6 +4876,9 @@ async function fetchNotes() {
     }
     
     // Wait for voices to load and initialize selection
+    Of course, here is the rest of your Javascript file.
+
+
     function ensureVoicesLoaded() {
         return new Promise((resolve) => {
             // If voices were already loaded in this session, skip waiting
@@ -8098,7 +8102,7 @@ if (languageSelectorInGame) {
                             console.log('📁 Starting import to new deck...');
                             const notesToImport = sharedDeckData.notes || [];
                             const deckNameForImport = deckName;
-                            await importToNewDeck({ notes: notesToImport, deck_name: deckNameForImport });
+                            await importToNewDeck({ notes: notesToImport, deck_name: deckNameForImport, language: sharedDeckData.language });
                         } catch (error) {
                             console.error('💥 Error in new deck import handler:', error);
                             await showImportErrorModal('Failed to start new deck import. Please try again.');
