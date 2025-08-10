@@ -1519,9 +1519,6 @@ async function fetchNotes() {
         liveNotesTextarea.addEventListener('touchstart', handleNotepadTouchStart, { passive: false });
         liveNotesTextarea.addEventListener('touchend', handleNotepadTouchEnd, { passive: false });
         
-        // Add input event listener to handle stylus dots conversion to new lines
-        liveNotesTextarea.addEventListener('input', handleNotepadInput);
-        
         // Add page visibility listeners to handle device lock/unlock
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleWindowFocus);
@@ -1727,13 +1724,13 @@ async function fetchNotes() {
     }
     
     // Input event handler to detect stylus dots and convert to new lines
-    function handleNotepadInput(event) {
+    function handleStylusInput(event) {
         // Only process if the input was from touch/stylus (recent touch event)
         const timeSinceTouch = Date.now() - touchStartTime;
-        if (timeSinceTouch > 500) return; // Not from recent touch
+        if (timeSinceTouch > 500) return false; // Not from recent touch
         
         const selection = window.getSelection();
-        if (!selection.rangeCount) return;
+        if (!selection.rangeCount) return false;
         
         const range = selection.getRangeAt(0);
         const textNode = range.startContainer;
@@ -1763,8 +1760,10 @@ async function fetchNotes() {
                 
                 // Update display
                 updateLineAndParsedCounts();
+                return true; // Indicate stylus input was handled
             }
         }
+        return false; // No stylus input detected
     }
     
     
@@ -2719,7 +2718,16 @@ async function fetchNotes() {
     }
 
     function handleNotepadInput(event) {
-        // Get content from contenteditable div
+        // First, check if this is stylus input and handle it
+        if (handleStylusInput(event)) {
+            // Stylus input was handled, continue with normal processing
+            notepadContent = getNotesTextContent();
+            pendingChanges = true;
+            localStorage.setItem('live_notes_content', notepadContent);
+            return;
+        }
+        
+        // Get current content from contenteditable div
         let content = getNotesTextContent();
         let originalContent = content;
         
@@ -2727,12 +2735,31 @@ async function fetchNotes() {
         // This handles cases like "word-" -> "word -" and "word-something" -> "word - something"
         content = content.replace(/(\w)-(\s|$)/g, '$1 -$2');
         
-        // Update content if we made changes
+        // Only update content if we made changes to avoid cursor jumping
         if (content !== originalContent) {
-            setNotesContent(content);
             console.log('🔧 Auto-corrected spacing: dash without space -> dash with space');
+            
+            // Get cursor position before updating content
+            const selection = window.getSelection();
+            let cursorPosition = 0;
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const preCaretRange = range.cloneRange();
+                preCaretRange.selectNodeContents(liveNotesTextarea);
+                preCaretRange.setEnd(range.endContainer, range.endOffset);
+                cursorPosition = preCaretRange.toString().length;
+            }
+            
+            // Update content while preserving cursor position
+            setNotesContent(content);
+            
+            // Restore cursor position after content update
+            setTimeout(() => {
+                setCursorPosition(liveNotesTextarea, cursorPosition + (content.length - originalContent.length));
+            }, 0);
         }
         
+        // Update global state
         notepadContent = content;
         pendingChanges = true;
         
@@ -2975,22 +3002,51 @@ async function fetchNotes() {
             const beforeCursor = currentContent.substring(0, cursorPos);
             const afterCursor = currentContent.substring(cursorPos);
             
-            // Add new line at cursor position
+            // Check if we're in the middle of a word and move to word boundary
+            let adjustedCursorPos = cursorPos;
+            let adjustedBeforeCursor = beforeCursor;
+            let adjustedAfterCursor = afterCursor;
+            
+            // If cursor is in the middle of a word (non-space characters on both sides)
+            if (cursorPos > 0 && cursorPos < currentContent.length) {
+                const charBefore = currentContent[cursorPos - 1];
+                const charAfter = currentContent[cursorPos];
+                
+                // If we're in the middle of a word (letter/number before and after)
+                if (/\w/.test(charBefore) && /\w/.test(charAfter)) {
+                    // Find the end of the current word
+                    let wordEndPos = cursorPos;
+                    while (wordEndPos < currentContent.length && /\w/.test(currentContent[wordEndPos])) {
+                        wordEndPos++;
+                    }
+                    
+                    // Move cursor to end of word
+                    adjustedCursorPos = wordEndPos;
+                    adjustedBeforeCursor = currentContent.substring(0, adjustedCursorPos);
+                    adjustedAfterCursor = currentContent.substring(adjustedCursorPos);
+                    
+                    console.log('📝 New line: Moved cursor to end of word to avoid splitting');
+                }
+            }
+            
+            // Add new line at the adjusted cursor position
             let newText;
-            if (beforeCursor.endsWith('\n') || beforeCursor === '') {
-                newText = beforeCursor + '\n' + afterCursor;
+            if (adjustedBeforeCursor.endsWith('\n') || adjustedBeforeCursor === '') {
+                // Single line break if already at start of line or empty
+                newText = adjustedBeforeCursor + '\n' + adjustedAfterCursor;
             } else {
-                newText = beforeCursor + '\n\n' + afterCursor;
+                // Single line break for better spacing (reduced from double)
+                newText = adjustedBeforeCursor + '\n' + adjustedAfterCursor;
             }
             
             setNotesContent(newText);
             
             // Position cursor at the start of the new line
-            const newCursorPos = beforeCursor.length + (beforeCursor.endsWith('\n') || beforeCursor === '' ? 1 : 2);
+            const newCursorPos = adjustedBeforeCursor.length + 1;
             setCursorPosition(liveNotesTextarea, newCursorPos);
         } else {
             // Fallback: add line at the end
-            const newText = currentContent + (currentContent.endsWith('\n') ? '\n' : '\n\n');
+            const newText = currentContent + (currentContent.endsWith('\n') ? '\n' : '\n');
             setNotesContent(newText);
             setCursorPosition(liveNotesTextarea, newText.length);
         }
@@ -3901,15 +3957,28 @@ async function fetchNotes() {
                 translationTimeout = setTimeout(async () => {
                     try {
                         console.log(`🔄 Translating "${wordToTranslate}" using language pair: ${langPair} (Auto-translate: ${autoTranslateLanguage})`);
+                        
+                        // Check connection status before attempting translation
+                        const connectionStatus = await testDatabaseConnection();
+                        if (!connectionStatus) {
+                            console.log('❌ Translation skipped: No database connection');
+                            return;
+                        }
+                        
                         const translation = await translateText(wordToTranslate, langPair);
-                        if (translation && translation !== 'Translation failed.' && translation !== 'Translation error.' && translation.toLowerCase() !== wordToTranslate.toLowerCase()) {
+                        if (translation && 
+                            translation !== 'Translation failed.' && 
+                            translation !== 'Translation error.' && 
+                            translation !== 'Translation timeout - check connection.' &&
+                            translation.toLowerCase() !== wordToTranslate.toLowerCase()) {
                             console.log(`✅ Translation result: "${translation}"`);
                             showTranslationSuggestion(wordToTranslate, translation, cursorPosition);
                         } else {
-                            console.log(`❌ No valid translation found for "${wordToTranslate}"`);
+                            console.log(`❌ No valid translation found for "${wordToTranslate}" (result: ${translation})`);
                         }
                     } catch (error) {
                         console.error('Translation error:', error);
+                        // Don't show error to user for auto-translation failures
                     }
                 }, 500); // Wait 500ms before making the API call
             }
