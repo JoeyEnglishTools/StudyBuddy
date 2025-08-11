@@ -1556,16 +1556,30 @@ async function fetchNotes() {
         // Set cursor to top-left for stylus/touch input
         setTimeout(() => {
             liveNotesTextarea.focus();
-            // Position cursor at the beginning for better stylus experience
-            if (liveNotesTextarea.textContent.length === 0) {
-                const range = document.createRange();
-                const sel = window.getSelection();
+            // Always position cursor at the beginning for better stylus experience
+            const range = document.createRange();
+            const sel = window.getSelection();
+            
+            // Position at start of the first text node or at beginning if empty
+            if (liveNotesTextarea.childNodes.length > 0) {
+                // Find first text node or position at beginning of first element
+                let firstNode = liveNotesTextarea.childNodes[0];
+                while (firstNode && firstNode.nodeType !== Node.TEXT_NODE && firstNode.childNodes.length > 0) {
+                    firstNode = firstNode.childNodes[0];
+                }
+                if (firstNode && firstNode.nodeType === Node.TEXT_NODE) {
+                    range.setStart(firstNode, 0);
+                } else {
+                    range.setStart(liveNotesTextarea, 0);
+                }
+            } else {
                 range.setStart(liveNotesTextarea, 0);
-                range.collapse(true);
-                sel.removeAllRanges();
-                sel.addRange(range);
-                console.log('📝 Cursor positioned at top-left for stylus input');
             }
+            
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            console.log('📝 Cursor positioned at top-left for stylus input');
         }, 100);
         
         // Add event listeners to notepad
@@ -2588,6 +2602,21 @@ async function fetchNotes() {
             const learningCode = learningLanguage.split('-')[0].toLowerCase();
             const nativeCode = nativeLanguage.toLowerCase();
             
+            console.log('🌐 Fill-up translation language codes:', { 
+                learningLanguage, 
+                nativeLanguage, 
+                learningCode, 
+                nativeCode 
+            });
+            
+            // Validate that learning and native language codes are different
+            if (learningCode === nativeCode) {
+                alert(`Translation cannot proceed: both learning language (${learningLanguage}) and native language (${nativeLanguage}) resolve to the same language code "${learningCode}". Please ensure your deck uses different languages for learning and native.`);
+                notesFillUpBtn.textContent = 'Translate Missing';
+                notesFillUpBtn.disabled = false;
+                return;
+            }
+            
             // Format for MyMemory API: "source|target"
             langPair = `${learningCode}|${nativeCode}`;
             
@@ -3261,13 +3290,16 @@ async function fetchNotes() {
             // Filter and prepare notes for saving
             const notesToSave = completedNotesData
                 .filter(note => {
-                    const shouldSave = note.targetLang.trim() !== ''; // Only need a word, translation can be empty
-                    console.log(`💾 Filter check for "${note.targetLang}" with translation "${note.translation}": shouldSave=${shouldSave}`);
+                    // Require both word and translation to save a note
+                    const hasWord = note.targetLang.trim() !== '';
+                    const hasTranslation = note.translation && note.translation.trim() !== '';
+                    const shouldSave = hasWord && hasTranslation;
+                    console.log(`💾 Filter check for "${note.targetLang}" with translation "${note.translation}": hasWord=${hasWord}, hasTranslation=${hasTranslation}, shouldSave=${shouldSave}`);
                     return shouldSave;
                 })
                 .map(note => ({
                     lang1: note.targetLang.trim(),
-                    lang2: note.translation ? note.translation.trim() : '', // Allow empty translation for incomplete pairs
+                    lang2: note.translation.trim(), // Translation is required now
                     lineNumber: note.lineNumber, // Track line number for replacements
                     isIncomplete: note.isIncomplete || false, // Track if this is incomplete
                     isEdit: note.wasEdited || false // Track if this is an edit to existing content
@@ -3580,6 +3612,20 @@ async function fetchNotes() {
             // Determine language codes for translation API
             const learningCode = learningLanguage.split('-')[0].toLowerCase(); // 'es' from 'es-ES'
             const nativeCode = nativeLanguage.toLowerCase(); // 'en' from 'EN'
+            
+            console.log('🌐 Live Notes translation language codes:', { 
+                learningLanguage, 
+                nativeLanguage, 
+                learningCode, 
+                nativeCode,
+                langPair: `${learningCode}|${nativeCode}`
+            });
+            
+            // Validate that learning and native language codes are different
+            if (learningCode === nativeCode) {
+                alert(`Translation cannot proceed: both learning language (${learningLanguage}) and native language (${nativeLanguage}) resolve to the same language code "${learningCode}". Please ensure your deck uses different languages for learning and native.`);
+                return;
+            }
             
             // Use enhanced batch translation with dictionary enrichment
             const result = await batchTranslateWithDictionaryEnrichment(text, learningCode, nativeCode);
@@ -7710,6 +7756,14 @@ if (languageSelectorInGame) {
                     
                     if (!deckLanguage) {
                         alert('Please select the language you are learning.');
+                        return;
+                    }
+                    
+                    // Validate that learning and native languages are different
+                    const learningCode = deckLanguage.split('-')[0].toLowerCase();
+                    const nativeCode = nativeLanguage.toLowerCase();
+                    if (learningCode === nativeCode) {
+                        alert('Learning language and native language must be different. Please select different languages for optimal translation functionality.');
                         return;
                     }
                     
