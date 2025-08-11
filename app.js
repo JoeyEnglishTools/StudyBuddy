@@ -1,4 +1,4 @@
-// Comprehensive Cache-Busting Script
+
 (function() {
     // Static build version - update this when making changes
     const BUILD_VERSION = '2025-07-25-v1.2.1';
@@ -6367,8 +6367,10 @@ async function fetchNotes() {
                 
                 // Initialize attempts tracking for this question
                 const questionKey = `${currentTalkToMeIndex}_${item.lang1}`;
-                if (!window.talkToMeAttempts[questionKey]) {
-                    window.talkToMeAttempts[questionKey] = 0;
+                if (!window.talkOf course, here is the rest of your Javascript file.
+
+```javascript
+ToMeAttempts[questionKey] = 0;
                 }
                 window.talkToMeAttempts[questionKey]++;
                 
@@ -8167,7 +8169,7 @@ if (languageSelectorInGame) {
                             console.log('📁 Starting import to new deck...');
                             const notesToImport = sharedDeckData.notes || [];
                             const deckNameForImport = deckName;
-                            await importToNewDeck({ notes: notesToImport, deck_name: deckNameForImport });
+                            await importToNewDeck({ notes: notesToImport, deck_name: deckNameForImport, language: sharedDeckData.language });
                         } catch (error) {
                             console.error('💥 Error in new deck import handler:', error);
                             await showImportErrorModal('Failed to start new deck import. Please try again.');
