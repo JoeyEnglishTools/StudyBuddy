@@ -329,11 +329,17 @@ async function fetchNotes() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return false;
             
-            // Check if note_sets table exists by trying to query it
-            const { data: testDecks, error: testError } = await supabaseClient
+            // Check if note_sets table exists by trying to query it with timeout
+            const queryPromise = supabaseClient
                 .from('note_sets')
                 .select('id')
                 .limit(1);
+                
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Table check timeout')), 8000)
+            );
+            
+            const { data: testDecks, error: testError } = await Promise.race([queryPromise, timeoutPromise]);
             
             if (testError && testError.code === '42P01') {
                 // Table doesn't exist - this means we need to use the database as-is
@@ -344,6 +350,11 @@ async function fetchNotes() {
             
             if (testError) {
                 console.error('❌ Error checking note_sets table:', testError);
+                // For connection timeouts, try to recover gracefully rather than failing completely
+                if (testError.message?.includes('timeout')) {
+                    console.log('⚠️ Table check timed out - will retry with compatibility mode fallback');
+                    return false;
+                }
                 return false;
             }
             
@@ -352,6 +363,10 @@ async function fetchNotes() {
             
         } catch (err) {
             console.error('💥 Error in ensureNoteSetsTableExists:', err);
+            // For any unexpected errors, don't completely fail - use compatibility mode
+            if (err.message?.includes('timeout')) {
+                console.log('⚠️ Table existence check timed out - using compatibility mode');
+            }
             return false;
         }
     }
@@ -364,26 +379,50 @@ async function fetchNotes() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) {
                 console.error('❌ No user authenticated in fetchUserDecks');
-                return []; // Return empty array if no user
+                // Try to return cached decks if available
+                const cachedDecks = localStorage.getItem('cached_user_decks');
+                if (cachedDecks) {
+                    console.log('🔄 Returning cached decks due to auth failure');
+                    return JSON.parse(cachedDecks);
+                }
+                return []; // Return empty array if no user and no cache
             }
             console.log('  -> User authenticated for fetching decks:', user.email);
 
             const tableExists = await ensureNoteSetsTableExists();
             if (!tableExists) {
-                console.log('  -> note_sets table does not exist. Returning empty array.');
+                console.log('  -> note_sets table does not exist. Checking for cached decks...');
+                // Try to return cached decks if table doesn't exist
+                const cachedDecks = localStorage.getItem('cached_user_decks');
+                if (cachedDecks) {
+                    console.log('🔄 Returning cached decks due to table unavailability');
+                    return JSON.parse(cachedDecks);
+                }
                 return [];
             }
             console.log('  -> note_sets table confirmed to exist.');
 
-            console.log('  -> Querying for decks...');
-            const { data, error } = await supabaseClient
+            console.log('  -> Querying for decks with timeout...');
+            const queryPromise = supabaseClient
                 .from('note_sets')
                 .select('*, notes_count:notes(count)')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
+                
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Deck fetch timeout')), 10000)
+            );
+            
+            const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
             
             if (error) {
                 console.error('❌ Error fetching decks from Supabase:', error);
+                // Try to return cached decks on error
+                const cachedDecks = localStorage.getItem('cached_user_decks');
+                if (cachedDecks && !error.message?.includes('timeout')) {
+                    console.log('🔄 Returning cached decks due to fetch error');
+                    return JSON.parse(cachedDecks);
+                }
                 throw error; // Throw error to be caught by caller
             }
             
@@ -393,10 +432,28 @@ async function fetchNotes() {
                 notes_count: deck.notes_count?.[0]?.count || 0
             })) || [];
             
+            // Cache the successfully fetched decks
+            if (decksWithCounts.length > 0) {
+                localStorage.setItem('cached_user_decks', JSON.stringify(decksWithCounts));
+                console.log('💾 Cached user decks for future fallback');
+            }
+            
             console.log('✅ Fetched decks successfully:', decksWithCounts.length, 'decks found.');
             return decksWithCounts;
         } catch (err) {
             console.error('💥 A critical error occurred in fetchUserDecks:', err);
+            
+            // Final fallback: try to return cached decks
+            const cachedDecks = localStorage.getItem('cached_user_decks');
+            if (cachedDecks) {
+                console.log('🔄 Final fallback: returning cached decks due to critical error');
+                try {
+                    return JSON.parse(cachedDecks);
+                } catch (parseErr) {
+                    console.error('💥 Failed to parse cached decks:', parseErr);
+                }
+            }
+            
             throw err; // Re-throw error to be handled by caller
         }
     }
@@ -1735,17 +1792,17 @@ async function fetchNotes() {
         const range = selection.getRangeAt(0);
         const textNode = range.startContainer;
         
-        // Check if the last character added was a dot
+        // Enhanced stylus input handling
         if (textNode.nodeType === Node.TEXT_NODE) {
             const content = textNode.textContent;
             const cursorPos = range.startOffset;
             
-            // If the character just before cursor is a dot
+            // Get the last few characters to detect patterns
+            const lastFewChars = content.substring(Math.max(0, cursorPos - 5), cursorPos);
+            
+            // Pattern 1: Convert dots to new lines (existing functionality)
             if (cursorPos > 0 && content[cursorPos - 1] === '.') {
                 console.log('📱 Stylus dot detected - converting to new line');
-                
-                // Prevent the default behavior and replace with new line
-                event.preventDefault();
                 
                 // Remove the dot and add a new line
                 const newContent = content.substring(0, cursorPos - 1) + '\n' + content.substring(cursorPos);
@@ -1760,7 +1817,70 @@ async function fetchNotes() {
                 
                 // Update display
                 updateLineAndParsedCounts();
-                return true; // Indicate stylus input was handled
+                return true;
+            }
+            
+            // Pattern 2: Handle common stylus scribbles for common words
+            const styluscribbles = {
+                'ooo': 'hello',
+                '---': ' - ', // Auto-format dashes
+                '|||': '\n\n', // Triple lines = double line break
+                '...': '...\n', // Ellipsis with newline
+                '???': '?', // Multiple question marks to single
+                '!!!': '!', // Multiple exclamation marks to single
+            };
+            
+            // Check for scribble patterns in the last few characters
+            for (const [scribble, replacement] of Object.entries(styluscribbles)) {
+                if (lastFewChars.endsWith(scribble)) {
+                    console.log('📱 Stylus scribble detected:', scribble, '→', replacement);
+                    
+                    // Replace the scribble pattern
+                    const newContent = content.substring(0, cursorPos - scribble.length) + replacement + content.substring(cursorPos);
+                    textNode.textContent = newContent;
+                    
+                    // Position cursor after replacement
+                    const newCursorPos = cursorPos - scribble.length + replacement.length;
+                    const newRange = document.createRange();
+                    newRange.setStart(textNode, newCursorPos);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    
+                    // Update display
+                    updateLineAndParsedCounts();
+                    return true;
+                }
+            }
+            
+            // Pattern 3: Detect handwriting-like input for potential transcription
+            // If we get unusual character combinations that might be handwriting recognition artifacts
+            const hasUnusualChars = /[^\w\s\-.,!?'"]/.test(lastFewChars);
+            if (hasUnusualChars && lastFewChars.length >= 3) {
+                console.log('📱 Possible handwriting input detected:', lastFewChars);
+                // Note: Real handwriting recognition would require specialized APIs
+                // For now, we just clean up common recognition artifacts
+                
+                const cleanedText = lastFewChars
+                    .replace(/[^\w\s\-.,!?'"]/g, '') // Remove unusual characters
+                    .replace(/\s+/g, ' '); // Normalize spaces
+                
+                if (cleanedText !== lastFewChars && cleanedText.trim()) {
+                    console.log('📱 Cleaning handwriting artifacts:', lastFewChars, '→', cleanedText);
+                    
+                    const newContent = content.substring(0, cursorPos - lastFewChars.length) + cleanedText + content.substring(cursorPos);
+                    textNode.textContent = newContent;
+                    
+                    const newCursorPos = cursorPos - lastFewChars.length + cleanedText.length;
+                    const newRange = document.createRange();
+                    newRange.setStart(textNode, newCursorPos);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    
+                    updateLineAndParsedCounts();
+                    return true;
+                }
             }
         }
         return false; // No stylus input detected
@@ -3726,16 +3846,17 @@ async function fetchNotes() {
     }
 
     // --- LIVE TRANSLATION FUNCTIONS ---
-    async function translateText(text, langPair) {
+    async function translateText(text, langPair, retryCount = 0) {
         if (!text.trim()) return ''; // Don't translate empty text
         const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+        const maxRetries = 2;
         
         try {
-            console.log('📡 Starting translation request for mobile...', { text, langPair });
+            console.log('📡 Starting translation request...', { text, langPair, retryCount });
             
-            // Add timeout for mobile networks and better error handling
+            // Reduced timeout to 8 seconds to prevent "connection gets lost very quickly"
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for mobile
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
             
             const response = await fetch(apiUrl, {
                 signal: controller.signal,
@@ -3749,6 +3870,12 @@ async function fetchNotes() {
             
             if (!response.ok) {
                 console.error('❌ Translation API response not ok:', response.status, response.statusText);
+                // Retry on server errors
+                if (response.status >= 500 && retryCount < maxRetries) {
+                    console.log(`🔄 Server error, retrying... (${retryCount + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                    return await translateText(text, langPair, retryCount + 1);
+                }
                 return "Translation failed.";
             }
             
@@ -3764,9 +3891,21 @@ async function fetchNotes() {
         } catch (error) {
             if (error.name === 'AbortError') {
                 console.error('⏰ Translation timeout (network may be slow):', error);
-                return "Translation timeout - check connection.";
+                // Retry on timeout if we haven't exceeded max retries
+                if (retryCount < maxRetries) {
+                    console.log(`🔄 Timeout, retrying with shorter timeout... (${retryCount + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Brief wait before retry
+                    return await translateText(text, langPair, retryCount + 1);
+                }
+                return "Connection timeout - try again";
             }
             console.error('💥 Translation API error:', error);
+            // Retry on network errors
+            if (retryCount < maxRetries && (error.message?.includes('network') || error.message?.includes('fetch'))) {
+                console.log(`🔄 Network error, retrying... (${retryCount + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return await translateText(text, langPair, retryCount + 1);
+            }
             return "Translation error.";
         }
     }

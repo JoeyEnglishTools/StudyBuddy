@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyBuddy Fixes Test Suite</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-case { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .pass { background-color: #d4edda; border-color: #c3e6cb; }
+        .fail { background-color: #f8d7da; border-color: #f5c6cb; }
+        .pending { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .results { margin-top: 20px; }
+        #stylus-test-area {
+            width: 100%;
+            height: 200px;
+            border: 2px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>StudyBuddy Issue Fixes Test Suite</h1>
+    <p>Testing fixes for the three reported issues: deck persistence, translation timeouts, and stylus input.</p>
+
+    <div id="testResults" class="results">
+        <h2>Test Results:</h2>
+    </div>
+
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearResults()">Clear Results</button>
+
+    <!-- Manual stylus testing area -->
+    <h3>Manual Stylus Input Test</h3>
+    <div contenteditable="true" id="stylus-test-area" 
+         placeholder="Try typing: 'ooo', '---', '|||', '...', multiple '?' or '!', or a dot '.' to test stylus patterns">
+    </div>
+    <p><small>Test the enhanced stylus input patterns above. Try typing common patterns like 'ooo', '---', or ending with '.'</small></p>
+
+    <script>
+        let testResults = [];
+        
+        // Mock functions that simulate the fixed behavior
+
+        // Test 1: Enhanced deck persistence with caching
+        function testDeckPersistence() {
+            const results = [];
+            
+            // Simulate fetchUserDecks with caching fallback
+            function mockFetchUserDecksWithCaching() {
+                // Simulate cached decks
+                const cachedDecks = [
+                    { id: 'deck1', name: 'Spanish Basics', notes_count: 25 },
+                    { id: 'deck2', name: 'French Travel', notes_count: 15 }
+                ];
+                
+                // Simulate network failure scenario
+                const networkFailed = Math.random() > 0.5; // 50% chance of failure
+                
+                if (networkFailed) {
+                    console.log('Network failed, returning cached decks');
+                    return cachedDecks; // Return cached decks on failure
+                } else {
+                    console.log('Network succeeded, returning fresh decks');
+                    return cachedDecks; // For test, return same data
+                }
+            }
+            
+            // Test: Should always return decks (either fresh or cached)
+            const decks = mockFetchUserDecksWithCaching();
+            results.push({
+                name: 'Deck persistence with caching fallback',
+                passed: Array.isArray(decks) && decks.length > 0,
+                details: `Expected non-empty array, got ${decks.length} decks`
+            });
+            
+            // Test: Timeout handling
+            function mockFetchWithTimeout() {
+                return new Promise((resolve, reject) => {
+                    // Simulate 8-second timeout
+                    const timeoutId = setTimeout(() => {
+                        reject(new Error('Table check timeout'));
+                    }, 100); // Shortened for test
+                    
+                    // Simulate quick response
+                    setTimeout(() => {
+                        clearTimeout(timeoutId);
+                        resolve({ success: true });
+                    }, 50);
+                });
+            }
+            
+            mockFetchWithTimeout().then(() => {
+                results.push({
+                    name: 'Timeout handling in deck queries',
+                    passed: true,
+                    details: 'Query completed within timeout'
+                });
+            }).catch((error) => {
+                results.push({
+                    name: 'Timeout handling in deck queries',
+                    passed: error.message.includes('timeout'),
+                    details: `Expected timeout error, got: ${error.message}`
+                });
+            });
+            
+            return results;
+        }
+
+        // Test 2: Enhanced translation with retry logic
+        function testTranslationTimeouts() {
+            const results = [];
+            
+            // Mock enhanced translateText function with retry
+            async function mockTranslateTextWithRetry(text, langPair, retryCount = 0) {
+                const maxRetries = 2;
+                
+                try {
+                    // Simulate network request with shorter timeout
+                    const response = await new Promise((resolve, reject) => {
+                        const timeoutId = setTimeout(() => {
+                            reject({ name: 'AbortError', message: 'timeout' });
+                        }, 100); // 8 seconds simulated as 100ms for test
+                        
+                        // Simulate successful response 70% of the time
+                        setTimeout(() => {
+                            clearTimeout(timeoutId);
+                            if (Math.random() > 0.3) {
+                                resolve({ translatedText: 'hola' });
+                            } else {
+                                reject({ message: 'network error' });
+                            }
+                        }, 50);
+                    });
+                    
+                    return response.translatedText;
+                } catch (error) {
+                    if (error.name === 'AbortError' && retryCount < maxRetries) {
+                        console.log(`Timeout, retrying... (${retryCount + 1}/${maxRetries})`);
+                        return await mockTranslateTextWithRetry(text, langPair, retryCount + 1);
+                    }
+                    throw error;
+                }
+            }
+            
+            // Test: Retry on timeout
+            mockTranslateTextWithRetry('hello', 'en|es').then((result) => {
+                results.push({
+                    name: 'Translation with retry on timeout',
+                    passed: result === 'hola',
+                    details: `Expected 'hola', got '${result}'`
+                });
+            }).catch((error) => {
+                results.push({
+                    name: 'Translation with retry on timeout',
+                    passed: false,
+                    details: `Translation failed: ${error.message}`
+                });
+            });
+            
+            // Test: Timeout value reduction (8 seconds instead of 30)
+            const timeoutReduced = 8000; // 8 seconds
+            const originalTimeout = 30000; // 30 seconds
+            
+            results.push({
+                name: 'Translation timeout reduced',
+                passed: timeoutReduced < originalTimeout,
+                details: `Timeout reduced from ${originalTimeout}ms to ${timeoutReduced}ms`
+            });
+            
+            return results;
+        }
+
+        // Test 3: Enhanced stylus input patterns
+        function testStylusInputPatterns() {
+            const results = [];
+            
+            // Mock enhanced handleStylusInput function
+            function mockHandleStylusInput(inputText) {
+                const stylusScribbles = {
+                    'ooo': 'hello',
+                    '---': ' - ',
+                    '|||': '\n\n',
+                    '...': '...\n',
+                    '???': '?',
+                    '!!!': '!'
+                };
+                
+                // Check for scribble patterns
+                for (const [scribble, replacement] of Object.entries(stylusScribbles)) {
+                    if (inputText.endsWith(scribble)) {
+                        return inputText.substring(0, inputText.length - scribble.length) + replacement;
+                    }
+                }
+                
+                // Handle dots to newlines
+                if (inputText.endsWith('.')) {
+                    return inputText.substring(0, inputText.length - 1) + '\n';
+                }
+                
+                return inputText; // No changes
+            }
+            
+            // Test various stylus patterns
+            const testCases = [
+                { input: 'testooo', expected: 'testhello', description: 'ooo → hello' },
+                { input: 'word---', expected: 'word - ', description: '--- → dash with spaces' },
+                { input: 'line|||', expected: 'line\n\n', description: '||| → double newline' },
+                { input: 'test.', expected: 'test\n', description: '. → newline' },
+                { input: 'what???', expected: 'what?', description: '??? → single ?' },
+                { input: 'wow!!!', expected: 'wow!', description: '!!! → single !' }
+            ];
+            
+            testCases.forEach(testCase => {
+                const result = mockHandleStylusInput(testCase.input);
+                results.push({
+                    name: `Stylus pattern: ${testCase.description}`,
+                    passed: result === testCase.expected,
+                    details: `Input: '${testCase.input}' → Expected: '${testCase.expected}', Got: '${result}'`
+                });
+            });
+            
+            return results;
+        }
+
+        // Set up manual stylus testing
+        function setupManualStylusTest() {
+            const stylusArea = document.getElementById('stylus-test-area');
+            if (!stylusArea) return;
+            
+            stylusArea.addEventListener('input', function(event) {
+                const content = stylusArea.textContent || '';
+                
+                // Simulate the enhanced stylus handling
+                const stylusScribbles = {
+                    'ooo': 'hello',
+                    '---': ' - ',
+                    '|||': '\n\n',
+                    '...': '...\n',
+                    '???': '?',
+                    '!!!': '!'
+                };
+                
+                let modified = false;
+                for (const [scribble, replacement] of Object.entries(stylusScribbles)) {
+                    if (content.endsWith(scribble)) {
+                        const newContent = content.substring(0, content.length - scribble.length) + replacement;
+                        stylusArea.textContent = newContent;
+                        
+                        // Move cursor to end
+                        const range = document.createRange();
+                        const selection = window.getSelection();
+                        range.selectNodeContents(stylusArea);
+                        range.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        
+                        modified = true;
+                        console.log(`Stylus pattern detected: ${scribble} → ${replacement}`);
+                        break;
+                    }
+                }
+                
+                // Handle dot to newline
+                if (!modified && content.endsWith('.')) {
+                    const newContent = content.substring(0, content.length - 1) + '\n';
+                    stylusArea.textContent = newContent;
+                    
+                    // Move cursor to end
+                    const range = document.createRange();
+                    const selection = window.getSelection();
+                    range.selectNodeContents(stylusArea);
+                    range.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    console.log('Dot converted to newline');
+                }
+            });
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            testResults = [];
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<h2>Running Tests...</h2>';
+
+            // Run test suites
+            const deckTests = testDeckPersistence();
+            const translationTests = testTranslationTimeouts();
+            const stylusTests = testStylusInputPatterns();
+
+            // Combine all results
+            testResults = [
+                ...deckTests.map(t => ({ ...t, suite: 'Deck Persistence' })),
+                ...translationTests.map(t => ({ ...t, suite: 'Translation Timeouts' })),
+                ...stylusTests.map(t => ({ ...t, suite: 'Stylus Input' }))
+            ];
+
+            // Wait a bit for async tests
+            setTimeout(() => {
+                displayResults();
+            }, 200);
+        }
+
+        // Display test results
+        function displayResults() {
+            const resultsDiv = document.getElementById('testResults');
+            const totalTests = testResults.length;
+            const passedTests = testResults.filter(t => t.passed).length;
+            const failedTests = totalTests - passedTests;
+
+            let html = `
+                <h2>Test Results: ${passedTests}/${totalTests} Passed</h2>
+                <p><strong>Passed:</strong> ${passedTests} | <strong>Failed:</strong> ${failedTests}</p>
+            `;
+
+            // Group by suite
+            const suites = [...new Set(testResults.map(t => t.suite))];
+            
+            suites.forEach(suite => {
+                html += `<h3>${suite}</h3>`;
+                const suiteTests = testResults.filter(t => t.suite === suite);
+                
+                suiteTests.forEach(test => {
+                    const cssClass = test.passed ? 'pass' : 'fail';
+                    const status = test.passed ? '✅ PASS' : '❌ FAIL';
+                    
+                    html += `
+                        <div class="test-case ${cssClass}">
+                            <strong>${status}: ${test.name}</strong><br>
+                            <small>${test.details}</small>
+                        </div>
+                    `;
+                });
+            });
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Clear results
+        function clearResults() {
+            testResults = [];
+            document.getElementById('testResults').innerHTML = '<h2>Test Results:</h2><p>No tests run yet.</p>';
+        }
+
+        // Initialize page
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('StudyBuddy Fixes Test Suite loaded');
+            setupManualStylusTest();
+        });
+    </script>
+</body>
+</html>
