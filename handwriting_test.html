@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Handwriting API Test</title>
+</head>
+<body>
+    <h1>Testing Handwriting Recognition APIs</h1>
+    <div id="results"></div>
+    
+    <script>
+        function testHandwritingAPIs() {
+            const results = document.getElementById('results');
+            
+            // Test if experimental handwriting recognition is available
+            if ('ml' in window && 'createHandwritingRecognizer' in window.ml) {
+                results.innerHTML += '<p>✅ Experimental Handwriting Recognition API available</p>';
+            } else {
+                results.innerHTML += '<p>❌ Experimental Handwriting Recognition API not available</p>';
+            }
+            
+            // Test if navigator.ink is available (ink API)
+            if ('ink' in navigator) {
+                results.innerHTML += '<p>✅ Navigator Ink API available</p>';
+            } else {
+                results.innerHTML += '<p>❌ Navigator Ink API not available</p>';
+            }
+            
+            // Test if experimental handwriting APIs are available
+            if ('experimental' in window && 'handwriting' in window.experimental) {
+                results.innerHTML += '<p>✅ Experimental Handwriting APIs available</p>';
+            } else {
+                results.innerHTML += '<p>❌ Experimental Handwriting APIs not available</p>';
+            }
+            
+            // Test for Chrome's experimental handwriting recognizer
+            if (typeof HandwritingRecognizer !== 'undefined') {
+                results.innerHTML += '<p>✅ HandwritingRecognizer API available</p>';
+            } else {
+                results.innerHTML += '<p>❌ HandwritingRecognizer API not available</p>';
+            }
+            
+            // Check if touch events are supported
+            if ('ontouchstart' in window) {
+                results.innerHTML += '<p>✅ Touch events supported</p>';
+            } else {
+                results.innerHTML += '<p>❌ Touch events not supported</p>';
+            }
+            
+            // Check if pointer events are supported
+            if ('onpointerdown' in window) {
+                results.innerHTML += '<p>✅ Pointer events supported</p>';
+            } else {
+                results.innerHTML += '<p>❌ Pointer events not supported</p>';
+            }
+        }
+        
+        testHandwritingAPIs();
+    </script>
+</body>
+</html>
