@@ -406,7 +406,7 @@ async function fetchNotes() {
             console.log('  -> Querying for decks with timeout...');
             const queryPromise = supabaseClient
                 .from('note_sets')
-                .select('*') 
+              .select('*, notes_count:notes(count)')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
                 
